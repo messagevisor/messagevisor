@@ -1,0 +1,40 @@
+{
+  "name": "@messagevisor/types",
+  "version": "0.0.1",
+  "description": "Common Typescript types for Messagevisor",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js",
+      "require": "./src/index.js"
+    }
+  },
+  "scripts": {
+    "transpile": "echo 'Nothing to transpile'",
+    "dist": "echo 'Nothing to dist'",
+    "build": "tsc ./src/index.d.ts",
+    "test": "echo 'Nothing to test in types package'",
+    "typecheck": "tsc --noEmit --skipLibCheck -p tsconfig.json"
+  },
+  "author": {
+    "name": "Fahad Heylaal",
+    "url": "https://fahad19.com"
+  },
+  "homepage": "https://messagevisor.com",
+  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/messagevisor/messagevisor.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/messagevisor/messagevisor/issues"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,32 @@
+segment: vip-checkout-audience
+
+assertions:
+  - description: "vip-checkout-audience matches pro writers with enough seats outside blocked countries"
+    segment: vip-checkout-audience
+    context:
+      plan: pro
+      country: nl
+      account:
+        seats: 5
+      permissions:
+        - write
+        - export
+    expectedToMatch: true
+
+  - description: "vip-checkout-audience rejects blocked countries"
+    segment: vip-checkout-audience
+    context:
+      plan: enterprise
+      country: cn
+      permissions:
+        - write
+    expectedToMatch: false
+
+  - description: "vip-checkout-audience rejects users without write permission"
+    segment: vip-checkout-audience
+    context:
+      plan: enterprise
+      country: nl
+      permissions:
+        - read
+    expectedToMatch: false

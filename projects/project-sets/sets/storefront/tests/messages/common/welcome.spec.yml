@@ -1,0 +1,9 @@
+message: common.welcome
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: Welcome to the shop
+  - locale: nl-NL
+    target: web
+    expectedTranslation: Welkom in de winkel

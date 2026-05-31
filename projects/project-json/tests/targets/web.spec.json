@@ -1,0 +1,16 @@
+{
+  "target": "web",
+  "assertions": [
+    {
+      "locale": "en-US",
+      "expectedToIncludeMessages": ["auth.signin", "auth.signout", "nav.home", "nav.contact"],
+      "expectedFormats": {
+        "time": {
+          "short": {
+            "hourCycle": "h12"
+          }
+        }
+      }
+    }
+  ]
+}

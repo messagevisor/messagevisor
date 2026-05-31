@@ -1,0 +1,15 @@
+message: billing.deliveryWindow
+
+assertions:
+  - locale: en-US
+    target: web
+    timeZone: UTC
+    values:
+      deliveryAt: "2025-01-15T16:30:00Z"
+    expectedTranslation: "Delivery window: January 15, 2025 at 4:30 PM"
+  - locale: ar-SA
+    target: web
+    timeZone: UTC
+    values:
+      deliveryAt: "2025-01-15T16:30:00Z"
+    expectedTranslation: "موعد التوصيل: ١٥ يناير ٢٠٢٥ الساعة ٤:٣٠ م"

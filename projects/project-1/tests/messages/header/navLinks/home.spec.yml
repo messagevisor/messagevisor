@@ -1,0 +1,9 @@
+message: header.navLinks.home
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: Home
+  - locale: nl-NL
+    target: web
+    expectedTranslation: Home

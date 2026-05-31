@@ -1,0 +1,16 @@
+description: Search placeholder
+
+translations:
+  en: Search products, brands, and categories
+  en-GB: Search products, brands, and categories
+  nl-NL: Zoek producten, merken en categorieën
+  de-DE: Produkte, Marken und Kategorien suchen
+
+overrides:
+  - key: mobile-short
+    segments: platform-mobile
+    translations:
+      en: Search
+      en-GB: Search
+      nl-NL: Zoeken
+      de-DE: Suchen

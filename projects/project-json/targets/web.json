@@ -1,0 +1,9 @@
+{
+  "description": "Web",
+  "includeMessages": ["auth*", "nav*"],
+  "locales": ["en", "en-US", "en-GB"],
+  "context": {
+    "platform": "web"
+  },
+  "pretty": true
+}

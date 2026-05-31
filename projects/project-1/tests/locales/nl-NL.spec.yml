@@ -1,0 +1,144 @@
+locale: nl-NL
+
+assertions:
+  - description: nl-NL exhaustive preset subset
+    expectedFormats:
+      number:
+        decimal:
+          maximumFractionDigits: 2
+        money:
+          style: currency
+          currency: EUR
+        moneySymbol:
+          style: currency
+          currency: EUR
+          currencyDisplay: symbol
+        moneyCode:
+          style: currency
+          currency: EUR
+          currencyDisplay: code
+        moneyAccounting:
+          style: currency
+          currency: EUR
+          currencySign: accounting
+        decimalFixed:
+          style: decimal
+          minimumFractionDigits: 2
+          maximumFractionDigits: 2
+        percent:
+          style: percent
+          maximumFractionDigits: 1
+      date:
+        short:
+          year: 2-digit
+          month: numeric
+          day: numeric
+        numeric:
+          year: numeric
+          month: 2-digit
+          day: 2-digit
+        weekday:
+          weekday: long
+          year: numeric
+          month: long
+          day: numeric
+        long:
+          year: numeric
+          month: long
+          day: numeric
+      time:
+        short:
+          hour: numeric
+          minute: 2-digit
+        seconds:
+          hour: numeric
+          minute: 2-digit
+          second: 2-digit
+        utc:
+          hour: numeric
+          minute: 2-digit
+          timeZone: UTC
+      relative:
+        auto:
+          numeric: auto
+          style: long
+        short:
+          numeric: auto
+          style: short
+      dateTimeRange:
+        short:
+          year: 2-digit
+          month: numeric
+          day: numeric
+          hour: numeric
+          minute: 2-digit
+        event:
+          year: numeric
+          month: short
+          day: numeric
+          hour: numeric
+          minute: 2-digit
+
+  - description: nl-NL default money uses euro formatting
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: € 12,00
+    expectedByRuntime:
+      go: 12,00 €
+
+  - description: nl-NL target preview overrides the money preset
+    target: preview
+    expectedFormats:
+      number:
+        money:
+          currency: USD
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: US$ 12,00
+    expectedByRuntime:
+      go: 12,00 US$
+
+  - description: nl-NL long date is localized
+    rawMessage: "{when, date, long}"
+    values:
+      when: 2026-01-15T00:00:00Z
+    expectedTranslation: 15 januari 2026
+
+  - description: nl-NL local time uses 24-hour output
+    rawMessage: "{when, time, short}"
+    values:
+      when: 2026-01-15T12:00:00Z
+    expectedTranslation: "13:00"
+
+  - description: nl-NL time zone override is honored
+    rawMessage: "{when, time, utc}"
+    values:
+      when: 2026-01-15T12:00:00Z
+    timeZone: UTC
+    expectedTranslation: "12:00"
+
+  - description: nl-NL plural cart copy zero
+    rawMessage: "{items, plural, =0 {Geen artikelen in je winkelwagen} one {# artikel in je winkelwagen} other {# artikelen in je winkelwagen}}"
+    values:
+      items: 0
+    expectedTranslation: Geen artikelen in je winkelwagen
+
+  - description: nl-NL plural cart copy singular
+    rawMessage: "{items, plural, =0 {Geen artikelen in je winkelwagen} one {# artikel in je winkelwagen} other {# artikelen in je winkelwagen}}"
+    values:
+      items: 1
+    expectedTranslation: 1 artikel in je winkelwagen
+
+  - description: nl-NL plural cart copy plural
+    rawMessage: "{items, plural, =0 {Geen artikelen in je winkelwagen} one {# artikel in je winkelwagen} other {# artikelen in je winkelwagen}}"
+    values:
+      items: 3
+    expectedTranslation: 3 artikelen in je winkelwagen
+
+  - description: nl-NL select chooses the right branch
+    rawMessage: "{kind, select, invoice {Factuur} credit {Tegoed} other {Overig}}"
+    values:
+      kind: credit
+    expectedTranslation: Tegoed

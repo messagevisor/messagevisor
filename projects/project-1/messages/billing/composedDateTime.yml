@@ -1,0 +1,5 @@
+description: Product-controlled date and time composition
+
+translations:
+  en: "{prefix}: {date, date, numeric} at {date, time, short} {suffix}"
+  nl: "{prefix}: {date, date, numeric} om {date, time, short} {suffix}"

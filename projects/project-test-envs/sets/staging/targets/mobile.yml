@@ -1,0 +1,13 @@
+description: Mobile storefront
+pretty: true
+
+includeMessages:
+  - common*
+  - product*
+  - cart*
+  - checkout*
+
+locales:
+  - en-US
+  - en-NL
+  - nl-NL

@@ -1,0 +1,15 @@
+message: common.welcome
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      name: Lina
+      product: Messagevisor
+    expectedTranslation: "Welcome, Lina! Continue in Messagevisor."
+  - locale: ar-SA
+    target: web
+    values:
+      name: ليلى
+      product: Messagevisor
+    expectedTranslation: "مرحبًا ليلى! تابع في Messagevisor."

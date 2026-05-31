@@ -1,0 +1,30 @@
+segment: regional-enterprise-review
+
+assertions:
+  - description: "regional-enterprise-review matches Benelux enterprise accounts with enough seats"
+    segment: regional-enterprise-review
+    context:
+      account:
+        country: nl
+        plan: enterprise
+        seats: 12
+    expectedToMatch: true
+
+  - description: "regional-enterprise-review matches finance users from Germany"
+    segment: regional-enterprise-review
+    context:
+      country: de
+      age: 29
+      permissions:
+        - finance
+        - review
+    expectedToMatch: true
+
+  - description: "regional-enterprise-review rejects small enterprise accounts in Benelux"
+    segment: regional-enterprise-review
+    context:
+      account:
+        country: be
+        plan: enterprise
+        seats: 4
+    expectedToMatch: false

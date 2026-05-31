@@ -1,0 +1,46 @@
+message: dashboard.welcome
+
+assertions:
+  - matrix:
+      name: [Ada, Sam]
+    locale: en-US
+    target: web
+    description: Default welcome for ${{ name }}
+    values:
+      name: ${{ name }}
+    expectedTranslation: Welcome back, ${{ name }}
+  - matrix:
+      name: [Ada, Sam]
+    locale: en-US
+    target: web
+    description: Pro welcome for ${{ name }}
+    context:
+      plan: pro
+    values:
+      name: ${{ name }}
+    expectedTranslation: Welcome back, ${{ name }}. Your Pro workspace is ready.
+  - locale: nl-NL
+    target: web
+    context:
+      plan: pro
+    values:
+      name: Ada
+    expectedTranslation: Welkom terug, Ada. Je Pro-werkruimte staat klaar.
+  - locale: en-US
+    target: web
+    context:
+      platform: web
+      account:
+        country: NL
+    values:
+      name: Ada
+    expectedTranslation: Welcome back, Ada. Your Dutch workspace is ready.
+  - locale: nl-NL
+    target: web
+    context:
+      platform: web
+      account:
+        country: NL
+    values:
+      name: Ada
+    expectedTranslation: Welkom terug, Ada. Je Nederlandse werkruimte staat klaar.

@@ -1,0 +1,13 @@
+message: billing.orderTotal
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      amount: 1234.5
+    expectedTranslation: "Order total: $1,234.50"
+  - locale: ar-SA
+    target: web
+    values:
+      amount: 1234.5
+    expectedTranslation: "إجمالي الطلب: ‏١٬٢٣٤٫٥٠ ر.س.‏"

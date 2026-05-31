@@ -1,0 +1,5 @@
+description: Storefront checkout total
+
+translations:
+  en: "Total: {amount, number, money}"
+  nl: "Totaal: {amount, number, money}"

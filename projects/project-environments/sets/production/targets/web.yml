@@ -1,0 +1,13 @@
+description: Web
+pretty: true
+
+includeMessages:
+  - auth*
+  - nav*
+
+locales:
+  - en-US
+  - en-GB
+
+context:
+  platform: web

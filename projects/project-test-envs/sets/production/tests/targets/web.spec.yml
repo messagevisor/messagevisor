@@ -1,0 +1,19 @@
+target: web
+
+assertions:
+  - locale: en-US
+    expectedToIncludeMessages:
+      - common.appName
+      - home.hero
+      - product.price
+      - cart.itemCount
+      - checkout.cta
+      - checkout.orderPlaced
+  - locale: nl-NL
+    expectedToIncludeMessages:
+      - common.appName
+      - home.hero
+      - product.price
+      - cart.itemCount
+      - checkout.cta
+      - checkout.orderPlaced

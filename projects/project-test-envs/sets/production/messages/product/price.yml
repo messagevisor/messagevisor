@@ -1,0 +1,14 @@
+description: Product price
+translations:
+  en: "{name} costs {price, number, money}"
+  nl: "{name} kost {price, number, money}"
+overrides:
+  - key: pro-price
+    segments: pro-customer
+    translations:
+      en: "Pro price for {name}: {price, number, money}"
+      nl: "Ledenprijs voor {name}: {price, number, money}"
+  - key: staging-campaign
+    segments: pro-customer
+    translations:
+      en: "Staging campaign price for {name}: {price, number, money}"

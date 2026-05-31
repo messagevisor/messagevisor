@@ -1,0 +1,19 @@
+message: billing.meetingTime
+
+assertions:
+  - locale: en-US
+    target: web
+    timeZone: UTC
+    values:
+      date: "2025-01-01T12:00:00Z"
+    expectedTranslation: "Starts at 12:00 PM"
+    expectedByRuntime:
+      go: "Starts at 12:00 pm"
+  - locale: en-US
+    target: web
+    timeZone: America/New_York
+    values:
+      date: "2025-01-01T12:00:00Z"
+    expectedTranslation: "Starts at 7:00 AM"
+    expectedByRuntime:
+      go: "Starts at 7:00 am"

@@ -1,0 +1,37 @@
+target: ios
+
+assertions:
+  - locale: en-US
+    expectedToIncludeMessages:
+      - auth.signin
+      - auth.signout
+      - auth.installApp
+      - cart.itemCount
+      - cart.total
+      - inbox.unreadCount
+    expectedToNotIncludeMessages:
+      - footer.copyright
+      - footer.privacyPolicy
+      - header.navLinks.home
+      - dashboard.welcome
+      - billing.trialEnds
+    message: auth.installApp
+    expectedTranslation: Download on the App Store
+  - locale: nl-NL
+    expectedToIncludeMessages:
+      - auth.signin
+      - auth.signout
+      - auth.installApp
+      - cart.itemCount
+      - cart.total
+      - inbox.unreadCount
+    expectedToNotIncludeMessages:
+      - footer.copyright
+      - footer.privacyPolicy
+      - header.navLinks.home
+      - dashboard.welcome
+      - billing.trialEnds
+    rawMessage: "iOS tijd: {when, time, short}"
+    values:
+      when: 2026-01-15T12:00:00Z
+    expectedTranslation: "iOS tijd: 13:00"

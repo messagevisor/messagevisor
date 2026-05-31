@@ -1,0 +1,15 @@
+description: Mobile apps
+pretty: true
+
+includeMessages:
+  - common*
+  - nav*
+  - home*
+  - product*
+  - cart*
+  - checkout*
+
+locales:
+  - en-US
+  - en-GB
+  - nl-NL

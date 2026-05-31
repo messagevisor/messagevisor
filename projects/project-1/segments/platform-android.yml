@@ -1,0 +1,6 @@
+description: Platform Android
+
+conditions:
+  - attribute: platform
+    operator: equals
+    value: android

@@ -1,0 +1,8 @@
+description: Native mobile app users
+
+conditions:
+  - attribute: platform
+    operator: in
+    value:
+      - ios
+      - android

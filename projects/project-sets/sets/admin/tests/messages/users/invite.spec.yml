@@ -1,0 +1,6 @@
+message: users.invite
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: Invite a user

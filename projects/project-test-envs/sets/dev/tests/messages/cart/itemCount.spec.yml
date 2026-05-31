@@ -1,0 +1,18 @@
+message: cart.itemCount
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      count: 0
+    expectedTranslation: Your cart is empty
+  - locale: en-US
+    target: mobile
+    values:
+      count: 2
+    expectedTranslation: 2 items in your cart
+  - locale: nl-NL
+    target: web
+    values:
+      count: 1
+    expectedTranslation: 1 artikel in je winkelwagen

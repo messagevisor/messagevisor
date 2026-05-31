@@ -1,0 +1,57 @@
+locale: en-GB
+
+assertions:
+  - description: en-GB inherited format subset
+    expectedFormats:
+      number:
+        money:
+          currency: USD
+      date:
+        long:
+          month: long
+      time:
+        short:
+          minute: 2-digit
+
+  - description: en-GB default money keeps USD as US dollars
+    rawMessage: "{v, number, money}"
+    values:
+      v: 1284.5
+    expectedTranslation: US$1,284.50
+
+  - description: en-GB target preview overrides the money preset
+    target: preview
+    expectedFormats:
+      number:
+        money:
+          currency: EUR
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: €12.00
+
+  - description: en-GB long date uses day-month order
+    rawMessage: "{when, date, long}"
+    values:
+      when: 2026-11-26T15:05:00.123456Z
+    expectedTranslation: 26 November 2026
+
+  - description: en-GB short time uses 24-hour output
+    rawMessage: "{when, time, short}"
+    values:
+      when: 2026-11-26T15:05:00.123456Z
+    expectedTranslation: "16:05"
+
+  - description: en-GB plural keeps basket copy
+    rawMessage: "{items, plural, one {# item in basket — {total, number, money}} other {# items in basket — {total, number, money}}}"
+    values:
+      items: 3
+      total: 48.1
+    expectedTranslation: 3 items in basket — US$48.10
+
+  - description: en-GB select invoice branch uses accounting
+    rawMessage: "{kind, select, invoice {Balance owed: {amt, number, moneyAccounting}} credit {Credit} other {Other}}"
+    values:
+      kind: invoice
+      amt: -75
+    expectedTranslation: "Balance owed: (US$75.00)"

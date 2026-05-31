@@ -1,0 +1,19 @@
+{
+  "locale": "en-GB",
+  "assertions": [
+    {
+      "expectedFormats": {
+        "number": {
+          "money": {
+            "currency": "GBP"
+          }
+        },
+        "time": {
+          "short": {
+            "hourCycle": "h23"
+          }
+        }
+      }
+    }
+  ]
+}

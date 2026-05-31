@@ -1,0 +1,38 @@
+message: playground.icuStress
+
+assertions:
+  - description: en-US ICU stress female zero tasks offset exact one guest
+    locale: en-US
+    target: web
+    values:
+      name: Ada
+      gender: female
+      items: 0
+      rank: 1
+      guests: 1
+      host: Ada
+    expectedTranslation: "Ada said she is ready. No tasks. Rank: 1st. Guests: Ada is coming alone. Literal braces: {ok}."
+
+  - description: en-US ICU stress neutral plural offset remaining guests
+    locale: en-US
+    target: web
+    values:
+      name: Sam
+      gender: other
+      items: 7
+      rank: 22
+      guests: 5
+      host: Sam
+    expectedTranslation: "Sam said they are ready. 7 tasks. Rank: 22nd. Guests: Sam invited 4 guests. Literal braces: {ok}."
+
+  - description: nl-NL ICU stress inherited locale with plural and offset
+    locale: nl-NL
+    target: web
+    values:
+      name: Noor
+      gender: female
+      items: 2
+      rank: 3
+      guests: 3
+      host: Noor
+    expectedTranslation: "Noor zei dat ze klaar is. 2 taken. Rang: 3e. Gasten: Noor heeft 2 gasten uitgenodigd. Letterlijke accolades: {ok}."

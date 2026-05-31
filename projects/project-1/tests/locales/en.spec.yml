@@ -1,0 +1,45 @@
+locale: en
+
+assertions:
+  - description: en base format subset
+    expectedFormats:
+      number:
+        money:
+          currency: USD
+      date:
+        long:
+          month: long
+      time:
+        short:
+          minute: 2-digit
+
+  - description: en simple text
+    rawMessage: Hello, world!
+    expectedTranslation: Hello, world!
+
+  - description: en interpolates a single value
+    rawMessage: Hello, {name}!
+    values:
+      name: John
+    expectedTranslation: Hello, John!
+
+  - matrix:
+      name: [John, Jane]
+      age: [30, 25]
+    description: en matrix interpolation ${{ name }} / ${{ age }}
+    rawMessage: Hello, {name}! You are {age} years old.
+    values:
+      name: ${{ name }}
+      age: ${{ age }}
+    expectedTranslation: Hello, ${{ name }}! You are ${{ age }} years old.
+
+  - description: en target preview overrides the money preset
+    target: preview
+    expectedFormats:
+      number:
+        money:
+          currency: GBP
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: £12.00

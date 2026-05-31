@@ -1,0 +1,33 @@
+description: Locale preview
+pretty: true
+
+includeMessages:
+  - auth*
+
+locales:
+  - en
+  - en-US
+  - en-GB
+  - nl-NL
+
+formats:
+  en:
+    number:
+      money:
+        style: currency
+        currency: GBP
+  en-US:
+    number:
+      money:
+        style: currency
+        currency: GBP
+  en-GB:
+    number:
+      money:
+        style: currency
+        currency: EUR
+  nl-NL:
+    number:
+      money:
+        style: currency
+        currency: USD

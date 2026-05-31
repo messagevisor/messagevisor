@@ -1,0 +1,69 @@
+message: playground.overrideStress
+
+assertions:
+  - description: standard checkout fallback
+    locale: en-US
+    target: web
+    values:
+      plan: free
+    context:
+      plan: free
+    expectedTranslation: Standard checkout for free
+
+  - description: pro direct condition override
+    locale: en-US
+    target: web
+    values:
+      plan: pro
+      accountName: Acme
+      amount: 99.5
+    context:
+      plan: pro
+    expectedTranslation: "Pro checkout for Acme: $99.50"
+
+  - description: vip segment beats later pro fallback override
+    locale: en-US
+    target: web
+    values:
+      plan: pro
+      accountName: Acme
+      amount: 2500
+    context:
+      plan: pro
+      permissions:
+        - read
+        - write
+      account:
+        seats: 250
+      country: NL
+    expectedTranslation: "VIP checkout for Acme: $2,500.00"
+
+  - description: reengagement segment for older iOS user
+    locale: en-US
+    target: web
+    values:
+      plan: free
+      accountName: BetaCo
+      amount: 12
+    context:
+      platform: ios
+      signupDate: "2024-01-01T00:00:00.000Z"
+      permissions:
+        - push
+    expectedTranslation: "Welcome back, BetaCo. Your saved total is $12.00."
+
+  - description: nl-NL vip segment with inherited formatting
+    locale: nl-NL
+    target: web
+    values:
+      plan: pro
+      accountName: Noordzee
+      amount: 2500
+    context:
+      plan: pro
+      permissions:
+        - write
+      account:
+        seats: 250
+      country: BE
+    expectedTranslation: "VIP-checkout voor Noordzee: € 2.500,00"

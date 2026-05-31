@@ -1,0 +1,4 @@
+description: Raw HTML-like template that keeps tags and placeholders untouched
+
+translations:
+  en-US: "Order {orderId} total: <strong>{amount}</strong>"

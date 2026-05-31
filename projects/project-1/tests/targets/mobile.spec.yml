@@ -1,0 +1,45 @@
+target: mobile
+
+assertions:
+  - locale: en-US
+    expectedToIncludeMessages:
+      - auth.signin
+      - auth.signout
+      - auth.installApp
+      - cart.itemCount
+      - cart.total
+      - inbox.unreadCount
+    expectedToNotIncludeMessages:
+      - footer.copyright
+      - footer.privacyPolicy
+      - header.navLinks.home
+      - dashboard.welcome
+      - billing.trialEnds
+    message: auth.installApp
+    context:
+      platform: ios
+    expectedTranslation: Download on the App Store
+  - locale: nl-NL
+    expectedToIncludeMessages:
+      - auth.signin
+      - auth.signout
+      - auth.installApp
+      - cart.itemCount
+      - cart.total
+      - inbox.unreadCount
+    expectedToNotIncludeMessages:
+      - footer.copyright
+      - footer.privacyPolicy
+      - header.navLinks.home
+      - dashboard.welcome
+      - billing.trialEnds
+    rawMessage: "Mobiel bedrag: {amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: "Mobiel bedrag: € 12,00"
+    expectedByRuntime:
+      go: "Mobiel bedrag: 12,00 €"
+  - description: mobile target excluded message follows SDK behavior
+    locale: en-US
+    message: footer.copyright
+    expectedTranslation: footer.copyright

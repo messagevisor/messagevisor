@@ -1,0 +1,17 @@
+segment: dutch-account
+
+assertions:
+  - segment: dutch-account
+    context:
+      account:
+        country: NL
+    expectedToMatch: true
+  - segment: dutch-account
+    context:
+      account:
+        country: BE
+    expectedToMatch: false
+  - segment: dutch-account
+    context:
+      country: NL
+    expectedToMatch: false

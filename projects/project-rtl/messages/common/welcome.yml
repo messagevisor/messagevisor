@@ -1,0 +1,17 @@
+description: Welcome message with interpolated name and mixed-script product name
+
+examples:
+  - description: English welcome example
+    locale: en-US
+    values:
+      name: Lina
+      product: Messagevisor
+  - description: Arabic welcome example
+    locale: ar-SA
+    values:
+      name: ليلى
+      product: Messagevisor
+
+translations:
+  en-US: "Welcome, {name}! Continue in {product}."
+  ar-SA: "مرحبًا {name}! تابع في {product}."

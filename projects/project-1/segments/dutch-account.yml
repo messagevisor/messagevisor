@@ -1,0 +1,6 @@
+description: Accounts based in The Netherlands
+
+conditions:
+  - attribute: account.country
+    operator: equals
+    value: NL

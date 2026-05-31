@@ -1,0 +1,24 @@
+description: VIP checkout audience with nested plan, seat, country, and permission gates
+
+conditions:
+  and:
+    - or:
+        - attribute: plan
+          operator: equals
+          value: enterprise
+        - and:
+            - attribute: plan
+              operator: equals
+              value: pro
+            - attribute: account.seats
+              operator: greaterThanOrEquals
+              value: 5
+    - attribute: permissions
+      operator: includes
+      value: write
+    - not:
+        - attribute: country
+          operator: in
+          value:
+            - cn
+            - ru

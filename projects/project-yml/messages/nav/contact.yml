@@ -1,0 +1,4 @@
+description: Contact navigation label with ICU time formatting
+
+translations:
+  en: Contact us before {closingTime, time, short}

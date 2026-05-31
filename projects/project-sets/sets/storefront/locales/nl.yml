@@ -1,0 +1,9 @@
+description: Storefront Dutch
+
+inheritFormatsFrom: en
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: EUR

@@ -1,0 +1,4 @@
+description: Raw subject template that keeps braces untouched
+
+translations:
+  en-US: Welcome, {firstName}

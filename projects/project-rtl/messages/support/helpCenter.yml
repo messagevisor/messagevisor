@@ -1,0 +1,5 @@
+description: Mixed-script content with an LTR brand name and URL inside translated copy
+
+translations:
+  en-US: "Read the Messagevisor guide at messagevisor.com/help"
+  ar-SA: "اقرأ دليل Messagevisor على messagevisor.com/help"

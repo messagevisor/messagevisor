@@ -1,0 +1,7 @@
+description: Sale badge on product cards
+
+translations:
+  en: "{discount, number, percent} off"
+  en-GB: "{discount, number, percent} off"
+  nl-NL: "{discount, number, percent} korting"
+  de-DE: "{discount, number, percent} Rabatt"

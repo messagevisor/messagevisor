@@ -1,0 +1,12 @@
+description: English (United Kingdom)
+
+inheritFormatsFrom: en
+inheritTranslationsFrom: en
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: GBP
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2

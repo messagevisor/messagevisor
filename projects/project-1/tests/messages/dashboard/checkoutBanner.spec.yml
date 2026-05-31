@@ -1,0 +1,34 @@
+message: dashboard.checkoutBanner
+
+assertions:
+  - description: "web/en-US: dashboard.checkoutBanner with default feature state"
+    locale: en-US
+    target: web
+    expectedTranslation: Your classic checkout is ready
+
+  - description: "web/en-US: dashboard.checkoutBanner with enabled feature and bold experiment"
+    locale: en-US
+    target: web
+    withFlags:
+      new-checkout: true
+    withVariations:
+      checkout-copy: bold
+    expectedTranslation: Try the faster checkout
+
+  - description: "web/en-US: dashboard.checkoutBanner with enabled feature and control experiment"
+    locale: en-US
+    target: web
+    withFlags:
+      new-checkout: true
+    withVariations:
+      checkout-copy: control
+    expectedTranslation: Try the classic checkout
+
+  - description: "web/nl-NL: dashboard.checkoutBanner with enabled feature and bold experiment"
+    locale: nl-NL
+    target: web
+    withFlags:
+      new-checkout: true
+    withVariations:
+      checkout-copy: bold
+    expectedTranslation: Probeer de snellere checkout

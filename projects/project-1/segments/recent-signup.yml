@@ -1,0 +1,6 @@
+description: Recent signups
+
+conditions:
+  - attribute: signupDate
+    operator: after
+    value: "2025-01-01T00:00:00Z"

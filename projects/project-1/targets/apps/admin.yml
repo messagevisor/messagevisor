@@ -1,0 +1,13 @@
+description: Admin app
+pretty: true
+
+includeMessages:
+  - dashboard*
+  - billing*
+
+locales:
+  - en-US
+  - nl-NL
+
+context:
+  platform: web

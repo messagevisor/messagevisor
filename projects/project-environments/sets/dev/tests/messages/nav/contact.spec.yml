@@ -1,0 +1,15 @@
+message: nav.contact
+
+assertions:
+  - locale: en-US
+    target: web
+    timeZone: UTC
+    values:
+      closingTime: "2026-04-27T17:30:00Z"
+    expectedTranslation: Contact us before 5:30 PM
+  - locale: en-GB
+    target: mobile
+    timeZone: UTC
+    values:
+      closingTime: "2026-04-27T17:30:00Z"
+    expectedTranslation: Contact us before 17:30

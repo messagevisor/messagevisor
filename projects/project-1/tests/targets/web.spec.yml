@@ -1,0 +1,80 @@
+target: web
+
+assertions:
+  - locale: en-US
+    expectedToIncludeMessages:
+      - auth.signin
+      - auth.signout
+      - auth.installApp
+      - header.navLinks.home
+      - header.navLinks.about
+      - header.navLinks.contact
+      - footer.copyright
+      - footer.privacyPolicy
+      - cart.itemCount
+      - cart.total
+      - dashboard.welcome
+      - inbox.unreadCount
+      - billing.trialEnds
+    expectedFormats:
+      number:
+        money:
+          style: currency
+          currency: USD
+    rawMessage: "Target raw total: {amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: "Target raw total: $12.00"
+  - matrix:
+      label: [en-us-primary, en-us-secondary]
+      currency: [USD]
+    description: Matrix target formats ${{ label }}
+    locale: en-US
+    expectedFormats:
+      number:
+        money:
+          currency: ${{ currency }}
+  - description: web target message translation uses included message
+    locale: en-US
+    message: auth.installApp
+    context:
+      platform: web
+    expectedTranslation: Install the app
+  - description: web target message translation honors context-sensitive override
+    locale: en-US
+    message: dashboard.welcome
+    context:
+      platform: web
+      account:
+        country: NL
+    values:
+      name: Ada
+    expectedTranslation: Welcome back, Ada. Your Dutch workspace is ready.
+  - locale: nl-NL
+    expectedToIncludeMessages:
+      - auth.signin
+      - auth.signout
+      - auth.installApp
+      - header.navLinks.home
+      - header.navLinks.about
+      - header.navLinks.contact
+      - footer.copyright
+      - footer.privacyPolicy
+      - cart.itemCount
+      - cart.total
+      - dashboard.welcome
+      - inbox.unreadCount
+      - billing.trialEnds
+    expectedFormats:
+      number:
+        money:
+          style: currency
+          currency: EUR
+        decimal:
+          maximumFractionDigits: 2
+    rawMessage: "Doel totaal: {amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: "Doel totaal: € 12,00"
+    expectedByRuntime:
+      go: "Doel totaal: 12,00 €"

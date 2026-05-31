@@ -1,0 +1,18 @@
+message: auth.signin
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: Sign in (USA)
+  - locale: en-GB
+    target: web
+    expectedTranslation: Sign in
+  - locale: nl-NL
+    target: web
+    expectedTranslation: Aanmelden
+  - locale: nl-BE
+    target: web
+    expectedTranslation: Aanmelden
+  - locale: en-US
+    target: mobile
+    expectedTranslation: Sign in (USA)

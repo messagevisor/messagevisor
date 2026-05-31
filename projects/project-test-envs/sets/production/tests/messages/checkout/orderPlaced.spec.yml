@@ -1,0 +1,15 @@
+message: checkout.orderPlaced
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      orderId: A100
+      email: customer@example.com
+    expectedTranslation: Order A100 is confirmed. We will send updates to customer@example.com.
+  - locale: nl-NL
+    target: mobile
+    values:
+      orderId: A100
+      email: klant@example.com
+    expectedTranslation: Bestelling A100 is bevestigd. We sturen updates naar klant@example.com.

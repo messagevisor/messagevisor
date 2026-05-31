@@ -1,0 +1,19 @@
+{
+  "locale": "en-US",
+  "assertions": [
+    {
+      "expectedFormats": {
+        "number": {
+          "money": {
+            "currency": "USD"
+          }
+        },
+        "time": {
+          "short": {
+            "hourCycle": "h12"
+          }
+        }
+      }
+    }
+  ]
+}

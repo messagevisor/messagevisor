@@ -1,0 +1,16 @@
+description: Product price line
+
+translations:
+  en: "{name} — {price, number, money}"
+  en-GB: "{name} — {price, number, money}"
+  nl-NL: "{name} — {price, number, money}"
+  de-DE: "{name} — {price, number, money}"
+
+overrides:
+  - key: pro-price
+    segments: pro-customer
+    translations:
+      en: "Pro member price for {name}: {price, number, money}"
+      en-GB: "Pro member price for {name}: {price, number, money}"
+      nl-NL: "Pro-lidprijs voor {name}: {price, number, money}"
+      de-DE: "Pro-Mitgliedspreis für {name}: {price, number, money}"

@@ -1,0 +1,11 @@
+locale: en-GB
+
+assertions:
+  - expectedFormats:
+      number:
+        money:
+          currency: GBP
+  - rawMessage: "{amount, number, money}"
+    values:
+      amount: 42.5
+    expectedTranslation: £42.50

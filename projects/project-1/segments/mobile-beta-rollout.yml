@@ -1,0 +1,29 @@
+description: Mobile beta rollout with nested platform, device, plan, and permission gates
+
+conditions:
+  and:
+    - or:
+        - attribute: platform
+          operator: equals
+          value: ios
+        - attribute: platform
+          operator: equals
+          value: android
+    - or:
+        - and:
+            - attribute: age
+              operator: greaterThanOrEquals
+              value: 18
+            - attribute: permissions
+              operator: includes
+              value: beta
+        - and:
+            - attribute: plan
+              operator: equals
+              value: enterprise
+            - attribute: account.seats
+              operator: greaterThanOrEquals
+              value: 20
+    - not:
+        - attribute: deviceId
+          operator: notExists

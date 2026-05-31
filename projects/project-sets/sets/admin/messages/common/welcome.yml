@@ -1,0 +1,10 @@
+description: Admin welcome
+
+translations:
+  en: Welcome to the admin console
+
+overrides:
+  - key: admin-user
+    segments: admin-user
+    translations:
+      en: Welcome back, admin

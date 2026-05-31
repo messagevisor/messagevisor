@@ -1,0 +1,34 @@
+segment: mobile-beta-rollout
+
+assertions:
+  - description: "mobile-beta-rollout matches adult beta users on supported mobile platforms"
+    segment: mobile-beta-rollout
+    context:
+      platform: ios
+      age: 22
+      deviceId: abc123
+      permissions:
+        - beta
+    expectedToMatch: true
+
+  - description: "mobile-beta-rollout matches large enterprise mobile accounts even without beta permission"
+    segment: mobile-beta-rollout
+    context:
+      platform: android
+      plan: enterprise
+      deviceId: xyz789
+      account:
+        seats: 25
+      permissions:
+        - read
+    expectedToMatch: true
+
+  - description: "mobile-beta-rollout rejects unsupported platforms"
+    segment: mobile-beta-rollout
+    context:
+      platform: web
+      age: 22
+      deviceId: web-device
+      permissions:
+        - beta
+    expectedToMatch: false

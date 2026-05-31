@@ -1,0 +1,10 @@
+description: English
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: USD
+      currencyDisplay: symbol
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2

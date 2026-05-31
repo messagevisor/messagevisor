@@ -1,0 +1,15 @@
+segment: recent-signup
+
+assertions:
+  - segment: recent-signup
+    context:
+      signupDate: "2025-02-01T00:00:00Z"
+    expectedToMatch: true
+  - segment: recent-signup
+    context:
+      signupDate: "2025-01-01T00:00:00Z"
+    expectedToMatch: false
+  - segment: recent-signup
+    context:
+      signupDate: "2024-12-31T23:59:59Z"
+    expectedToMatch: false

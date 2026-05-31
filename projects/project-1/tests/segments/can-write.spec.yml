@@ -1,0 +1,18 @@
+segment: can-write
+
+assertions:
+  - segment: can-write
+    context:
+      permissions:
+        - read
+        - write
+    expectedToMatch: true
+  - segment: can-write
+    context:
+      permissions:
+        - read
+    expectedToMatch: false
+  - segment: can-write
+    context:
+      permissions: []
+    expectedToMatch: false

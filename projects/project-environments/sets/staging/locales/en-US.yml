@@ -1,0 +1,11 @@
+description: English (United States)
+
+inheritFormatsFrom: en
+inheritTranslationsFrom: en
+
+formats:
+  time:
+    short:
+      hour: numeric
+      minute: 2-digit
+      hourCycle: h12

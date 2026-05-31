@@ -1,0 +1,7 @@
+description: Cart subtotal line
+
+translations:
+  en: "Subtotal ({count, plural, one {# item} other {# items}}): {amount, number, money}"
+  en-GB: "Subtotal ({count, plural, one {# item} other {# items}}): {amount, number, money}"
+  nl-NL: "Subtotaal ({count, plural, one {# artikel} other {# artikelen}}): {amount, number, money}"
+  de-DE: "Zwischensumme ({count, plural, one {# Artikel} other {# Artikel}}): {amount, number, money}"

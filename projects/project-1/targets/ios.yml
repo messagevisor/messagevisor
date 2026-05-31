@@ -1,0 +1,17 @@
+description: iOS app
+pretty: true
+
+includeMessages:
+  - auth*
+  - inbox*
+  - cart*
+
+excludeMessages:
+  - footer*
+
+locales:
+  - en-US
+  - nl-NL
+
+context:
+  platform: ios

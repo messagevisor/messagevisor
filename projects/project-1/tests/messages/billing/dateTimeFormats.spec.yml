@@ -1,0 +1,27 @@
+message: billing.dateTimeFormats
+
+assertions:
+  - locale: en-US
+    target: web
+    timeZone: UTC
+    values:
+      date: "2025-01-01T12:00:00Z"
+    expectedTranslation: "Date numeric: 01/01/2025; weekday: Wednesday, January 1, 2025; time: 12:00 PM; seconds: 12:00:00 PM; utc: 12:00 PM"
+    expectedByRuntime:
+      go: "Date numeric: 1/1/25; weekday: Wednesday, January 1, 2025; time: 12:00 pm; seconds: 12:00:00 pm; utc: 12:00 pm"
+  - locale: en-US
+    target: web
+    timeZone: America/New_York
+    values:
+      date: "2025-01-01T12:00:00Z"
+    expectedTranslation: "Date numeric: 01/01/2025; weekday: Wednesday, January 1, 2025; time: 7:00 AM; seconds: 7:00:00 AM; utc: 7:00 AM"
+    expectedByRuntime:
+      go: "Date numeric: 1/1/25; weekday: Wednesday, January 1, 2025; time: 7:00 am; seconds: 7:00:00 am; utc: 7:00 am"
+  - locale: nl-NL
+    target: web
+    timeZone: Europe/Amsterdam
+    values:
+      date: "2025-01-01T12:00:00Z"
+    expectedTranslation: "Datum numeriek: 01-01-2025; weekdag: woensdag 1 januari 2025; tijd: 13:00; seconden: 13:00:00; utc: 13:00"
+    expectedByRuntime:
+      java: "Datum numeriek: 01/01/2025; weekdag: woensdag, januari 1, 2025; tijd: 1:00 p.m.; seconden: 1:00:00 p.m.; utc: 1:00 p.m."

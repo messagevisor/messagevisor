@@ -1,0 +1,7 @@
+description: Signed-in welcome message
+
+translations:
+  en: "Welcome back, {firstName}!"
+  en-GB: "Welcome back, {firstName}!"
+  nl-NL: "Welkom terug, {firstName}!"
+  de-DE: "Willkommen zurück, {firstName}!"

@@ -1,0 +1,23 @@
+description: Web
+pretty: true
+
+includeMessages:
+  - auth*
+  - header*
+  - footer*
+  - cart*
+  - dashboard*
+  - inbox*
+  - billing*
+  - playground*
+
+locales:
+  - en-US
+  - en-GB
+  - en-NL
+  - bn
+  - nl-NL
+  - nl-BE
+
+context:
+  platform: web

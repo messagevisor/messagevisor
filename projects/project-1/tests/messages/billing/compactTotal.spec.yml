@@ -1,0 +1,21 @@
+message: billing.compactTotal
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      currency: $
+      amount: 12
+    expectedTranslation: "Compact total: $12.00"
+  - locale: en-US
+    target: web
+    values:
+      currency: USD
+      amount: 12
+    expectedTranslation: "Compact total: USD12.00"
+  - locale: nl-NL
+    target: web
+    values:
+      currency: €
+      amount: 12
+    expectedTranslation: "Compact totaal: €12,00"

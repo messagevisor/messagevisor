@@ -1,0 +1,14 @@
+description: Mobile apps
+pretty: true
+
+includeMessages:
+  - auth*
+  - inbox*
+  - cart*
+
+excludeMessages:
+  - footer*
+
+locales:
+  - en-US
+  - nl-NL

@@ -1,0 +1,13 @@
+message: prompts.fileCount
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      count: 1
+    expectedTranslation: "{count, plural, one {# file} other {# files}}"
+  - locale: en-US
+    target: web
+    values:
+      count: 5
+    expectedTranslation: "{count, plural, one {# file} other {# files}}"

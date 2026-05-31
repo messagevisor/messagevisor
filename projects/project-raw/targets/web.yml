@@ -1,0 +1,9 @@
+description: Web
+pretty: true
+
+includeMessages:
+  - templates*
+  - prompts*
+
+locales:
+  - en-US

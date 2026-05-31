@@ -1,0 +1,9 @@
+message: footer.copyright
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: Copyright
+  - locale: nl-NL
+    target: web
+    expectedTranslation: Copyright

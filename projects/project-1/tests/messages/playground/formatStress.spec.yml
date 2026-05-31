@@ -1,0 +1,60 @@
+message: playground.formatStress
+
+assertions:
+  - description: en-US mixed format stress with default USD and New York generic zone
+    locale: en-US
+    target: web
+    timeZone: UTC
+    values:
+      amount: -1284.5
+      rate: 0.1234
+      visits: 12500
+      distance: 42
+      placedAt: "2026-11-26T15:05:00.123456Z"
+    expectedTranslation: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%; compact 13K; distance 42 km; placed Thursday, November 26, 2026 at 3:05:00 PM; local 3:05 PM GMT."
+    expectedByRuntime:
+      java: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%; compact 12K; distance 42 km; placed Thursday, November 26, 2026 at 3:05:00 PM; local 3:05 PM GMT."
+      swift: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%; compact 12K; distance 42 km; placed Thursday, November 26, 2026 at 3:05:00 PM; local 3:05 PM GMT."
+
+  - description: en-US mixed format stress with EUR override and Tokyo per-call zone
+    locale: en-US
+    target: web
+    currency: EUR
+    timeZone: Asia/Tokyo
+    values:
+      amount: 42
+      rate: 1.25
+      visits: 1840000
+      distance: 3.5
+      placedAt: "2026-06-01T14:00:00.000Z"
+    expectedTranslation: "Receipt €42.00; ISO EUR 42.00; rate 125%; compact 1.8M; distance 3.5 km; placed Monday, June 1, 2026 at 11:00:00 PM; local 11:00 PM Japan Time."
+
+  - description: nl-NL mixed format stress with inherited EUR
+    locale: nl-NL
+    target: web
+    timeZone: Europe/Amsterdam
+    values:
+      amount: -1284.5
+      rate: 0.1234
+      visits: 12500
+      distance: 42
+      placedAt: "2026-11-26T15:05:00.123456Z"
+    expectedTranslation: "Bon (€ 1.284,50); ISO EUR -1.284,50; percentage 12,3%; compact 13K; afstand 42 km; geplaatst donderdag 26 november 2026 om 16:05:00; lokaal 16:05 CET."
+    expectedByRuntime:
+      java: "Bon (€ 1.284,50); ISO -EUR 1.284,50; percentage 12,3%; compact 12K; afstand 42 km; geplaatst donderdag, november 26, 2026 om 4:05:00 p.m.; lokaal 4:05 p.m. CET."
+      swift: "Bon (€ 1.284,50); ISO EUR -1.284,50; percentage 12,3%; compact 12K; afstand 42 km; geplaatst donderdag 26 november 2026 om 16:05:00; lokaal 16:05 CET."
+
+  - description: bn mixed format stress with non-Latin digits
+    locale: bn
+    target: web
+    timeZone: UTC
+    values:
+      amount: -1284.5
+      rate: 0.1234
+      visits: 12500
+      distance: 42
+      placedAt: "2026-11-26T15:05:00.123456Z"
+    expectedTranslation: "Receipt (১,২৮৪.৫০ US$); ISO -১,২৮৪.৫০ USD; rate ১২.৩%; compact ১৩ হা; distance ৪২ কিমি; placed বৃহস্পতিবার, ২৬ নভেম্বর, ২০২৬ at ৩:০৫:০০ PM; local ৩:০৫ PM GMT."
+    expectedByRuntime:
+      java: "Receipt (১,২৮৪.৫০US$); ISO -USD ১,২৮৪.৫০; rate ১২.৩%; compact ১২ হা; distance ৪২ কিমি; placed বৃহস্পতিবার, নভেম্বর ২৬, ২০২৬ at ৩:০৫:০০ PM; local ৩:০৫ PM GMT +০."
+      swift: "Receipt (1,284.50 US$); ISO -1,284.50 USD; rate 12.3%; compact 12 হা; distance 42 কিমি; placed বৃহস্পতিবার, 26 নভেম্বর, 2026 at 3:05:00 PM; local 3:05 PM GMT +0."

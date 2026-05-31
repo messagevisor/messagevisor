@@ -1,0 +1,6 @@
+description: Order status in account area
+
+translations:
+  en: "Order {orderId}"
+  nl-NL: "Bestelling {orderId}"
+  de-DE: "Bestellung {orderId}"

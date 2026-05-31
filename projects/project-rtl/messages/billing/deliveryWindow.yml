@@ -1,0 +1,12 @@
+description: Date and time embedded in translated copy
+
+examples:
+  - description: Arabic delivery example
+    locale: ar-SA
+    timeZone: UTC
+    values:
+      deliveryAt: 1736958600000
+
+translations:
+  en-US: "Delivery window: {deliveryAt, date, long} at {deliveryAt, time, short}"
+  ar-SA: "موعد التوصيل: {deliveryAt, date, long} الساعة {deliveryAt, time, short}"

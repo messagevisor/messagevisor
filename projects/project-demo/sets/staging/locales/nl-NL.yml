@@ -1,0 +1,27 @@
+description: Dutch (Netherlands)
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: EUR
+      currencyDisplay: symbol
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2
+    percent:
+      style: percent
+      minimumFractionDigits: 0
+      maximumFractionDigits: 0
+  date:
+    short:
+      year: numeric
+      month: short
+      day: numeric
+    delivery:
+      weekday: long
+      month: short
+      day: numeric
+  time:
+    short:
+      hour: numeric
+      minute: 2-digit

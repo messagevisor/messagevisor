@@ -1,0 +1,48 @@
+description: Mixed number, currency, date, time, and per-call override formatting stress message
+
+translations:
+  en: "Receipt {amount, number, moneyAccounting}; ISO {amount, number, moneyCode}; rate {rate, number, percent}; compact {visits, number, compactShort}; distance {distance, number, unitKilometerShort}; placed {placedAt, date, weekday} at {placedAt, time, seconds}; local {placedAt, time, zoneShortGeneric}."
+  bn: "Receipt {amount, number, moneyAccounting}; ISO {amount, number, moneyCode}; rate {rate, number, percent}; compact {visits, number, compactShort}; distance {distance, number, unitKilometerShort}; placed {placedAt, date, weekday} at {placedAt, time, seconds}; local {placedAt, time, zoneShortGeneric}."
+  nl: "Bon {amount, number, moneyAccounting}; ISO {amount, number, moneyCode}; percentage {rate, number, percent}; compact {visits, number, compactShort}; afstand {distance, number, unitKilometerShort}; geplaatst {placedAt, date, weekday} om {placedAt, time, seconds}; lokaal {placedAt, time, zoneShortGeneric}."
+
+examples:
+  - description: Mixed formats in en-US with USD
+    locale: en-US
+    timeZone: UTC
+    values:
+      amount: -1284.5
+      rate: 0.1234
+      visits: 12500
+      distance: 42
+      placedAt: "2026-11-26T15:05:00.123456Z"
+
+  - description: Mixed formats in en-US with EUR and Tokyo
+    locale: en-US
+    currency: EUR
+    timeZone: Asia/Tokyo
+    values:
+      amount: 42
+      rate: 1.25
+      visits: 1840000
+      distance: 3.5
+      placedAt: "2026-06-01T14:00:00.000Z"
+
+  - description: Mixed formats in nl-NL
+    locale: nl-NL
+    timeZone: Europe/Amsterdam
+    values:
+      amount: -1284.5
+      rate: 0.1234
+      visits: 12500
+      distance: 42
+      placedAt: "2026-11-26T15:05:00.123456Z"
+
+  - description: Mixed formats in bn with USD
+    locale: bn
+    timeZone: UTC
+    values:
+      amount: -1284.5
+      rate: 0.1234
+      visits: 12500
+      distance: 42
+      placedAt: "2026-11-26T15:05:00.123456Z"

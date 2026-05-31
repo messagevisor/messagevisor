@@ -1,0 +1,7 @@
+description: Contact sales button label for the enterprise support upsell
+
+translations:
+  # Intentionally duplicated with header.navLinks.contact so `find-duplicates` has
+  # realistic sample output across base and inherited locales.
+  en: Contact
+  nl: Contact

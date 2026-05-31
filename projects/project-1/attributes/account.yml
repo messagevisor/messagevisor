@@ -1,0 +1,10 @@
+description: Account details
+type: object
+
+properties:
+  country:
+    type: string
+  plan:
+    type: string
+  seats:
+    type: integer

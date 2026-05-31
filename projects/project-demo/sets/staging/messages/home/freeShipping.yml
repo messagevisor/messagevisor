@@ -1,0 +1,7 @@
+description: Free shipping promotion banner
+
+translations:
+  en: "Free shipping on orders over {threshold, number, money}"
+  en-GB: "Free delivery on orders over {threshold, number, money}"
+  nl-NL: "Gratis verzending bij bestellingen boven {threshold, number, money}"
+  de-DE: "Kostenloser Versand ab {threshold, number, money}"

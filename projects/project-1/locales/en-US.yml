@@ -1,0 +1,936 @@
+description: English (United States)
+
+inheritFormatsFrom: en
+inheritTranslationsFrom: en
+
+# Raw ICU examples use `resolveFormats("en-US", …)`; presets come from `en.yml` via `inheritFormatsFrom`.
+# One logical use case per example; `rawMessage` is a single placeholder except `plural` / `selectordinal` / `select`.
+# Keep `rawMessage` on one line: multiline folded YAML can break ICU parsing and surface as date format errors.
+# ISO 8601 strings in `values` are coerced to `Date` when evaluating via the CLI (mix of fractional-second
+# and whole-second forms is intentional).
+#
+# Order: numbers (plain → decimal → …) → ICU plural/selectordinal/select → dates → times → time zones → composition (multi-placeholder).
+
+examples:
+  # ---------------------------------------------------------------------------
+  # Number — plain `{v, number}` (no named style)
+  # ---------------------------------------------------------------------------
+  - description: "Number / plain — positive fractional (grouping)."
+    rawMessage: "{v, number}"
+    values:
+      v: 1234567.891
+
+  - description: "Number / plain — negative fractional."
+    rawMessage: "{v, number}"
+    values:
+      v: -987654.321
+
+  - description: "Number / plain — zero."
+    rawMessage: "{v, number}"
+    values:
+      v: 0
+
+  - description: "Number / plain — single-digit positive integer."
+    rawMessage: "{v, number}"
+    values:
+      v: 1
+
+  - description: "Number / plain — large integer (grouping in en-US)."
+    rawMessage: "{v, number}"
+    values:
+      v: 4820193
+
+  - description: "Number / plain — very small positive fraction (may display as 0 without extra digits)."
+    rawMessage: "{v, number}"
+    values:
+      v: 0.000003
+
+  # ---------------------------------------------------------------------------
+  # Number — `{v, number, decimal}` (`maximumFractionDigits` from `en`)
+  # ---------------------------------------------------------------------------
+  - description: "Number / decimal — positive."
+    rawMessage: "{v, number, decimal}"
+    values:
+      v: 1234567.891
+
+  - description: "Number / decimal — negative."
+    rawMessage: "{v, number, decimal}"
+    values:
+      v: -987654.321
+
+  - description: "Number / decimal — zero."
+    rawMessage: "{v, number, decimal}"
+    values:
+      v: 0
+
+  - description: "Number / decimal — integer (grouped, no fraction)."
+    rawMessage: "{v, number, decimal}"
+    values:
+      v: 2500
+
+  - description: "Number / decimal — very large integer."
+    rawMessage: "{v, number, decimal}"
+    values:
+      v: 1840000
+
+  - description: "Number / decimal — tiny positive (below 0.01)."
+    rawMessage: "{v, number, decimal}"
+    values:
+      v: 0.004
+
+  # ---------------------------------------------------------------------------
+  # Number — `{v, number, decimalFixed}` (fixed two fraction digits)
+  # ---------------------------------------------------------------------------
+  - description: "Number / decimalFixed — positive."
+    rawMessage: "{v, number, decimalFixed}"
+    values:
+      v: 1234567.891
+
+  - description: "Number / decimalFixed — negative."
+    rawMessage: "{v, number, decimalFixed}"
+    values:
+      v: -987654.321
+
+  - description: "Number / decimalFixed — zero."
+    rawMessage: "{v, number, decimalFixed}"
+    values:
+      v: 0
+
+  - description: "Number / decimalFixed — integer (forces .00)."
+    rawMessage: "{v, number, decimalFixed}"
+    values:
+      v: 2500
+
+  - description: "Number / decimalFixed — sub-cent input (rounding)."
+    rawMessage: "{v, number, decimalFixed}"
+    values:
+      v: 0.004
+
+  # ---------------------------------------------------------------------------
+  # Number — `{v, number, percent}` (fractional input)
+  # ---------------------------------------------------------------------------
+  - description: "Number / percent — typical rate (input 0.0575)."
+    rawMessage: "{v, number, percent}"
+    values:
+      v: 0.0575
+
+  - description: "Number / percent — larger fractional share (input 0.1234)."
+    rawMessage: "{v, number, percent}"
+    values:
+      v: 0.1234
+
+  - description: "Number / percent — small magnitude (input 0.004)."
+    rawMessage: "{v, number, percent}"
+    values:
+      v: 0.004
+
+  - description: "Number / percent — zero input."
+    rawMessage: "{v, number, percent}"
+    values:
+      v: 0
+
+  - description: "Number / percent — negative fractional."
+    rawMessage: "{v, number, percent}"
+    values:
+      v: -0.25
+
+  - description: "Number / percent — over 100% (input 1.25)."
+    rawMessage: "{v, number, percent}"
+    values:
+      v: 1.25
+
+  - description: "Number / percent — exactly 100% (input 1)."
+    rawMessage: "{v, number, percent}"
+    values:
+      v: 1
+
+  # ---------------------------------------------------------------------------
+  # Number — `{v, number, money}` (default USD from `en`)
+  # ---------------------------------------------------------------------------
+  - description: "Number / money (USD) — positive."
+    rawMessage: "{v, number, money}"
+    values:
+      v: 1284.5
+
+  - description: "Number / money (USD) — negative."
+    rawMessage: "{v, number, money}"
+    values:
+      v: -1284.5
+
+  - description: "Number / money (USD) — zero."
+    rawMessage: "{v, number, money}"
+    values:
+      v: 0
+
+  - description: "Number / money (USD) — small positive amount."
+    rawMessage: "{v, number, money}"
+    values:
+      v: 0.01
+
+  - description: "Number / money (USD) — large integer."
+    rawMessage: "{v, number, money}"
+    values:
+      v: 25000
+
+  # ---------------------------------------------------------------------------
+  # Number — `{v, number, moneySymbol}`
+  # ---------------------------------------------------------------------------
+  - description: "Number / moneySymbol — positive."
+    rawMessage: "{v, number, moneySymbol}"
+    values:
+      v: 1284.5
+
+  - description: "Number / moneySymbol — negative."
+    rawMessage: "{v, number, moneySymbol}"
+    values:
+      v: -1284.5
+
+  - description: "Number / moneySymbol — zero."
+    rawMessage: "{v, number, moneySymbol}"
+    values:
+      v: 0
+
+  # ---------------------------------------------------------------------------
+  # Number — `{v, number, moneyCode}`
+  # ---------------------------------------------------------------------------
+  - description: "Number / moneyCode — positive."
+    rawMessage: "{v, number, moneyCode}"
+    values:
+      v: 1284.5
+
+  - description: "Number / moneyCode — negative."
+    rawMessage: "{v, number, moneyCode}"
+    values:
+      v: -1284.5
+
+  - description: "Number / moneyCode — zero."
+    rawMessage: "{v, number, moneyCode}"
+    values:
+      v: 0
+
+  # ---------------------------------------------------------------------------
+  # Number — `{v, number, moneyAccounting}`
+  # ---------------------------------------------------------------------------
+  - description: "Number / moneyAccounting — positive."
+    rawMessage: "{v, number, moneyAccounting}"
+    values:
+      v: 1284.5
+
+  - description: "Number / moneyAccounting — negative."
+    rawMessage: "{v, number, moneyAccounting}"
+    values:
+      v: -1284.5
+
+  - description: "Number / moneyAccounting — zero."
+    rawMessage: "{v, number, moneyAccounting}"
+    values:
+      v: 0
+
+  # ---------------------------------------------------------------------------
+  # Number — `{v, number, moneyGbp}` (named GBP preset in `en`)
+  # ---------------------------------------------------------------------------
+  - description: "Number / moneyGbp — positive."
+    rawMessage: "{v, number, moneyGbp}"
+    values:
+      v: 1284.5
+
+  - description: "Number / moneyGbp — negative."
+    rawMessage: "{v, number, moneyGbp}"
+    values:
+      v: -1284.5
+
+  - description: "Number / moneyGbp — zero."
+    rawMessage: "{v, number, moneyGbp}"
+    values:
+      v: 0
+
+  # ---------------------------------------------------------------------------
+  # Number — `{v, number, moneyJpy}`
+  # ---------------------------------------------------------------------------
+  - description: "Number / moneyJpy — positive (yen rounding)."
+    rawMessage: "{v, number, moneyJpy}"
+    values:
+      v: 1999.99
+
+  - description: "Number / moneyJpy — negative."
+    rawMessage: "{v, number, moneyJpy}"
+    values:
+      v: -1999.99
+
+  - description: "Number / moneyJpy — zero."
+    rawMessage: "{v, number, moneyJpy}"
+    values:
+      v: 0
+
+  - description: "Number / moneyJpy — integer yen amount."
+    rawMessage: "{v, number, moneyJpy}"
+    values:
+      v: 150000
+
+  # ---------------------------------------------------------------------------
+  # Number — `{v, number, moneyEur}`
+  # ---------------------------------------------------------------------------
+  - description: "Number / moneyEur — positive."
+    rawMessage: "{v, number, moneyEur}"
+    values:
+      v: 1999.99
+
+  - description: "Number / moneyEur — negative."
+    rawMessage: "{v, number, moneyEur}"
+    values:
+      v: -1999.99
+
+  - description: "Number / moneyEur — zero."
+    rawMessage: "{v, number, moneyEur}"
+    values:
+      v: 0
+
+  # ---------------------------------------------------------------------------
+  # Number — per-example `currency` override (generic USD-named presets)
+  # ---------------------------------------------------------------------------
+  - description: "Number / override GBP — `{v, number, money}`."
+    rawMessage: "{v, number, money}"
+    values:
+      v: 99.5
+    currency: GBP
+
+  - description: "Number / override GBP — `{v, number, moneySymbol}`."
+    rawMessage: "{v, number, moneySymbol}"
+    values:
+      v: 99.5
+    currency: GBP
+
+  - description: "Number / override GBP — `{v, number, moneyCode}`."
+    rawMessage: "{v, number, moneyCode}"
+    values:
+      v: 99.5
+    currency: GBP
+
+  - description: "Number / override GBP — `{v, number, moneyAccounting}` negative."
+    rawMessage: "{v, number, moneyAccounting}"
+    values:
+      v: -99.5
+    currency: GBP
+
+  - description: "Number / override GBP — `{v, number, moneyAccounting}` positive."
+    rawMessage: "{v, number, moneyAccounting}"
+    values:
+      v: 99.5
+    currency: GBP
+
+  - description: "Number / override EUR — `{v, number, money}` positive."
+    rawMessage: "{v, number, money}"
+    values:
+      v: 42
+    currency: EUR
+
+  - description: "Number / override EUR — `{v, number, money}` negative."
+    rawMessage: "{v, number, money}"
+    values:
+      v: -42
+    currency: EUR
+
+  - description: "Number / override EUR — `{v, number, money}` zero."
+    rawMessage: "{v, number, money}"
+    values:
+      v: 0
+    currency: EUR
+
+  - description: "Number / override EUR — `{v, number, moneySymbol}`."
+    rawMessage: "{v, number, moneySymbol}"
+    values:
+      v: 42
+    currency: EUR
+
+  - description: "Number / override EUR — `{v, number, moneySymbol}` negative."
+    rawMessage: "{v, number, moneySymbol}"
+    values:
+      v: -42
+    currency: EUR
+
+  - description: "Number / override EUR — `{v, number, moneyCode}`."
+    rawMessage: "{v, number, moneyCode}"
+    values:
+      v: 42
+    currency: EUR
+
+  - description: "Number / override EUR — `{v, number, moneyCode}` negative."
+    rawMessage: "{v, number, moneyCode}"
+    values:
+      v: -42
+    currency: EUR
+
+  - description: "Number / override EUR — `{v, number, moneyAccounting}` negative."
+    rawMessage: "{v, number, moneyAccounting}"
+    values:
+      v: -42
+    currency: EUR
+
+  - description: "Number / override EUR — `{v, number, moneyAccounting}` positive."
+    rawMessage: "{v, number, moneyAccounting}"
+    values:
+      v: 42
+    currency: EUR
+
+  - description: "Number / override JPY — `{v, number, money}` (zero-decimal currency)."
+    rawMessage: "{v, number, money}"
+    values:
+      v: 2500
+    currency: JPY
+
+  # ---------------------------------------------------------------------------
+  # ICU — plural (composite message)
+  # ---------------------------------------------------------------------------
+  - description: "ICU / plural — `one` branch with `#` and nested `{total, number, money}` (US copy: cart)."
+    rawMessage: "{items, plural, one {# item in cart — {total, number, money}} other {# items in cart — {total, number, money}}}"
+    values:
+      items: 1
+      total: 12.5
+
+  - description: "ICU / plural — `other` branch (count 2) with `#` and nested money (cart)."
+    rawMessage: "{items, plural, one {# item in cart — {total, number, money}} other {# items in cart — {total, number, money}}}"
+    values:
+      items: 2
+      total: 24
+
+  - description: "ICU / plural — `other` branch (count 3) with `#` and nested money (cart)."
+    rawMessage: "{items, plural, one {# item in cart — {total, number, money}} other {# items in cart — {total, number, money}}}"
+    values:
+      items: 3
+      total: 48.1
+
+  - description: "ICU / plural — explicit `=0` branch vs `other` (English, US copy: cart)."
+    rawMessage: "{items, plural, =0 {No items in cart — {total, number, money}} one {# item in cart — {total, number, money}} other {# items in cart — {total, number, money}}}"
+    values:
+      items: 0
+      total: 0
+
+  # ---------------------------------------------------------------------------
+  # ICU — select (composite message)
+  # ---------------------------------------------------------------------------
+  - description: "ICU / select — `invoice` branch (`moneyAccounting`)."
+    rawMessage: "{kind, select, invoice {Balance owed: {amt, number, moneyAccounting}} credit {Credit} other {Other}}"
+    values:
+      kind: invoice
+      amt: -75
+
+  - description: "ICU / select — `credit` branch (`moneySymbol`)."
+    rawMessage: "{kind, select, invoice {Invoice} credit {Store credit: {amt, number, moneySymbol}} other {Other}}"
+    values:
+      kind: credit
+      amt: 75
+
+  - description: "ICU / select — `other` branch (`moneyCode`, unknown `kind`)."
+    rawMessage: "{kind, select, invoice {Invoice} credit {Credit} other {Reported: {amt, number, moneyCode}}}"
+    values:
+      kind: unknown
+      amt: 75
+
+  - description: "ICU / select — full three-way message (original en-US cookbook; `kind` hits `invoice`)."
+    rawMessage: "{kind, select, invoice {Balance owed: {amt, number, moneyAccounting}} credit {Store credit: {amt, number, moneySymbol}} other {Reported amount: {amt, number, moneyCode}}}"
+    values:
+      kind: invoice
+      amt: -75
+
+  # ---------------------------------------------------------------------------
+  # Date — `{when, date, …}` (A: `2026-11-26T15:05:00.123456Z`; B: `2026-12-24T23:59:00Z`; C: `2026-07-15T12:30:00.000Z`)
+  # ---------------------------------------------------------------------------
+  - description: "Date / weekday — instant A (`2026-11-26T15:05:00.123456Z`)."
+    rawMessage: "{when, date, weekday}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Date / weekday — instant B (`2026-12-24T23:59:00Z`; local calendar day may roll)."
+    rawMessage: "{when, date, weekday}"
+    values:
+      when: "2026-12-24T23:59:00Z"
+
+  - description: "Date / weekday — instant C (`2026-07-15T12:30:00.000Z`)."
+    rawMessage: "{when, date, weekday}"
+    values:
+      when: "2026-07-15T12:30:00.000Z"
+
+  - description: "Date / long — instant A."
+    rawMessage: "{when, date, long}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Date / long — instant B."
+    rawMessage: "{when, date, long}"
+    values:
+      when: "2026-12-24T23:59:00Z"
+
+  - description: "Date / long — instant C."
+    rawMessage: "{when, date, long}"
+    values:
+      when: "2026-07-15T12:30:00.000Z"
+
+  - description: "Date / short — instant A."
+    rawMessage: "{when, date, short}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Date / short — instant B (`2026-12-24T23:59:00Z`; local day may roll)."
+    rawMessage: "{when, date, short}"
+    values:
+      when: "2026-12-24T23:59:00Z"
+
+  - description: "Date / short — instant C (noon UTC midsummer)."
+    rawMessage: "{when, date, short}"
+    values:
+      when: "2026-07-15T12:30:00.000Z"
+
+  - description: "Date / numeric — instant A."
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Date / numeric — instant B."
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-12-24T23:59:00Z"
+
+  - description: "Date / numeric — instant C."
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-07-15T12:30:00.000Z"
+
+  # ---------------------------------------------------------------------------
+  # Time — `{when, time, …}`
+  # ---------------------------------------------------------------------------
+  - description: "Time / short — instant A (default zone)."
+    rawMessage: "{when, time, short}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Time / short — instant B (default zone)."
+    rawMessage: "{when, time, short}"
+    values:
+      when: "2026-12-24T23:59:00Z"
+
+  - description: "Time / short — instant C (default zone)."
+    rawMessage: "{when, time, short}"
+    values:
+      when: "2026-07-15T12:30:00.000Z"
+
+  - description: "Time / seconds — instant A."
+    rawMessage: "{when, time, seconds}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Time / seconds — instant B."
+    rawMessage: "{when, time, seconds}"
+    values:
+      when: "2026-12-24T23:59:00Z"
+
+  - description: "Time / seconds — instant C."
+    rawMessage: "{when, time, seconds}"
+    values:
+      when: "2026-07-15T12:30:00.000Z"
+
+  - description: "Time / utc — instant A (UTC skeleton)."
+    rawMessage: "{when, time, utc}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Time / utc — instant B."
+    rawMessage: "{when, time, utc}"
+    values:
+      when: "2026-12-24T23:59:00Z"
+
+  - description: "Time / utc — instant C."
+    rawMessage: "{when, time, utc}"
+    values:
+      when: "2026-07-15T12:30:00.000Z"
+
+  # ---------------------------------------------------------------------------
+  # Time zone — per-example `timeZone` (same `rawMessage` patterns as above)
+  # ---------------------------------------------------------------------------
+  - description: "Time zone / Asia-Tokyo — `date, long`."
+    rawMessage: "{when, date, long}"
+    values:
+      when: "2026-06-01T14:00:00.000Z"
+    timeZone: Asia/Tokyo
+
+  - description: "Time zone / Asia-Tokyo — `date, weekday`."
+    rawMessage: "{when, date, weekday}"
+    values:
+      when: "2026-06-01T14:00:00.000Z"
+    timeZone: Asia/Tokyo
+
+  - description: "Time zone / Asia-Tokyo — `date, short`."
+    rawMessage: "{when, date, short}"
+    values:
+      when: "2026-06-01T14:00:00.000Z"
+    timeZone: Asia/Tokyo
+
+  - description: "Time zone / Asia-Tokyo — `date, numeric`."
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-06-01T14:00:00.000Z"
+    timeZone: Asia/Tokyo
+
+  - description: "Time zone / Asia-Tokyo — `time, short`."
+    rawMessage: "{when, time, short}"
+    values:
+      when: "2026-06-01T14:00:00.000Z"
+    timeZone: Asia/Tokyo
+
+  - description: "Time zone / Asia-Tokyo — `time, seconds`."
+    rawMessage: "{when, time, seconds}"
+    values:
+      when: "2026-06-01T14:00:00.000Z"
+    timeZone: Asia/Tokyo
+
+  - description: "Time zone / Asia-Tokyo — `time, utc`."
+    rawMessage: "{when, time, utc}"
+    values:
+      when: "2026-06-01T14:00:00.000Z"
+    timeZone: Asia/Tokyo
+
+  - description: "Time zone / Europe-London — `date, long` (`2026-06-01T14:00:00Z`, same instant as Tokyo block)."
+    rawMessage: "{when, date, long}"
+    values:
+      when: "2026-06-01T14:00:00.000Z"
+    timeZone: Europe/London
+
+  - description: "Time zone / Europe-London — `date, weekday` (same instant)."
+    rawMessage: "{when, date, weekday}"
+    values:
+      when: "2026-06-01T14:00:00.000Z"
+    timeZone: Europe/London
+
+  - description: "Time zone / America-New_York — `time, seconds` (same instant)."
+    rawMessage: "{when, time, seconds}"
+    values:
+      when: "2026-06-01T14:00:00.000Z"
+    timeZone: America/New_York
+
+  # ---------------------------------------------------------------------------
+  # Composition — multi-placeholder messages (original en-US cookbook patterns)
+  # ---------------------------------------------------------------------------
+  - description: "Composition — currency symbol, code, and accounting on one amount."
+    rawMessage: "Due today: {amount, number, moneySymbol} · as code {amount, number, moneyCode} · accounting style {amount, number, moneyAccounting}."
+    values:
+      amount: -1284.5
+
+  - description: "Composition — percent next to money in one sentence."
+    rawMessage: "Estimated APR {apr, number, percent} — payment {payment, number, money}."
+    values:
+      apr: 0.0575
+      payment: 412.33
+
+  - description: "Composition — `decimal` vs `decimalFixed` side by side."
+    rawMessage: "Raw average {avg, number, decimal}; display {avg, number, decimalFixed}."
+    values:
+      avg: 3.14159
+
+  - description: "Composition — all common number presets on one large positive value."
+    rawMessage: "plain {v, number} · decimal {v, number, decimal} · decimalFixed {v, number, decimalFixed} · money {v, number, money} · moneySymbol {v, number, moneySymbol} · moneyCode {v, number, moneyCode} · moneyAccounting {v, number, moneyAccounting} · percent {p, number, percent}"
+    values:
+      v: 1234567.891
+      p: 0.1234
+
+  - description: "Composition — same preset set on a large negative value (no percent)."
+    rawMessage: "plain {v, number} · decimal {v, number, decimal} · decimalFixed {v, number, decimalFixed} · money {v, number, money} · moneySymbol {v, number, moneySymbol} · moneyCode {v, number, moneyCode} · moneyAccounting {v, number, moneyAccounting}"
+    values:
+      v: -987654.321
+
+  - description: "Composition — integers with plain, `decimal`, and `decimalFixed` (en-US grouping)."
+    rawMessage: "Sheets {n, number} · tickets {tickets, number, decimal} · units {units, number, decimalFixed}."
+    values:
+      n: 2500
+      tickets: 2500
+      units: 2500
+
+  - description: "Composition — several installments plus subtotal (symbol vs code)."
+    rawMessage: "Installments {a, number, money}, {b, number, money}, {c, number, money} — subtotal {sub, number, moneySymbol}; as ISO code {sub, number, moneyCode}."
+    values:
+      a: 100
+      b: 250.5
+      c: 400.25
+      sub: 750.75
+
+  - description: "Composition — comma-separated plain numbers vs `decimalFixed`."
+    rawMessage: "Plain {x, number}, {y, number}, {z, number} · fixed {x, number, decimalFixed}, {y, number, decimalFixed}, {z, number, decimalFixed}."
+    values:
+      x: 1
+      y: 2000.5
+      z: 3000000.25
+
+  - description: "Composition — per-example `currency: EUR` across all currency-style presets in one line."
+    rawMessage: "money {amt, number, money} · symbol {amt, number, moneySymbol} · code {amt, number, moneyCode} · accounting {amt, number, moneyAccounting}."
+    values:
+      amt: 42
+    currency: EUR
+
+  - description: "Composition — zero money, decimal, percent, and `decimalFixed` together."
+    rawMessage: "zero money {z, number, money} · zero decimal {z, number, decimal} · tiny percent {t, number, percent} · tiny fixed {t, number, decimalFixed}."
+    values:
+      z: 0
+      t: 0.004
+
+  - description: "Composition — named `money`, `moneyJpy`, and `moneyEur` on one amount."
+    rawMessage: "USD {amt, number, money} · JPY {amt, number, moneyJpy} · EUR {amt, number, moneyEur}"
+    values:
+      amt: 1999.99
+
+  - description: "Composition — large integer with `decimal`, `money`, and plain `{n, number}`."
+    rawMessage: "Decimal preset {n, number, decimal} · money {n, number, money} · plain {n, number}"
+    values:
+      n: 4820193
+
+  - description: "Composition — one instant as weekday, long date, and time with seconds."
+    rawMessage: "{when, date, weekday} · {when, date, long} · {when, time, seconds}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Composition — short vs numeric date plus local short time vs UTC time."
+    rawMessage: "Ship by {deadline, date, short} (numeric {deadline, date, numeric}) — cutoff {deadline, time, short} local / {deadline, time, utc} UTC."
+    values:
+      deadline: "2026-12-24T23:59:00Z"
+
+  - description: "Composition — Tokyo time zone: long date plus time with seconds (one instant)."
+    rawMessage: "Same instant in Tokyo: {event, date, long} {event, time, seconds}"
+    values:
+      event: "2026-06-01T14:00:00.000Z"
+    timeZone: Asia/Tokyo
+
+  - description: "Composition — large follower count plus prize pool money."
+    rawMessage: "Reach {followers, number, decimal} creators — prize pool {pool, number, money}."
+    values:
+      followers: 1840000
+      pool: 25000
+
+  - description: "Composition — ICU plural with cart copy (multi-placeholder, count 3)."
+    rawMessage: "{items, plural, one {# item in cart — {total, number, money}} other {# items in cart — {total, number, money}}}"
+    values:
+      items: 3
+      total: 48.1
+
+  # ---------------------------------------------------------------------------
+  # Additional Intl subset coverage — named number/date/time presets
+  # ---------------------------------------------------------------------------
+  - description: "Number / compactShort — `{v, number, compactShort}`."
+    rawMessage: "{v, number, compactShort}"
+    values:
+      v: 12500
+
+  - description: "Number / compactLong — `{v, number, compactLong}`."
+    rawMessage: "{v, number, compactLong}"
+    values:
+      v: 12500
+
+  - description: "Number / scientific — `{v, number, scientific}`."
+    rawMessage: "{v, number, scientific}"
+    values:
+      v: 12345
+
+  - description: "Number / engineering — `{v, number, engineering}`."
+    rawMessage: "{v, number, engineering}"
+    values:
+      v: 12345
+
+  - description: "Number / unitKilometerShort — `{v, number, unitKilometerShort}`."
+    rawMessage: "{v, number, unitKilometerShort}"
+    values:
+      v: 42
+
+  - description: "Number / unitKilometerNarrow — `{v, number, unitKilometerNarrow}`."
+    rawMessage: "{v, number, unitKilometerNarrow}"
+    values:
+      v: 42
+
+  - description: "Number / unitKilometerLong — `{v, number, unitKilometerLong}`."
+    rawMessage: "{v, number, unitKilometerLong}"
+    values:
+      v: 42
+
+  - description: "Number / moneyNarrow — `{v, number, moneyNarrow}`."
+    rawMessage: "{v, number, moneyNarrow}"
+    values:
+      v: 1200
+
+  - description: "Number / moneyName — `{v, number, moneyName}`."
+    rawMessage: "{v, number, moneyName}"
+    values:
+      v: 1200
+
+  - description: "Number / significant3 — `{v, number, significant3}`."
+    rawMessage: "{v, number, significant3}"
+    values:
+      v: 12345.678
+
+  - description: "Number / signAlways — `{v, number, signAlways}`."
+    rawMessage: "{v, number, signAlways}"
+    values:
+      v: 5
+
+  - description: "Number / signNegative — `{v, number, signNegative}`."
+    rawMessage: "{v, number, signNegative}"
+    values:
+      v: -5
+
+  - description: "Number / groupingAlways — `{v, number, groupingAlways}`."
+    rawMessage: "{v, number, groupingAlways}"
+    values:
+      v: 1200
+
+  - description: "Number / groupingMin2 — `{v, number, groupingMin2}`."
+    rawMessage: "{v, number, groupingMin2}"
+    values:
+      v: 1200
+
+  - description: "Number / roundingFive — `{v, number, roundingFive}`."
+    rawMessage: "{v, number, roundingFive}"
+    values:
+      v: 12.03
+
+  - description: "Number / roundingCeil — `{v, number, roundingCeil}`."
+    rawMessage: "{v, number, roundingCeil}"
+    values:
+      v: 1.234
+
+  - description: "Number / roundingFloor — `{v, number, roundingFloor}`."
+    rawMessage: "{v, number, roundingFloor}"
+    values:
+      v: 1.234
+
+  - description: "Number / roundingPriorityMore — `{v, number, roundingPriorityMore}`."
+    rawMessage: "{v, number, roundingPriorityMore}"
+    values:
+      v: 1.234
+
+  - description: "Number / roundingPriorityLess — `{v, number, roundingPriorityLess}`."
+    rawMessage: "{v, number, roundingPriorityLess}"
+    values:
+      v: 1.234
+
+  - description: "Number / stripIfInteger — `{v, number, stripIfInteger}`."
+    rawMessage: "{v, number, stripIfInteger}"
+    values:
+      v: 12
+
+  - description: "Number / arabicDigits — `{v, number, arabicDigits}`."
+    rawMessage: "{v, number, arabicDigits}"
+    values:
+      v: 2025
+
+  - description: "Date / fullStyle — `{when, date, fullStyle}`."
+    rawMessage: "{when, date, fullStyle}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Date / longStyle — `{when, date, longStyle}`."
+    rawMessage: "{when, date, longStyle}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Date / arabicNumeric — `{when, date, arabicNumeric}`."
+    rawMessage: "{when, date, arabicNumeric}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Date / buddhistLong — `{when, date, buddhistLong}`."
+    rawMessage: "{when, date, buddhistLong}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Date / eraShort — `{when, date, eraShort}`."
+    rawMessage: "{when, date, eraShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / fullStyle — `{when, time, fullStyle}`."
+    rawMessage: "{when, time, fullStyle}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Time / dayPeriodLong — `{when, time, dayPeriodLong}`."
+    rawMessage: "{when, time, dayPeriodLong}"
+    values:
+      when: "2026-11-26T12:00:00.000Z"
+
+  - description: "Time / fractional — `{when, time, fractional}`."
+    rawMessage: "{when, time, fractional}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / zoneShort — `{when, time, zoneShort}`."
+    rawMessage: "{when, time, zoneShort}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Time / zoneLong — `{when, time, zoneLong}`."
+    rawMessage: "{when, time, zoneLong}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Time / zoneShortOffset — `{when, time, zoneShortOffset}`."
+    rawMessage: "{when, time, zoneShortOffset}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Time / zoneLongOffset — `{when, time, zoneLongOffset}`."
+    rawMessage: "{when, time, zoneLongOffset}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Time / zoneShortGeneric — `{when, time, zoneShortGeneric}`."
+    rawMessage: "{when, time, zoneShortGeneric}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Time / zoneLongGeneric — `{when, time, zoneLongGeneric}`."
+    rawMessage: "{when, time, zoneLongGeneric}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  - description: "Time / hourCycle24 — `{when, time, hourCycle24}`."
+    rawMessage: "{when, time, hourCycle24}"
+    values:
+      when: "2026-11-26T15:05:00.123456Z"
+
+  # ---------------------------------------------------------------------------
+  # ICU — selectordinal (ordinal behavior lives in ICU, not locale formats)
+  # ---------------------------------------------------------------------------
+  - description: "ICU / selectordinal — `one` branch (1st)."
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    values:
+      place: 1
+
+  - description: "ICU / selectordinal — `two` branch (2nd)."
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    values:
+      place: 2
+
+  - description: "ICU / selectordinal — `few` branch (3rd)."
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    values:
+      place: 3
+
+  - description: "ICU / selectordinal — `other` branch (11th)."
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    values:
+      place: 11
+
+  - description: "ICU / plural offset — invited guests after host."
+    rawMessage: "{guests, plural, offset:1 =0 {Nobody is coming} =1 {{host} is coming alone} one {{host} invited one guest} other {{host} invited # guests}}"
+    values:
+      host: Ada
+      guests: 5
+
+  - description: "ICU / nested select plus plural."
+    rawMessage: "{role, select, admin {{name} can manage {count, plural, one {one project} other {# projects}}} viewer {{name} can view {count, plural, one {one project} other {# projects}}} other {{name} has no project access}}"
+    values:
+      role: admin
+      name: Ada
+      count: 3
+
+  - description: "Formatting / per-example currency and time zone overrides."
+    rawMessage: "Total {amount, number, money}; deadline {deadline, date, weekday} {deadline, time, seconds}."
+    currency: EUR
+    timeZone: Asia/Tokyo
+    values:
+      amount: 42
+      deadline: "2026-06-01T14:00:00.000Z"

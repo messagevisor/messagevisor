@@ -1,0 +1,34 @@
+message: auth.installApp
+
+assertions:
+  - locale: en-US
+    target: web
+    context:
+      platform: web
+    expectedTranslation: Install the app
+  - locale: en-US
+    target: mobile
+    context:
+      platform: ios
+    expectedTranslation: Download on the App Store
+  - locale: en-US
+    target: mobile
+    context:
+      platform: android
+    expectedTranslation: Get it on Google Play
+  - locale: nl-NL
+    target: mobile
+    context:
+      platform: ios
+    expectedTranslation: Download in de App Store
+  - locale: nl-NL
+    target: mobile
+    context:
+      platform: android
+    expectedTranslation: Download via Google Play
+  - locale: en-US
+    target: ios
+    expectedTranslation: Download on the App Store
+  - locale: nl-NL
+    target: ios
+    expectedTranslation: Download in de App Store

@@ -1,0 +1,9 @@
+description: Admin web
+pretty: true
+
+includeMessages:
+  - common*
+  - users*
+
+locales:
+  - en-US

@@ -1,0 +1,43 @@
+description: Install app call to action
+
+summary: shorter summary
+
+meta:
+  tags:
+    - auth
+    - onboarding
+  analytics:
+    event: auth_install_app_view
+    placement: header
+  ui:
+    group: authentication
+
+translations:
+  en: Install the app
+  nl: Installeer de app
+
+overrides:
+  - key: platform-ios
+    segments: platform-ios
+    translations:
+      en: Download on the App Store
+      nl: Download in de App Store
+  - key: platform-android
+    segments: platform-android
+    translations:
+      en: Get it on Google Play
+      nl: Download via Google Play
+
+examples:
+  - description: Default translation
+    locale: en
+
+  - matrix:
+      platform: [ios, android, web]
+      locale: [en, nl]
+    description: In platform ${{ platform }}
+    locale: ${{ locale }}
+    values:
+      name: John
+    context:
+      platform: ${{ platform }}

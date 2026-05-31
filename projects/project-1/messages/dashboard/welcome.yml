@@ -1,0 +1,28 @@
+description: Dashboard welcome message
+meta:
+  tags:
+    - dashboard
+    - personalization
+  experiments:
+    - welcome-copy
+  audience:
+    requiresName: true
+
+translations:
+  en: Welcome back, {name}
+  nl: Welkom terug, {name}
+
+overrides:
+  - key: plan-pro
+    segments: plan-pro
+    translations:
+      en: Welcome back, {name}. Your Pro workspace is ready.
+      nl: Welkom terug, {name}. Je Pro-werkruimte staat klaar.
+  - key: dutch-web
+    segments:
+      and:
+        - dutch-account
+        - platform-web
+    translations:
+      en: Welcome back, {name}. Your Dutch workspace is ready.
+      nl: Welkom terug, {name}. Je Nederlandse werkruimte staat klaar.

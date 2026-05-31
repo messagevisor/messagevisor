@@ -1,0 +1,39 @@
+description: Arabic (Saudi Arabia)
+direction: rtl
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: SAR
+    moneyCode:
+      style: currency
+      currency: SAR
+      currencyDisplay: code
+  date:
+    long:
+      year: numeric
+      month: long
+      day: numeric
+      timeZone: UTC
+  time:
+    short:
+      hour: numeric
+      minute: 2-digit
+      timeZone: UTC
+  relative:
+    auto:
+      numeric: auto
+      style: long
+
+examples:
+  - description: مثال عربي مع تنسيق العملة
+    rawMessage: "الإجمالي: {amount, number, money}"
+    values:
+      amount: 1234.5
+
+  - description: مثال عربي لرسالة ترحيب
+    message: common.welcome
+    values:
+      name: ليلى
+      product: Messagevisor

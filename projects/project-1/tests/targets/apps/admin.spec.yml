@@ -1,0 +1,24 @@
+target: apps.admin
+
+assertions:
+  - locale: en-US
+    expectedToIncludeMessages:
+      - dashboard.welcome
+      - billing.trialEnds
+    expectedToNotIncludeMessages:
+      - auth.signin
+      - footer.copyright
+    message: dashboard.welcome
+    context:
+      account:
+        country: NL
+    values:
+      name: Ada
+    expectedTranslation: Welcome back, Ada. Your Dutch workspace is ready.
+  - locale: nl-NL
+    expectedToIncludeMessages:
+      - dashboard.welcome
+      - billing.trialEnds
+    expectedToNotIncludeMessages:
+      - auth.signin
+      - footer.copyright

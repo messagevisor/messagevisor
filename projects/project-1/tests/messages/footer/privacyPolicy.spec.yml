@@ -1,0 +1,9 @@
+message: footer.privacyPolicy
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: Privacy Policy
+  - locale: nl-NL
+    target: web
+    expectedTranslation: Privacybeleid

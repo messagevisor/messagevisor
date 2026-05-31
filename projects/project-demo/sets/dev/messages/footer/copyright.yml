@@ -1,0 +1,7 @@
+description: Footer copyright line
+
+translations:
+  en: "© {year} Northline Market. All rights reserved."
+  en-GB: "© {year} Northline Market. All rights reserved."
+  nl-NL: "© {year} Northline Market. Alle rechten voorbehouden."
+  de-DE: "© {year} Northline Market. Alle Rechte vorbehalten."

@@ -1,0 +1,27 @@
+description: Dutch
+
+inheritFormatsFrom: en
+inheritTranslationsFrom: en
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: EUR
+    moneySymbol:
+      style: currency
+      currency: EUR
+      currencyDisplay: symbol
+    moneyCode:
+      style: currency
+      currency: EUR
+      currencyDisplay: code
+    moneyAccounting:
+      style: currency
+      currency: EUR
+      currencySign: accounting
+  date:
+    long:
+      year: numeric
+      month: long
+      day: numeric

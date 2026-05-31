@@ -1,0 +1,39 @@
+description: English (United States)
+direction: ltr
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: USD
+    moneyCode:
+      style: currency
+      currency: USD
+      currencyDisplay: code
+  date:
+    long:
+      year: numeric
+      month: long
+      day: numeric
+      timeZone: UTC
+  time:
+    short:
+      hour: numeric
+      minute: 2-digit
+      timeZone: UTC
+  relative:
+    auto:
+      numeric: auto
+      style: long
+
+examples:
+  - description: English total with locale money format
+    rawMessage: "Your total is {amount, number, money}."
+    values:
+      amount: 1234.5
+
+  - description: English welcome message example
+    message: common.welcome
+    values:
+      name: Lina
+      product: Messagevisor

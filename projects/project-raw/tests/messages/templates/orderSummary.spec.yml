@@ -1,0 +1,9 @@
+message: templates.orderSummary
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      orderId: A100
+      amount: $12.00
+    expectedTranslation: "Order {orderId} total: <strong>{amount}</strong>"

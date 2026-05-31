@@ -1,0 +1,33 @@
+message: inbox.unreadCount
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      count: 0
+    expectedTranslation: No unread messages
+  - locale: en-US
+    target: mobile
+    values:
+      count: 1
+    expectedTranslation: 1 unread message
+  - locale: en-US
+    target: web
+    values:
+      count: 5
+    expectedTranslation: 5 unread messages
+  - locale: nl-NL
+    target: mobile
+    values:
+      count: 0
+    expectedTranslation: Geen ongelezen berichten
+  - locale: nl-NL
+    target: web
+    values:
+      count: 1
+    expectedTranslation: 1 ongelezen bericht
+  - locale: nl-NL
+    target: web
+    values:
+      count: 5
+    expectedTranslation: 5 ongelezen berichten

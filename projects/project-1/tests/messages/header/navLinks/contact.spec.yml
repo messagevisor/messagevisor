@@ -1,0 +1,9 @@
+message: header.navLinks.contact
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: Contact
+  - locale: nl-NL
+    target: web
+    expectedTranslation: Contact

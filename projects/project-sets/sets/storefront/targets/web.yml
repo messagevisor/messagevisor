@@ -1,0 +1,10 @@
+description: Storefront web
+pretty: true
+
+includeMessages:
+  - common*
+  - checkout*
+
+locales:
+  - en-US
+  - nl-NL

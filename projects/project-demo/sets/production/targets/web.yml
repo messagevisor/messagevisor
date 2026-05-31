@@ -1,0 +1,11 @@
+description: Web storefront
+pretty: true
+
+includeMessages:
+  - "*"
+
+locales:
+  - en-US
+  - en-GB
+  - nl-NL
+  - de-DE

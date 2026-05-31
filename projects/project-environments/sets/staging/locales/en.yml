@@ -1,0 +1,19 @@
+description: English base locale
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: USD
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2
+  date:
+    short:
+      year: numeric
+      month: short
+      day: numeric
+  time:
+    short:
+      hour: numeric
+      minute: 2-digit
+      hourCycle: h23

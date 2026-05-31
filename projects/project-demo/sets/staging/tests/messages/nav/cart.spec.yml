@@ -1,0 +1,12 @@
+message: nav.cart
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: Cart
+  - locale: en-GB
+    target: web
+    expectedTranslation: Basket
+  - locale: nl-NL
+    target: mobile
+    expectedTranslation: Winkelwagen

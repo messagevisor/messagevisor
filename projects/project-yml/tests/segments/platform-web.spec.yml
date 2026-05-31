@@ -1,0 +1,11 @@
+segment: platform-web
+
+assertions:
+  - segment: platform-web
+    context:
+      platform: web
+    expectedToMatch: true
+  - segment: platform-web
+    context:
+      platform: mobile
+    expectedToMatch: false

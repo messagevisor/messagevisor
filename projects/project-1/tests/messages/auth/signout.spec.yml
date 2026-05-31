@@ -1,0 +1,15 @@
+message: auth.signout
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: Sign out
+  - locale: en-GB
+    target: web
+    expectedTranslation: Sign out
+  - locale: nl-NL
+    target: web
+    expectedTranslation: Afmelden
+  - locale: nl-NL
+    target: mobile
+    expectedTranslation: Afmelden

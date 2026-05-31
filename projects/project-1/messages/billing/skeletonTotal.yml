@@ -1,0 +1,5 @@
+description: Checkout total using named GBP currency format preset
+
+translations:
+  en: "GBP total: {amount, number, moneyGbp}"
+  nl: "GBP-totaal: {amount, number, moneyGbp}"

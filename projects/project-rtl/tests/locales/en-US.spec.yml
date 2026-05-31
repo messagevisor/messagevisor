@@ -1,0 +1,27 @@
+locale: en-US
+
+assertions:
+  - expectedFormats:
+      number:
+        money:
+          style: currency
+          currency: USD
+        moneyCode:
+          style: currency
+          currency: USD
+          currencyDisplay: code
+      date:
+        long:
+          year: numeric
+          month: long
+          day: numeric
+          timeZone: UTC
+      time:
+        short:
+          hour: numeric
+          minute: 2-digit
+          timeZone: UTC
+      relative:
+        auto:
+          numeric: auto
+          style: long

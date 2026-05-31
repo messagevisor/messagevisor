@@ -1,0 +1,285 @@
+locale: en-US
+
+assertions:
+  - description: en-US partial format subset
+    expectedFormats:
+      number:
+        money:
+          currency: USD
+      time:
+        utc:
+          timeZone: UTC
+
+  - matrix:
+      label: [currency-check, time-zone-check]
+      currency: [USD]
+      zone: [UTC]
+    description: Matrix locale formats ${{ label }}
+    expectedFormats:
+      number:
+        money:
+          currency: ${{ currency }}
+      time:
+        utc:
+          timeZone: ${{ zone }}
+
+  - description: en-US exhaustive Intl preset surface
+    expectedFormats:
+      number:
+        decimal:
+          maximumFractionDigits: 2
+        compactShort:
+          notation: compact
+          compactDisplay: short
+        compactLong:
+          notation: compact
+          compactDisplay: long
+        scientific:
+          notation: scientific
+        engineering:
+          notation: engineering
+        money:
+          style: currency
+          currency: USD
+        moneySymbol:
+          style: currency
+          currency: USD
+          currencyDisplay: symbol
+        moneyCode:
+          style: currency
+          currency: USD
+          currencyDisplay: code
+        moneyAccounting:
+          style: currency
+          currency: USD
+          currencySign: accounting
+        moneyNarrow:
+          style: currency
+          currency: USD
+          currencyDisplay: narrowSymbol
+        moneyName:
+          style: currency
+          currency: USD
+          currencyDisplay: name
+        decimalFixed:
+          style: decimal
+          minimumFractionDigits: 2
+          maximumFractionDigits: 2
+        significant3:
+          minimumSignificantDigits: 3
+          maximumSignificantDigits: 3
+        signAlways:
+          signDisplay: always
+          maximumFractionDigits: 0
+        signNegative:
+          signDisplay: negative
+          maximumFractionDigits: 0
+        groupingAlways:
+          useGrouping: always
+        groupingMin2:
+          useGrouping: min2
+        roundingFive:
+          minimumFractionDigits: 2
+          maximumFractionDigits: 2
+          roundingIncrement: 5
+          roundingMode: halfExpand
+        stripIfInteger:
+          minimumFractionDigits: 2
+          maximumFractionDigits: 2
+          trailingZeroDisplay: stripIfInteger
+        arabicDigits:
+          numberingSystem: arab
+        percent:
+          style: percent
+          maximumFractionDigits: 1
+        unitKilometerShort:
+          style: unit
+          unit: kilometer
+          unitDisplay: short
+        unitKilometerNarrow:
+          style: unit
+          unit: kilometer
+          unitDisplay: narrow
+        unitKilometerLong:
+          style: unit
+          unit: kilometer
+          unitDisplay: long
+      date:
+        fullStyle:
+          dateStyle: full
+        longStyle:
+          dateStyle: long
+        short:
+          year: 2-digit
+          month: numeric
+          day: numeric
+        numeric:
+          year: numeric
+          month: 2-digit
+          day: 2-digit
+        weekday:
+          weekday: long
+          year: numeric
+          month: long
+          day: numeric
+        long:
+          year: numeric
+          month: long
+          day: numeric
+        arabicNumeric:
+          year: numeric
+          month: 2-digit
+          day: 2-digit
+          numberingSystem: arab
+        buddhistLong:
+          year: numeric
+          month: long
+          day: numeric
+          calendar: buddhist
+      time:
+        fullStyle:
+          timeStyle: full
+          timeZone: UTC
+        short:
+          hour: numeric
+          minute: 2-digit
+        seconds:
+          hour: numeric
+          minute: 2-digit
+          second: 2-digit
+        utc:
+          hour: numeric
+          minute: 2-digit
+          timeZone: UTC
+        dayPeriodLong:
+          hour: numeric
+          dayPeriod: long
+          hour12: true
+          timeZone: UTC
+        zoneShort:
+          hour: numeric
+          minute: 2-digit
+          timeZone: UTC
+          timeZoneName: short
+        hourCycle24:
+          hour: 2-digit
+          minute: 2-digit
+          hourCycle: h23
+          timeZone: UTC
+      relative:
+        auto:
+          numeric: auto
+          style: long
+        short:
+          numeric: auto
+          style: short
+        narrow:
+          numeric: always
+          style: narrow
+      dateTimeRange:
+        short:
+          year: 2-digit
+          month: numeric
+          day: numeric
+          hour: numeric
+          minute: 2-digit
+        event:
+          year: numeric
+          month: short
+          day: numeric
+          hour: numeric
+          minute: 2-digit
+        fullStyle:
+          dateStyle: full
+          timeStyle: short
+          timeZone: UTC
+
+  - description: en-US compact short number
+    rawMessage: "{v, number, compactShort}"
+    values:
+      v: 12500
+    expectedTranslation: 13K
+
+  - description: en-US target preview overrides the money preset
+    target: preview
+    expectedFormats:
+      number:
+        money:
+          currency: GBP
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: £12.00
+
+  - description: en-US currency override per assertion
+    rawMessage: "{v, number, money}"
+    values:
+      v: 42
+    currency: EUR
+    expectedTranslation: €42.00
+
+  - description: en-US time zone override per assertion
+    rawMessage: "{when, time, seconds}"
+    values:
+      when: 2026-06-01T14:00:00.000Z
+    timeZone: Asia/Tokyo
+    expectedTranslation: 11:00:00 PM
+    expectedByRuntime:
+      go: 11:00:00 pm
+
+  - description: en-US ad hoc formats are honored
+    rawMessage: "{value, number, signed}"
+    values:
+      value: 7
+    formats:
+      number:
+        signed:
+          signDisplay: always
+          maximumFractionDigits: 0
+    expectedTranslation: "+7"
+
+  - description: en-US plural with explicit =0 branch
+    rawMessage: "{items, plural, =0 {No items in cart — {total, number, money}} one {# item in cart — {total, number, money}} other {# items in cart — {total, number, money}}}"
+    values:
+      items: 0
+      total: 0
+    expectedTranslation: No items in cart — $0.00
+
+  - description: en-US select branch with nested money format
+    rawMessage: "{kind, select, invoice {Invoice} credit {Store credit: {amt, number, moneySymbol}} other {Other}}"
+    values:
+      kind: credit
+      amt: 75
+    expectedTranslation: "Store credit: $75.00"
+
+  - description: en-US selectordinal first
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    values:
+      place: 1
+    expectedTranslation: 1st place
+
+  - description: en-US selectordinal second
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    values:
+      place: 2
+    expectedTranslation: 2nd place
+
+  - description: en-US selectordinal third
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    values:
+      place: 3
+    expectedTranslation: 3rd place
+
+  - description: en-US selectordinal other
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    values:
+      place: 11
+    expectedTranslation: 11th place
+
+  - description: en-US composition with multiple presets
+    rawMessage: "Due today: {amount, number, moneySymbol} · as code {amount, number, moneyCode} · accounting style {amount, number, moneyAccounting}."
+    values:
+      amount: -1284.5
+    expectedTranslation: "Due today: -$1,284.50 · as code -USD 1,284.50 · accounting style ($1,284.50)."
+    expectedByRuntime:
+      go: "Due today: -$1,284.50 · as code -USD1,284.50 · accounting style ($1,284.50)."

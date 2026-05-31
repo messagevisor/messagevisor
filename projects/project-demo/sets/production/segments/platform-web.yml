@@ -1,0 +1,6 @@
+description: Web storefront visitors
+
+conditions:
+  - attribute: platform
+    operator: equals
+    value: web

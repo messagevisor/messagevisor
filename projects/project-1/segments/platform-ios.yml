@@ -1,0 +1,6 @@
+description: Platform iOS
+
+conditions:
+  - attribute: platform
+    operator: equals
+    value: ios

@@ -1,0 +1,13 @@
+message: checkout.total
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      amount: 12
+    expectedTranslation: "Total: $12.00"
+  - locale: nl-NL
+    target: web
+    values:
+      amount: 12
+    expectedTranslation: "Totaal: € 12,00"

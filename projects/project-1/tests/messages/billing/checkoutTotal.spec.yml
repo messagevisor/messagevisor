@@ -1,0 +1,21 @@
+message: billing.checkoutTotal
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      amount: 12
+    expectedTranslation: "Total: $12.00"
+  - locale: en-US
+    target: web
+    currency: EUR
+    values:
+      amount: 12
+    expectedTranslation: "Total: €12.00"
+  - locale: nl-NL
+    target: web
+    values:
+      amount: 12
+    expectedTranslation: "Totaal: € 12,00"
+    expectedByRuntime:
+      go: "Totaal: 12,00 €"

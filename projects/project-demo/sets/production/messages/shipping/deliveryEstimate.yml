@@ -1,0 +1,7 @@
+description: Estimated delivery window
+
+translations:
+  en: "Estimated delivery: {date, date, delivery}"
+  en-GB: "Estimated delivery: {date, date, delivery}"
+  nl-NL: "Geschatte levering: {date, date, delivery}"
+  de-DE: "Voraussichtliche Lieferung: {date, date, delivery}"

@@ -1,0 +1,8 @@
+message: templates.emailSubject
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      firstName: Ada
+    expectedTranslation: Welcome, {firstName}

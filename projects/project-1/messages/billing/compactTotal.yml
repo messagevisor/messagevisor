@@ -1,0 +1,5 @@
+description: Compact total with product-controlled currency spacing
+
+translations:
+  en: "Compact total: {currency}{amount, number, decimalFixed}"
+  nl: "Compact totaal: {currency}{amount, number, decimalFixed}"

@@ -1,0 +1,27 @@
+description: Regional enterprise review audience with nested account and permission rules
+
+conditions:
+  or:
+    - and:
+        - attribute: account.country
+          operator: in
+          value:
+            - nl
+            - be
+        - attribute: account.plan
+          operator: equals
+          value: enterprise
+        - not:
+            - attribute: account.seats
+              operator: lessThan
+              value: 10
+    - and:
+        - attribute: country
+          operator: equals
+          value: de
+        - attribute: permissions
+          operator: includes
+          value: finance
+        - attribute: age
+          operator: greaterThanOrEquals
+          value: 25

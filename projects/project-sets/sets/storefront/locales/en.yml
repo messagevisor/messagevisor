@@ -1,0 +1,8 @@
+description: Storefront English
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: USD
+      currencyDisplay: symbol

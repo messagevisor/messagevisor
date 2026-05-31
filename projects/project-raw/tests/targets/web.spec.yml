@@ -1,0 +1,8 @@
+target: web
+
+assertions:
+  - locale: en-US
+    expectedToIncludeMessages:
+      - templates.emailSubject
+      - templates.orderSummary
+      - prompts.fileCount

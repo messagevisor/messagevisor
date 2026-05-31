@@ -1,0 +1,15 @@
+description: Sign in
+meta:
+  tags:
+    - auth
+    - onboarding
+  analytics:
+    event: auth_signin_view
+    placement: header
+  ui:
+    group: authentication
+
+translations:
+  en: Sign in
+  en-US: Sign in (USA)
+  nl: Aanmelden

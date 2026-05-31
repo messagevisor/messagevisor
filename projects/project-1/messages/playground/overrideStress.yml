@@ -1,0 +1,73 @@
+description: Override precedence and reusable segments stress message
+
+translations:
+  en: "Standard checkout for {plan}"
+  nl: "Standaard checkout voor {plan}"
+
+overrides:
+  - key: vip-checkout
+    segments:
+      - vip-checkout-audience
+    translations:
+      en: "VIP checkout for {accountName}: {amount, number, money}"
+      nl: "VIP-checkout voor {accountName}: {amount, number, money}"
+  - key: reengagement
+    segments:
+      - reengagement-window
+    translations:
+      en: "Welcome back, {accountName}. Your saved total is {amount, number, money}."
+      nl: "Welkom terug, {accountName}. Je bewaarde totaal is {amount, number, money}."
+  - key: pro-default
+    conditions:
+      attribute: plan
+      operator: equals
+      value: pro
+    translations:
+      en: "Pro checkout for {accountName}: {amount, number, money}"
+      nl: "Pro-checkout voor {accountName}: {amount, number, money}"
+
+examples:
+  - description: Standard fallback
+    locale: en-US
+    values:
+      plan: free
+    context:
+      plan: free
+
+  - description: Pro override
+    locale: en-US
+    values:
+      plan: pro
+      accountName: Acme
+      amount: 99.5
+    context:
+      plan: pro
+
+  - description: VIP checkout segment
+    locale: en-US
+    values:
+      plan: pro
+      accountName: Acme
+      amount: 2500
+    context:
+      plan: pro
+      permissions:
+        - read
+        - write
+      account:
+        seats: 250
+      country: NL
+
+  - description: Dutch VIP checkout segment
+    locale: nl-NL
+    values:
+      plan: pro
+      accountName: Noordzee
+      amount: 2500
+    context:
+      plan: pro
+      permissions:
+        - write
+      account:
+        seats: 250
+      country: BE

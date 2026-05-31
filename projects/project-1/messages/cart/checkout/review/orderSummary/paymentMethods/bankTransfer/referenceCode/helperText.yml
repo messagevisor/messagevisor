@@ -1,0 +1,5 @@
+description: Helper text for the bank transfer reference code in checkout review
+
+translations:
+  en: Use the reference code from your confirmation email when paying by bank transfer
+  nl: Gebruik de referentiecode uit je bevestigingsmail wanneer je met bankoverschrijving betaalt

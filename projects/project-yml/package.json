@@ -1,0 +1,15 @@
+{
+  "name": "@messagevisor/project-yml",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Minimal YAML starter project for Messagevisor",
+  "scripts": {
+    "lint": "messagevisor lint",
+    "build": "messagevisor build",
+    "test": "messagevisor test"
+  },
+  "dependencies": {
+    "@messagevisor/cli": "0.0.1",
+    "@messagevisor/module-icu": "0.0.1"
+  }
+}

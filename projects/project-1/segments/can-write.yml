@@ -1,0 +1,6 @@
+description: Users with write permission
+
+conditions:
+  - attribute: permissions
+    operator: includes
+    value: write

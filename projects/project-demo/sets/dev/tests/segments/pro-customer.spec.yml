@@ -1,0 +1,11 @@
+segment: pro-customer
+
+assertions:
+  - segment: pro-customer
+    context:
+      plan: pro
+    expectedToMatch: true
+  - segment: pro-customer
+    context:
+      plan: free
+    expectedToMatch: false

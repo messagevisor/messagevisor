@@ -1,0 +1,4 @@
+description: Raw plural-like prompt text for a custom formatter module
+
+translations:
+  en-US: "{count, plural, one {# file} other {# files}}"

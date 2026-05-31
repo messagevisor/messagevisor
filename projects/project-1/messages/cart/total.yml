@@ -1,0 +1,5 @@
+description: Cart total
+
+translations:
+  en: "Total: {amount, number, money}"
+  nl: "Totaal: {amount, number, money}"

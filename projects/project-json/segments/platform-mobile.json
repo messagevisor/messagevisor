@@ -1,0 +1,10 @@
+{
+  "description": "Platform mobile",
+  "conditions": [
+    {
+      "attribute": "platform",
+      "operator": "equals",
+      "value": "mobile"
+    }
+  ]
+}

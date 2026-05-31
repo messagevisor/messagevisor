@@ -1,0 +1,19 @@
+{
+  "segment": "platform-mobile",
+  "assertions": [
+    {
+      "segment": "platform-mobile",
+      "context": {
+        "platform": "mobile"
+      },
+      "expectedToMatch": true
+    },
+    {
+      "segment": "platform-mobile",
+      "context": {
+        "platform": "web"
+      },
+      "expectedToMatch": false
+    }
+  ]
+}

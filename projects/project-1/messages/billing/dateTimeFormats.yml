@@ -1,0 +1,5 @@
+description: Date and time format variants
+
+translations:
+  en: "Date numeric: {date, date, numeric}; weekday: {date, date, weekday}; time: {date, time, short}; seconds: {date, time, seconds}; utc: {date, time, utc}"
+  nl: "Datum numeriek: {date, date, numeric}; weekdag: {date, date, weekday}; tijd: {date, time, short}; seconden: {date, time, seconds}; utc: {date, time, utc}"

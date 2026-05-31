@@ -1,0 +1,13 @@
+message: home.freeShipping
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      threshold: 50
+    expectedTranslation: "Free shipping on orders over $50.00"
+  - locale: en-GB
+    target: web
+    values:
+      threshold: 40
+    expectedTranslation: "Free delivery on orders over £40.00"

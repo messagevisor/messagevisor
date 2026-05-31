@@ -1,0 +1,35 @@
+message: product.price
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      name: Trail backpack
+      price: 89
+    expectedTranslation: "Trail backpack — $89.00"
+  - locale: en-GB
+    target: web
+    values:
+      name: Trail backpack
+      price: 79
+    expectedTranslation: "Trail backpack — £79.00"
+  - locale: nl-NL
+    target: web
+    values:
+      name: Rugzak
+      price: 89
+    expectedTranslation: "Rugzak — € 89,00"
+  - locale: de-DE
+    target: web
+    values:
+      name: Wanderrucksack
+      price: 89
+    expectedTranslation: "Wanderrucksack — 89,00 €"
+  - locale: en-US
+    target: web
+    context:
+      plan: pro
+    values:
+      name: Trail backpack
+      price: 79
+    expectedTranslation: "Pro member price for Trail backpack: $79.00"

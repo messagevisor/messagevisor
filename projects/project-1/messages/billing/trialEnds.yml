@@ -1,0 +1,5 @@
+description: Trial end date
+
+translations:
+  en: "Your trial ends on {date, date, long}"
+  nl: "Je proefperiode eindigt op {date, date, long}"

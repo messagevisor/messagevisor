@@ -1,0 +1,7 @@
+description: Platform attribute
+
+type: string
+
+enum:
+  - web
+  - mobile

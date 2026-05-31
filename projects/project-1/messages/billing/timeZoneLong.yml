@@ -1,0 +1,5 @@
+description: Long time zone name
+
+translations:
+  en: "Local time: {date, time, short}"
+  nl: "Lokale tijd: {date, time, short}"

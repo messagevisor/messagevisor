@@ -1,0 +1,9 @@
+message: support.helpCenter
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: "Read the Messagevisor guide at messagevisor.com/help"
+  - locale: ar-SA
+    target: web
+    expectedTranslation: "اقرأ دليل Messagevisor على messagevisor.com/help"

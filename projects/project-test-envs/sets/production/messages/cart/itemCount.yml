@@ -1,0 +1,5 @@
+description: Cart item count
+
+translations:
+  en: "{count, plural, =0 {Your cart is empty} one {# item in your cart} other {# items in your cart}}"
+  nl: "{count, plural, =0 {Je winkelwagen is leeg} one {# artikel in je winkelwagen} other {# artikelen in je winkelwagen}}"

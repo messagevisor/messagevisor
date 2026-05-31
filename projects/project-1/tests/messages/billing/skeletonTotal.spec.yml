@@ -1,0 +1,8 @@
+message: billing.skeletonTotal
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      amount: 12
+    expectedTranslation: "GBP total: £12.00"

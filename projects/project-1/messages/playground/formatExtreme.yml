@@ -1,0 +1,49 @@
+description: Cross-runtime formatter parity playground covering many portable format combinations
+
+translations:
+  en: "Plain {plain, number}; fixed {fixed, number, decimalFixed}; significant {sig, number, significant3}; signed {plus, number, signAlways}; compact {compact, number, compactShort}/{compact, number, compactLong}; unit {distance, number, unitKilometerLong}; money {money, number, moneyGbp}; yen {yen, number, moneyJpy}; percent {rate, number, percent}; date {when, date, numeric}; long {when, date, long}; zone {when, time, zoneShort}; generic {when, time, zoneShortGeneric}."
+  bn: "Plain {plain, number}; fixed {fixed, number, decimalFixed}; significant {sig, number, significant3}; signed {plus, number, signAlways}; compact {compact, number, compactShort}/{compact, number, compactLong}; unit {distance, number, unitKilometerLong}; money {money, number, moneyGbp}; yen {yen, number, moneyJpy}; percent {rate, number, percent}; date {when, date, numeric}; long {when, date, long}; zone {when, time, zoneShort}; generic {when, time, zoneShortGeneric}."
+  nl: "Gewoon {plain, number}; vast {fixed, number, decimalFixed}; significant {sig, number, significant3}; teken {plus, number, signAlways}; compact {compact, number, compactShort}/{compact, number, compactLong}; eenheid {distance, number, unitKilometerLong}; geld {money, number, moneyGbp}; yen {yen, number, moneyJpy}; percentage {rate, number, percent}; datum {when, date, numeric}; lang {when, date, long}; zone {when, time, zoneShort}; generiek {when, time, zoneShortGeneric}."
+
+examples:
+  - description: Extreme portable formatter mix in en-US
+    locale: en-US
+    values:
+      plain: 1234567.891
+      fixed: 12
+      sig: 12345.678
+      plus: 5
+      compact: 12500
+      distance: 42
+      money: 99.5
+      yen: 1999.99
+      rate: 0.0575
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: Extreme portable formatter mix in nl-NL
+    locale: nl-NL
+    values:
+      plain: 1234567.891
+      fixed: 12
+      sig: 12345.678
+      plus: 5
+      compact: 12500
+      distance: 42
+      money: 99.5
+      yen: 1999.99
+      rate: 0.0575
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: Extreme formatter mix in bn
+    locale: bn
+    values:
+      plain: 1234567.891
+      fixed: 12
+      sig: 12345.678
+      plus: 5
+      compact: 12500
+      distance: 42
+      money: 99.5
+      yen: 1999.99
+      rate: 0.0575
+      when: "2026-05-12T08:30:45.678Z"

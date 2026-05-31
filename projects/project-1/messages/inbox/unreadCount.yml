@@ -1,0 +1,5 @@
+description: Unread inbox count
+
+translations:
+  en: "{count, plural, =0 {No unread messages} one {# unread message} other {# unread messages}}"
+  nl: "{count, plural, =0 {Geen ongelezen berichten} one {# ongelezen bericht} other {# ongelezen berichten}}"

@@ -1,0 +1,9 @@
+{
+  "description": "Mobile",
+  "includeMessages": ["auth*", "nav*"],
+  "locales": ["en", "en-US", "en-GB"],
+  "context": {
+    "platform": "mobile"
+  },
+  "pretty": true
+}

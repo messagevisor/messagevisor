@@ -1,0 +1,39 @@
+description: ICU syntax stress message covering select, plural, selectordinal, exact matches, offsets, nesting, and quoting
+
+translations:
+  en: "{gender, select, female {{name} said she is ready} male {{name} said he is ready} other {{name} said they are ready}}. {items, plural, =0 {No tasks} one {One task} other {# tasks}}. Rank: {rank, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}. Guests: {guests, plural, offset:1 =0 {Nobody is coming} =1 {{host} is coming alone} one {{host} invited one guest} other {{host} invited # guests}}. Literal braces: '{'ok'}'."
+  nl: "{gender, select, female {{name} zei dat ze klaar is} male {{name} zei dat hij klaar is} other {{name} zei dat die klaar is}}. {items, plural, =0 {Geen taken} one {Een taak} other {# taken}}. Rang: {rank, selectordinal, one {#e} two {#e} few {#e} other {#e}}. Gasten: {guests, plural, offset:1 =0 {Niemand komt} =1 {{host} komt alleen} one {{host} heeft een gast uitgenodigd} other {{host} heeft # gasten uitgenodigd}}. Letterlijke accolades: '{'ok'}'."
+
+examples:
+  - description: ICU exact plural and offset, English
+    locale: en
+    values:
+      name: Ada
+      gender: female
+      items: 0
+      rank: 1
+      guests: 1
+      host: Ada
+
+  - description: ICU nested plural and ordinal, Dutch
+    locale: nl
+    values:
+      name: Noor
+      gender: female
+      items: 2
+      rank: 3
+      guests: 3
+      host: Noor
+
+  - matrix:
+      locale: [en, nl]
+      gender: [male, other]
+    description: ICU matrix ${{ locale }} / ${{ gender }}
+    locale: ${{ locale }}
+    values:
+      name: Sam
+      gender: ${{ gender }}
+      items: 7
+      rank: 22
+      guests: 5
+      host: Sam

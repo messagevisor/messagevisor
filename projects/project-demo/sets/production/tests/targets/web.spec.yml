@@ -1,0 +1,9 @@
+target: web
+
+assertions:
+  - locale: en-US
+    message: common.appName
+    expectedTranslation: Northline Market
+  - locale: de-DE
+    message: checkout.cta
+    expectedTranslation: Zur Kasse

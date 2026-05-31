@@ -1,0 +1,10 @@
+description: Dutch
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: EUR
+      currencyDisplay: symbol
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2

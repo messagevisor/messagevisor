@@ -1,0 +1,7 @@
+description: Client platform
+
+type: string
+enum:
+  - web
+  - ios
+  - android

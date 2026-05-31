@@ -1,0 +1,11 @@
+message: common.welcome
+
+assertions:
+  - locale: en-US
+    target: web
+    expectedTranslation: Welcome to the admin console
+  - locale: en-US
+    target: web
+    context:
+      role: admin
+    expectedTranslation: Welcome back, admin

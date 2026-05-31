@@ -1,0 +1,25 @@
+description: Dashboard checkout banner gated by feature and experiment conditions
+
+translations:
+  en: Try the classic checkout
+  nl: Probeer de klassieke checkout
+
+overrides:
+  - key: faster-checkout
+    conditions:
+      and:
+        - feature: new-checkout
+          operator: isEnabled
+        - experiment: checkout-copy
+          operator: hasVariation
+          value: bold
+    translations:
+      en: Try the faster checkout
+      nl: Probeer de snellere checkout
+  - key: classic-checkout
+    conditions:
+      feature: new-checkout
+      operator: isDisabled
+    translations:
+      en: Your classic checkout is ready
+      nl: Je klassieke checkout staat klaar

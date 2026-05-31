@@ -1,0 +1,15 @@
+message: cart.total
+
+assertions:
+  - locale: en-US
+    target: web
+    values:
+      amount: 12.5
+    expectedTranslation: "Total: $12.50"
+  - locale: nl-NL
+    target: mobile
+    values:
+      amount: 12.5
+    expectedTranslation: "Totaal: € 12,50"
+    expectedByRuntime:
+      go: "Totaal: 12,50 €"

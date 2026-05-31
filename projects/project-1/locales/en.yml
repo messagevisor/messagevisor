@@ -1,0 +1,266 @@
+description: English default to be used as base for other locales
+
+formats:
+  number:
+    decimal:
+      maximumFractionDigits: 2
+    compactShort:
+      notation: compact
+      compactDisplay: short
+    compactLong:
+      notation: compact
+      compactDisplay: long
+    scientific:
+      notation: scientific
+    engineering:
+      notation: engineering
+    money:
+      style: currency
+      currency: USD
+    moneySymbol:
+      style: currency
+      currency: USD
+      currencyDisplay: symbol
+    moneyCode:
+      style: currency
+      currency: USD
+      currencyDisplay: code
+    moneyAccounting:
+      style: currency
+      currency: USD
+      currencySign: accounting
+    moneyNarrow:
+      style: currency
+      currency: USD
+      currencyDisplay: narrowSymbol
+    moneyName:
+      style: currency
+      currency: USD
+      currencyDisplay: name
+    decimalFixed:
+      style: decimal
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2
+    significant3:
+      minimumSignificantDigits: 3
+      maximumSignificantDigits: 3
+    signAlways:
+      signDisplay: always
+      maximumFractionDigits: 0
+    signNegative:
+      signDisplay: negative
+      maximumFractionDigits: 0
+    groupingAlways:
+      useGrouping: always
+    groupingMin2:
+      useGrouping: min2
+    roundingFive:
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2
+      roundingIncrement: 5
+      roundingMode: halfExpand
+    roundingCeil:
+      maximumFractionDigits: 0
+      roundingMode: ceil
+    roundingFloor:
+      maximumFractionDigits: 0
+      roundingMode: floor
+    roundingPriorityMore:
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2
+      minimumSignificantDigits: 3
+      maximumSignificantDigits: 4
+      roundingPriority: morePrecision
+    roundingPriorityLess:
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2
+      minimumSignificantDigits: 3
+      maximumSignificantDigits: 4
+      roundingPriority: lessPrecision
+    stripIfInteger:
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2
+      trailingZeroDisplay: stripIfInteger
+    arabicDigits:
+      numberingSystem: arab
+    percent:
+      style: percent
+      maximumFractionDigits: 1
+    unitKilometerShort:
+      style: unit
+      unit: kilometer
+      unitDisplay: short
+    unitKilometerNarrow:
+      style: unit
+      unit: kilometer
+      unitDisplay: narrow
+    unitKilometerLong:
+      style: unit
+      unit: kilometer
+      unitDisplay: long
+    moneyGbp:
+      style: currency
+      currency: GBP
+    moneyJpy:
+      style: currency
+      currency: JPY
+    moneyEur:
+      style: currency
+      currency: EUR
+  date:
+    fullStyle:
+      dateStyle: full
+    longStyle:
+      dateStyle: long
+    short:
+      year: 2-digit
+      month: numeric
+      day: numeric
+    numeric:
+      year: numeric
+      month: 2-digit
+      day: 2-digit
+    weekday:
+      weekday: long
+      year: numeric
+      month: long
+      day: numeric
+    long:
+      year: numeric
+      month: long
+      day: numeric
+    arabicNumeric:
+      year: numeric
+      month: 2-digit
+      day: 2-digit
+      numberingSystem: arab
+    buddhistLong:
+      year: numeric
+      month: long
+      day: numeric
+      calendar: buddhist
+    eraShort:
+      era: short
+      year: numeric
+      month: short
+      day: numeric
+  time:
+    fullStyle:
+      timeStyle: full
+      timeZone: UTC
+    short:
+      hour: numeric
+      minute: 2-digit
+    seconds:
+      hour: numeric
+      minute: 2-digit
+      second: 2-digit
+    utc:
+      hour: numeric
+      minute: 2-digit
+      timeZone: UTC
+    dayPeriodLong:
+      hour: numeric
+      dayPeriod: long
+      hour12: true
+      timeZone: UTC
+    fractional:
+      hour: numeric
+      minute: 2-digit
+      second: 2-digit
+      fractionalSecondDigits: 3
+      timeZone: UTC
+    zoneShort:
+      hour: numeric
+      minute: 2-digit
+      timeZone: UTC
+      timeZoneName: short
+    zoneLong:
+      hour: numeric
+      minute: 2-digit
+      timeZone: UTC
+      timeZoneName: long
+    zoneShortOffset:
+      hour: numeric
+      minute: 2-digit
+      timeZone: UTC
+      timeZoneName: shortOffset
+    zoneLongOffset:
+      hour: numeric
+      minute: 2-digit
+      timeZone: UTC
+      timeZoneName: longOffset
+    zoneShortGeneric:
+      hour: numeric
+      minute: 2-digit
+      timeZone: America/New_York
+      timeZoneName: shortGeneric
+    zoneLongGeneric:
+      hour: numeric
+      minute: 2-digit
+      timeZone: America/New_York
+      timeZoneName: longGeneric
+    hourCycle24:
+      hour: 2-digit
+      minute: 2-digit
+      hourCycle: h23
+      timeZone: UTC
+  relative:
+    auto:
+      numeric: auto
+      style: long
+    short:
+      numeric: auto
+      style: short
+    narrow:
+      numeric: always
+      style: narrow
+  dateTimeRange:
+    short:
+      year: 2-digit
+      month: numeric
+      day: numeric
+      hour: numeric
+      minute: 2-digit
+    event:
+      year: numeric
+      month: short
+      day: numeric
+      hour: numeric
+      minute: 2-digit
+    fullStyle:
+      dateStyle: full
+      timeStyle: short
+      timeZone: UTC
+
+examples:
+  - description: Simple text
+    rawMessage: Hello, world!
+
+  - description: Interpolate name
+    rawMessage: Hello, {name}!
+    values:
+      name: John
+
+  - description: Interpolate name and age
+    rawMessage: Hello, {name}! You are {age} years old.
+    values:
+      name: John
+      age: 30
+
+  - matrix:
+      name: [John, Jane]
+      age: [30, 25]
+    description: Usage of matrix
+    rawMessage: Hello, {name}! You are {age} years old.
+    values:
+      name: ${{ name }}
+      age: ${{ age }}
+
+  - description: reference a message
+    message: auth.installApp
+
+  - description: reference a message with context
+    message: auth.installApp
+    context:
+      platform: ios

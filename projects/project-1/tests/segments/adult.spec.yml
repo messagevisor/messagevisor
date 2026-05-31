@@ -1,0 +1,18 @@
+segment: adult
+
+assertions:
+  - matrix:
+      age: [18, 21]
+    description: Adult should match at age ${{ age }}
+    segment: adult
+    context:
+      age: ${{ age }}
+    expectedToMatch: true
+  - matrix:
+      age: [17]
+      expected: [false]
+    description: Adult should not match at age ${{ age }}
+    segment: adult
+    context:
+      age: ${{ age }}
+    expectedToMatch: ${{ expected }}

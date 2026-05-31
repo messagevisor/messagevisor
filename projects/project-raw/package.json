@@ -1,0 +1,14 @@
+{
+  "name": "@messagevisor/project-raw",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Example Messagevisor project without ICU module",
+  "scripts": {
+    "lint": "messagevisor lint",
+    "build": "messagevisor build",
+    "test": "messagevisor test"
+  },
+  "dependencies": {
+    "@messagevisor/cli": "0.0.1"
+  }
+}

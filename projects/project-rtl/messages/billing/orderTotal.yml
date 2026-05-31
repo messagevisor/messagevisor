@@ -1,0 +1,11 @@
+description: Currency embedded in translated copy
+
+examples:
+  - description: Arabic total example
+    locale: ar-SA
+    values:
+      amount: 1234.5
+
+translations:
+  en-US: "Order total: {amount, number, money}"
+  ar-SA: "إجمالي الطلب: {amount, number, money}"

@@ -1,0 +1,5 @@
+description: Billing meeting time
+
+translations:
+  en: "Starts at {date, time, short}"
+  nl: "Begint om {date, time, short}"

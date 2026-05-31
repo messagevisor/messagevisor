@@ -1,0 +1,5 @@
+description: Currency display variants
+
+translations:
+  en: "Symbol: {amount, number, moneySymbol}; code: {amount, number, moneyCode}; accounting: {amount, number, moneyAccounting}"
+  nl: "Symbool: {amount, number, moneySymbol}; code: {amount, number, moneyCode}; boekhouding: {amount, number, moneyAccounting}"

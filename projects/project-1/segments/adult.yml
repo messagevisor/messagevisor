@@ -1,0 +1,6 @@
+description: Adults
+
+conditions:
+  - attribute: age
+    operator: greaterThanOrEquals
+    value: 18

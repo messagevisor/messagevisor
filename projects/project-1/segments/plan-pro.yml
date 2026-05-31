@@ -1,0 +1,6 @@
+description: Pro plan users
+
+conditions:
+  - attribute: plan
+    operator: equals
+    value: pro

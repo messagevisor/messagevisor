@@ -1,0 +1,7 @@
+description: Cart navigation label
+
+translations:
+  en: Cart
+  en-GB: Basket
+  nl-NL: Winkelwagen
+  de-DE: Warenkorb

@@ -1,0 +1,5 @@
+description: Order placed confirmation
+
+translations:
+  en: "Order {orderId} is confirmed. We will send updates to {email}."
+  nl: "Bestelling {orderId} is bevestigd. We sturen updates naar {email}."

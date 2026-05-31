@@ -1,0 +1,16 @@
+{
+  "target": "mobile",
+  "assertions": [
+    {
+      "locale": "en-GB",
+      "expectedToIncludeMessages": ["auth.signin", "auth.signout", "nav.home", "nav.contact"],
+      "expectedFormats": {
+        "number": {
+          "money": {
+            "currency": "GBP"
+          }
+        }
+      }
+    }
+  ]
+}

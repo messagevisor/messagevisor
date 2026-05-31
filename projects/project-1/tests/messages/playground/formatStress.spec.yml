@@ -1,17 +1,23 @@
 message: playground.formatStress
 
 assertions:
-  - description: en-US mixed format stress with default USD and New York generic zone
+  - description: en-US mixed format stress with default USD and UTC zone label
     locale: en-US
     target: web
     timeZone: UTC
+    formats:
+      time:
+        zoneShortGeneric:
+          hour: numeric
+          minute: 2-digit
+          timeZoneName: short
     values:
       amount: -1284.5
       rate: 0.1234
       visits: 12500
       distance: 42
       placedAt: "2026-11-26T15:05:00.123456Z"
-    expectedTranslation: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%; compact 13K; distance 42 km; placed Thursday, November 26, 2026 at 3:05:00 PM; local 3:05 PM GMT."
+    expectedTranslation: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%; compact 13K; distance 42 km; placed Thursday, November 26, 2026 at 3:05:00 PM; local 3:05 PM UTC."
     expectedByRuntime:
       java: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%; compact 12K; distance 42 km; placed Thursday, November 26, 2026 at 3:05:00 PM; local 3:05 PM GMT."
       swift: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%; compact 12K; distance 42 km; placed Thursday, November 26, 2026 at 3:05:00 PM; local 3:05 PM GMT."
@@ -48,13 +54,19 @@ assertions:
     locale: bn
     target: web
     timeZone: UTC
+    formats:
+      time:
+        zoneShortGeneric:
+          hour: numeric
+          minute: 2-digit
+          timeZoneName: short
     values:
       amount: -1284.5
       rate: 0.1234
       visits: 12500
       distance: 42
       placedAt: "2026-11-26T15:05:00.123456Z"
-    expectedTranslation: "Receipt (১,২৮৪.৫০ US$); ISO -১,২৮৪.৫০ USD; rate ১২.৩%; compact ১৩ হা; distance ৪২ কিমি; placed বৃহস্পতিবার, ২৬ নভেম্বর, ২০২৬ at ৩:০৫:০০ PM; local ৩:০৫ PM GMT."
+    expectedTranslation: "Receipt (১,২৮৪.৫০ US$); ISO -১,২৮৪.৫০ USD; rate ১২.৩%; compact ১৩ হা; distance ৪২ কিমি; placed বৃহস্পতিবার, ২৬ নভেম্বর, ২০২৬ at ৩:০৫:০০ PM; local ৩:০৫ PM UTC."
     expectedByRuntime:
       java: "Receipt (১,২৮৪.৫০US$); ISO -USD ১,২৮৪.৫০; rate ১২.৩%; compact ১২ হা; distance ৪২ কিমি; placed বৃহস্পতিবার, নভেম্বর ২৬, ২০২৬ at ৩:০৫:০০ PM; local ৩:০৫ PM GMT +০."
       swift: "Receipt (1,284.50 US$); ISO -1,284.50 USD; rate 12.3%; compact 12 হা; distance 42 কিমি; placed বৃহস্পতিবার, 26 নভেম্বর, 2026 at 3:05:00 PM; local 3:05 PM GMT +0."

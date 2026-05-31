@@ -1,0 +1,12 @@
+packages/*/dist
+packages/*/lib
+
+projects/*/catalog
+projects/*/exports
+projects/*/imports
+
+tmp/*
+node_modules/*
+.messagevisor/*
+
+CHANGELOG.md

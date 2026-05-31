@@ -1,0 +1,36 @@
+export const themeTokens = {
+  color: {
+    background: "background",
+    surface: "surface",
+    elevated: "elevated",
+    border: "border",
+    text: "text",
+    muted: "muted",
+    faint: "faint",
+    placeholder: "placeholder",
+    primary: "primary",
+    success: "success",
+    warning: "warning",
+    danger: "danger",
+    header: "header",
+    headerActive: "header-active",
+    headerText: "header-text",
+    pill: "pill",
+    successSurface: "success-surface",
+    successOutline: "success-outline",
+    warningSurface: "warning-surface",
+    warningOutline: "warning-outline",
+    dangerSurface: "danger-surface",
+    dangerOutline: "danger-outline",
+    ring: "ring",
+  },
+} as const;
+
+export const themeClasses = {
+  page: "min-h-screen bg-background text-text",
+  pageShell: "m-8 mx-auto max-w-5xl",
+  panel: "rounded border border-border bg-surface shadow",
+  subtlePanel: "rounded border border-border bg-elevated",
+  link: "font-medium text-primary hover:underline",
+  muted: "text-muted",
+} as const;

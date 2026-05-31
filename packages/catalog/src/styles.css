@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+
+  --mv-color-background: #e5e7eb;
+  --mv-color-surface: #ffffff;
+  --mv-color-elevated: #f8fafc;
+  --mv-color-border: #e5e7eb;
+  --mv-color-text: #374151;
+  --mv-color-muted: #6b7280;
+  --mv-color-primary: #475569;
+  --mv-color-success: #16a34a;
+  --mv-color-warning: #ea580c;
+  --mv-color-danger: #dc2626;
+  --mv-color-header: #1f2937;
+  --mv-color-header-active: #374151;
+  --mv-color-header-text: #f9fafb;
+  --mv-color-pill: #cbd5e1;
+
+  --mv-color-faint: #9ca3af;
+  --mv-color-placeholder: #9ca3af;
+
+  --mv-color-success-surface: #bbf7d0;
+  --mv-color-success-outline: #86efac;
+  --mv-color-warning-surface: #fed7aa;
+  --mv-color-warning-outline: #fdba74;
+  --mv-color-danger-surface: #fee2e2;
+  --mv-color-danger-outline: #fca5a5;
+
+  --mv-color-ring: rgb(71 85 105 / 0.45);
+
+  --mv-shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  --mv-shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.06);
+  --mv-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.1), 0 1px 2px -1px rgb(15 23 42 / 0.08);
+  --mv-shadow-soft: 0 10px 30px rgb(15 23 42 / 0.08);
+}
+
+/* Dark overrides only — default `:root` above is the light theme. */
+/* @media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --mv-color-background: #18181b;
+    --mv-color-surface: #27272a;
+    --mv-color-elevated: #3f3f46;
+    --mv-color-border: #52525b;
+    --mv-color-text: #f4f4f5;
+    --mv-color-muted: #d4d4d8;
+    --mv-color-primary: #e4e4e7;
+    --mv-color-success: #86efac;
+    --mv-color-warning: #fdba74;
+    --mv-color-danger: #fca5a5;
+    --mv-color-header: #09090b;
+    --mv-color-header-active: #27272a;
+    --mv-color-header-text: #f4f4f5;
+    --mv-color-pill: #71717a;
+
+    --mv-color-faint: #a1a1aa;
+    --mv-color-placeholder: #71717a;
+
+    --mv-color-success-surface: rgb(34 197 94 / 0.16);
+    --mv-color-success-outline: #22c55e;
+    --mv-color-warning-surface: rgb(251 146 60 / 0.18);
+    --mv-color-warning-outline: #fb923c;
+    --mv-color-danger-surface: rgb(248 113 113 / 0.14);
+    --mv-color-danger-outline: #f87171;
+
+    --mv-color-ring: rgb(228 228 231 / 0.45);
+
+    --mv-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.28);
+    --mv-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.28);
+    --mv-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.38), 0 1px 2px -1px rgb(0 0 0 / 0.32);
+    --mv-shadow-soft: 0 10px 30px rgb(0 0 0 / 0.45);
+  }
+} */
+
+body {
+  margin: 0;
+  background: var(--mv-color-background);
+  color: var(--mv-color-text);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+a {
+  color: inherit;
+}

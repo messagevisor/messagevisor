@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.cjs.json",
+  "compilerOptions": {
+    "outDir": "./lib",
+    "rootDir": "./src",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "jsx": "react",
+    "lib": ["es2015", "dom", "es2021.intl"]
+  },
+  "include": ["./src/**/*.ts", "./src/**/*.tsx"],
+  "exclude": ["./src/**/*.spec.ts", "./src/**/*.spec.tsx"]
+}

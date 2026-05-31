@@ -1,0 +1,42 @@
+{
+  "name": "@messagevisor/core",
+  "version": "0.0.1",
+  "description": "Core package of Messagevisor for Node.js usage",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "transpile": "rimraf lib && tsc --project tsconfig.cjs.json",
+    "dist": "echo 'Nothing to dist here'",
+    "build": "npm run transpile",
+    "test": "jest --config jest.config.js --verbose",
+    "typecheck": "tsc --noEmit --skipLibCheck -p tsconfig.typecheck.json"
+  },
+  "author": {
+    "name": "Fahad Heylaal",
+    "url": "https://fahad19.com"
+  },
+  "homepage": "https://messagevisor.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/messagevisor/messagevisor.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/messagevisor/messagevisor/issues"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@featurevisor/parsers": "^2.24.0",
+    "@featurevisor/sdk": "^2.23.0",
+    "@messagevisor/catalog": "0.0.1",
+    "@messagevisor/sdk": "0.0.1",
+    "@messagevisor/types": "0.0.1",
+    "intl-messageformat": "^10.7.16",
+    "tar": "^7.5.11",
+    "yargs": "^17.7.2",
+    "zod": "^4.3.6"
+  }
+}

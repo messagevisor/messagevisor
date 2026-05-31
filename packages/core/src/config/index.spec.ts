@@ -1,0 +1,70 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
+import { getProjectConfig } from "./index";
+
+async function createProject(configContent: string) {
+  const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-config-"));
+  await fs.promises.writeFile(path.join(root, "messagevisor.config.js"), configContent);
+  return root;
+}
+
+describe("getProjectConfig", function () {
+  it("accepts valid promotionFlows object rules", async function () {
+    const root = await createProject(
+      [
+        "module.exports = {",
+        "  sets: true,",
+        "  promotionFlows: [",
+        '    { from: "dev", to: "staging" },',
+        '    { from: "staging", to: "production" },',
+        "  ],",
+        "};",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+
+    expect(projectConfig.promotionFlows).toEqual([
+      { from: "dev", to: "staging" },
+      { from: "staging", to: "production" },
+    ]);
+  });
+
+  it("rejects invalid promotionFlows shapes", async function () {
+    const invalidConfigs = [
+      {
+        config: "module.exports = { promotionFlows: true };\n",
+        message: "Invalid promotionFlows: true. It must be an array.",
+      },
+      {
+        config: 'module.exports = { promotionFlows: ["dev"] };\n',
+        message:
+          'Invalid promotionFlows[0]: dev. Each entry must be an object with exactly "from" and "to" string fields.',
+      },
+      {
+        config: 'module.exports = { promotionFlows: [{ from: "dev" }] };\n',
+        message:
+          'Invalid promotionFlows[0]: {"from":"dev"}. Each entry must contain exactly "from" and "to".',
+      },
+      {
+        config:
+          'module.exports = { promotionFlows: [{ from: "dev", to: "staging", note: true }] };\n',
+        message:
+          'Invalid promotionFlows[0]: {"from":"dev","to":"staging","note":true}. Each entry must contain exactly "from" and "to".',
+      },
+      {
+        config: 'module.exports = { promotionFlows: [{ from: "dev", to: 1 }] };\n',
+        message:
+          'Invalid promotionFlows[0]: {"from":"dev","to":1}. "from" and "to" must be strings.',
+      },
+    ];
+
+    for (const invalid of invalidConfigs) {
+      const root = await createProject(invalid.config);
+      expect(() => getProjectConfig(root)).toThrow(invalid.message);
+    }
+  });
+});

@@ -1,0 +1,1 @@
+export { lintPlugin } from "../linter";

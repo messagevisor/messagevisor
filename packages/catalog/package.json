@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/catalog",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Static catalog UI for Messagevisor projects",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -43,18 +43,18 @@
   "license": "MIT",
   "dependencies": {},
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.4",
-    "vite": "^6.0.7",
-    "typescript": "^5.7.2",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.1.1",
-    "react-markdown": "^10.1.0",
-    "tailwindcss": "^3.4.17",
-    "postcss": "^8.4.49",
-    "autoprefixer": "^10.4.20",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.7",
-    "@types/react-dom": "^19.0.3"
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.1.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
   }
 }

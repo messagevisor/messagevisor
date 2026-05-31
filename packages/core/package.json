@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/core",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Core package of Messagevisor for Node.js usage",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -31,9 +31,9 @@
   "dependencies": {
     "@featurevisor/parsers": "^2.24.0",
     "@featurevisor/sdk": "^2.23.0",
-    "@messagevisor/catalog": "0.0.2",
-    "@messagevisor/sdk": "0.0.2",
-    "@messagevisor/types": "0.0.2",
+    "@messagevisor/catalog": "0.1.0",
+    "@messagevisor/sdk": "0.1.0",
+    "@messagevisor/types": "0.1.0",
     "intl-messageformat": "^10.7.16",
     "tar": "^7.5.11",
     "yargs": "^17.7.2",

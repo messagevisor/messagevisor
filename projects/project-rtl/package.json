@@ -1,7 +1,7 @@
 {
   "name": "@messagevisor/project-rtl",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Focused RTL showcase project for Messagevisor",
   "scripts": {
     "lint": "messagevisor lint",
@@ -9,7 +9,7 @@
     "test": "messagevisor test"
   },
   "dependencies": {
-    "@messagevisor/cli": "0.0.2",
-    "@messagevisor/module-icu": "0.0.2"
+    "@messagevisor/cli": "0.1.0",
+    "@messagevisor/module-icu": "0.1.0"
   }
 }

@@ -1,0 +1,37 @@
+{
+  "name": "@messagevisor/cli",
+  "version": "0.0.1",
+  "description": "CLI package of Messagevisor",
+  "main": "bin.js",
+  "types": "lib/index.d.ts",
+  "bin": {
+    "messagevisor": "bin.js"
+  },
+  "scripts": {
+    "transpile": "rimraf lib && tsc --project tsconfig.cjs.json",
+    "dist": "echo 'Nothing to dist here'",
+    "build": "npm run transpile",
+    "test": "echo 'Nothing to test in this package'",
+    "typecheck": "tsc --noEmit --skipLibCheck -p tsconfig.typecheck.json"
+  },
+  "author": {
+    "name": "Fahad Heylaal",
+    "url": "https://fahad19.com"
+  },
+  "homepage": "https://messagevisor.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/messagevisor/messagevisor.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/messagevisor/messagevisor/issues"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@messagevisor/core": "0.0.1"
+  }
+}

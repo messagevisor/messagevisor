@@ -2,7 +2,7 @@
 
 > Common TypeScript typings for Messagevisor packages
 
-Visit [https://messagevisor.com](https://messagevisor.com) for more information
+Visit [https://messagevisor.com](https://messagevisor.com) for more information.
 
 ## License
 

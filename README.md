@@ -1,3 +1,44 @@
-# messagevisor
+[![Messagevisor](./assets/banner.png)](https://messagevisor.com)
 
-Documentation will be up soon.
+<div align="center">
+  <h3><strong>Git-native i18n and l10n management solution</strong></h3>
+</div>
+
+<div align="center">
+  <small>Manage your application copy, translations, and formatting declaratively from the comfort of your Git workflow.</small>
+</div>
+
+<div align="center">
+  <h3>
+    <a href="https://messagevisor.com">
+      Website
+    </a>
+    <span> | </span>
+    <a href="https://messagevisor.com/docs/quick-start">
+      Documentation
+    </a>
+    <span> | </span>
+    <a href="https://github.com/messagevisor/messagevisor/issues">
+      Issues
+    </a>
+    <span> | </span>
+    <a href="https://messagevisor.com/docs/contributing">
+      Contributing
+    </a>
+    <span> | </span>
+    <a href="https://github.com/messagevisor/messagevisor/blob/main/CHANGELOG.md">
+      Changelog
+    </a>
+  </h3>
+</div>
+
+<div align="center">
+  <sub>Built by
+  <a href="https://twitter.com/fahad19">@fahad19</a>
+</div>
+
+---
+
+# License
+
+MIT © [Fahad Heylaal](https://fahad19.com)

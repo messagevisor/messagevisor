@@ -39,6 +39,16 @@
 
 ---
 
-# License
+## How does it work?
+
+Three simple steps to visualize it:
+
+1. Manage your Messagevisor [project](https://messagevisor.com/docs/projects) in a Git repository
+1. Build and upload [datafiles](https://messagevisor.com/docs/building-datafiles) (static JSON files) to your CDN or custom server
+1. Fetch the datafile, and start using the [SDK](https://messagevisor.com/docs/sdks/javascript) to evaluate translations and formatting
+
+[![Messagevisor](./assets/flow.png)](https://messagevisor.com)
+
+## License
 
 MIT © [Fahad Heylaal](https://fahad19.com)

@@ -164,6 +164,26 @@ function git(root: string, args: string[]) {
   });
 }
 
+function gitCommit(root: string, message: string) {
+  childProcess.execFileSync(
+    "git",
+    [
+      "-C",
+      root,
+      "-c",
+      "user.name=Catalog Tester",
+      "-c",
+      "user.email=catalog@example.com",
+      "commit",
+      "-m",
+      message,
+    ],
+    {
+      stdio: ["ignore", "ignore", "ignore"],
+    },
+  );
+}
+
 describe("catalog", function () {
   const roots: string[] = [];
   let consoleLogSpy: jest.SpyInstance;
@@ -369,6 +389,89 @@ describe("catalog", function () {
     expect(segment.usage.messages).toEqual(["common.welcome"]);
     expect(target.messages).toEqual(["common.draft", "common.welcome"]);
     expect(history.entries).toEqual([]);
+  });
+
+  it("streams Git history into project, entity, and last-modified catalog data", async function () {
+    const root = await createProject();
+    roots.push(root);
+    git(root, ["init"]);
+    git(root, ["add", "."]);
+    gitCommit(root, "initial catalog fixtures");
+
+    await writeFile(
+      root,
+      "tests/messages/common/welcome.spec.yml",
+      "cases:\n  - description: Test only\n",
+    );
+    git(root, ["add", "."]);
+    gitCommit(root, "test-only change");
+
+    await writeFile(
+      root,
+      "messages/common/welcome.yml",
+      ["description: Welcome updated", "translations:", "  en: Welcome back", ""].join("\n"),
+    );
+    await writeFile(
+      root,
+      "messages/common/with space.yml",
+      "description: With space\ntranslations:\n  en: Spaced\n",
+    );
+    git(root, ["add", "."]);
+    gitCommit(root, "message updates");
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+
+    const projectHistory = await readJson<any>(
+      root,
+      "catalog-out/data/project/history/page-1.json",
+    );
+    const messageHistory = await readJson<any>(
+      root,
+      "catalog-out/data/root/history/message/common.welcome/page-1.json",
+    );
+    const spacedMessageHistory = await readJson<any>(
+      root,
+      "catalog-out/data/root/history/message/common.with%20space/page-1.json",
+    );
+    const index = await readJson<any>(root, "catalog-out/data/root/index.json");
+    const message = await readJson<any>(
+      root,
+      "catalog-out/data/root/entities/message/common.welcome.json",
+    );
+
+    expect(projectHistory.entries).toHaveLength(2);
+    expect(projectHistory.entries[0].entities).toEqual(
+      expect.arrayContaining([
+        { type: "message", key: "common.welcome" },
+        { type: "message", key: "common.with space" },
+      ]),
+    );
+    expect(projectHistory.entries).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entities: expect.arrayContaining([{ type: "test", key: "common.welcome" }]),
+        }),
+      ]),
+    );
+    expect(messageHistory.entries).toHaveLength(2);
+    expect(spacedMessageHistory.entries[0].entities).toEqual(
+      expect.arrayContaining([{ type: "message", key: "common.with space" }]),
+    );
+    expect(message.lastModified).toMatchObject({
+      author: "Catalog Tester",
+      commit: projectHistory.entries[0].commit,
+    });
+    expect(
+      index.entities.message.find((entry: any) => entry.key === "common.welcome").lastModified,
+    ).toMatchObject({
+      commit: projectHistory.entries[0].commit,
+    });
   });
 
   it("exports branch-aware repository links and hash router mode when requested", async function () {
@@ -603,6 +706,125 @@ describe("catalog", function () {
       key: "common.welcome",
       entity: { translations: { en: "storefront" } },
     });
+  });
+
+  it("groups streamed Git history by set", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = { sets: true };\n");
+    await writeFile(root, "sets/storefront/locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "sets/storefront/messages/common/welcome.yml",
+      "description: Storefront\ntranslations:\n  en: Storefront\n",
+    );
+    await writeFile(root, "sets/admin/locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "sets/admin/messages/common/welcome.yml",
+      "description: Admin\ntranslations:\n  en: Admin\n",
+    );
+    await writeFile(
+      root,
+      "sets/admin/tests/messages/common/welcome.spec.yml",
+      "cases:\n  - description: Test only\n",
+    );
+
+    git(root, ["init"]);
+    git(root, ["add", "."]);
+    gitCommit(root, "initial sets");
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+
+    const projectHistory = await readJson<any>(
+      root,
+      "catalog-out/data/project/history/page-1.json",
+    );
+    const storefrontHistory = await readJson<any>(
+      root,
+      "catalog-out/data/sets/storefront/history/page-1.json",
+    );
+    const adminHistory = await readJson<any>(
+      root,
+      "catalog-out/data/sets/admin/history/page-1.json",
+    );
+    const adminMessageHistory = await readJson<any>(
+      root,
+      "catalog-out/data/sets/admin/history/message/common.welcome/page-1.json",
+    );
+
+    expect(projectHistory.entries).toHaveLength(1);
+    expect(storefrontHistory.entries).toHaveLength(1);
+    expect(adminHistory.entries).toHaveLength(1);
+    expect(adminMessageHistory.entries[0].entities).toEqual(
+      expect.arrayContaining([{ type: "message", key: "common.welcome", set: "admin" }]),
+    );
+    expect(adminHistory.entries[0].entities).not.toEqual(
+      expect.arrayContaining([{ type: "test", key: "common.welcome", set: "admin" }]),
+    );
+  });
+
+  it("paginates many streamed Git history entries without loading one raw output blob", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "messages/common/welcome.yml",
+      "description: Welcome\ntranslations:\n  en: Welcome\n",
+    );
+    await writeFile(
+      root,
+      "messages/common/with space.yml",
+      "description: With space\ntranslations:\n  en: Spaced\n",
+    );
+
+    git(root, ["init"]);
+    git(root, ["add", "."]);
+    gitCommit(root, "initial catalog project");
+
+    for (let index = 0; index < 60; index++) {
+      await writeFile(
+        root,
+        "messages/common/welcome.yml",
+        `description: Welcome ${index}\ntranslations:\n  en: Welcome ${index}\n`,
+      );
+      git(root, ["add", "."]);
+      gitCommit(root, `message update ${index}`);
+    }
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+
+    const projectHistory = await readJson<any>(
+      root,
+      "catalog-out/data/project/history/page-1.json",
+    );
+    const messageHistory = await readJson<any>(
+      root,
+      "catalog-out/data/root/history/message/common.welcome/page-1.json",
+    );
+
+    expect(projectHistory.totalPages).toBe(2);
+    expect(projectHistory.entries).toHaveLength(50);
+    expect(projectHistory.entries[0].entities).toEqual([
+      { type: "message", key: "common.welcome" },
+    ]);
+    expect(messageHistory.totalPages).toBe(2);
+    expect(messageHistory.entries).toHaveLength(50);
   });
 
   it("uses root-relative asset paths for browser-router refresh safety", async function () {

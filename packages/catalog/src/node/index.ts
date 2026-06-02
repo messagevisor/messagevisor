@@ -241,7 +241,7 @@ interface CatalogBuildContext {
   repositoryRootDirectoryPath: string;
   outputDirectoryPath: string;
   dataDirectoryPath: string;
-  fullHistory: CatalogHistoryEntry[];
+  historyIndex: CatalogHistoryIndex;
   runtime: CatalogRuntime;
   devEditors: CatalogDevEditor[];
   duplicateResultsBySet: Record<string, CatalogDuplicateTranslationsSetResult>;
@@ -256,6 +256,21 @@ interface EntityPathInfo {
   type: CatalogEntityType | "test";
   key: string;
   set?: string;
+}
+
+interface CatalogHistoryIndex {
+  entries: CatalogHistoryEntry[];
+  bySet: Record<string, CatalogHistoryEntry[]>;
+  byEntity: Record<string, CatalogHistoryEntry[]>;
+  lastModifiedByEntity: Record<string, CatalogLastModified>;
+}
+
+interface StreamingGitCommit {
+  commit: string;
+  author: string;
+  timestamp: string;
+  entities: CatalogHistoryEntity[];
+  seenEntityKeys: Set<string>;
 }
 
 function toPosixPath(value: string) {
@@ -393,25 +408,11 @@ function getTargetMessageKeys(target: Target, messageKeys: string[]) {
     .sort();
 }
 
-function getLastModified(
-  history: CatalogHistoryEntry[],
-  type: CatalogEntityType,
-  key: string,
-  set?: string,
-): CatalogLastModified | undefined {
-  const entry = history.find((candidate) =>
-    candidate.entities.some(
-      (entity) =>
-        entity.type === type &&
-        entity.key === key &&
-        (typeof set === "undefined" || entity.set === set),
-    ),
-  );
+function getHistoryEntityKey(type: CatalogEntityType | "test", key: string, set?: string) {
+  return `${set || ""}\x1f${type}\x1f${key}`;
+}
 
-  if (!entry) {
-    return undefined;
-  }
-
+function toLastModified(entry: CatalogHistoryEntry): CatalogLastModified {
   return {
     commit: entry.commit,
     author: entry.author,
@@ -419,11 +420,20 @@ function getLastModified(
   };
 }
 
+function getLastModified(
+  historyIndex: CatalogHistoryIndex,
+  type: CatalogEntityType,
+  key: string,
+  set?: string,
+): CatalogLastModified | undefined {
+  return historyIndex.lastModifiedByEntity[getHistoryEntityKey(type, key, set)];
+}
+
 function getEntitySummary(
   entity: Locale | Message | Attribute | Segment | Target,
   type: CatalogEntityType,
   key: string,
-  history: CatalogHistoryEntry[],
+  historyIndex: CatalogHistoryIndex,
   set?: string,
   extra: Partial<CatalogEntitySummary> = {},
 ): CatalogEntitySummary {
@@ -433,7 +443,7 @@ function getEntitySummary(
     archived: (entity as any).archived,
     deprecated: (entity as any).deprecated,
     ...extra,
-    lastModified: getLastModified(history, type, key, set),
+    lastModified: getLastModified(historyIndex, type, key, set),
     href: `entities/${type}/${encodeKey(key)}.json`,
   };
 }
@@ -710,6 +720,186 @@ function runGit(rootDirectoryPath: string, args: string[]) {
   });
 }
 
+function getCatalogHistoryPathPatterns(rootDirectoryPath: string, projectConfig: any) {
+  return projectConfig.sets
+    ? [path.relative(rootDirectoryPath, projectConfig.setsDirectoryPath)]
+    : [
+        path.relative(rootDirectoryPath, projectConfig.localesDirectoryPath),
+        path.relative(rootDirectoryPath, projectConfig.messagesDirectoryPath),
+        path.relative(rootDirectoryPath, projectConfig.attributesDirectoryPath),
+        path.relative(rootDirectoryPath, projectConfig.segmentsDirectoryPath),
+        path.relative(rootDirectoryPath, projectConfig.targetsDirectoryPath),
+        path.relative(rootDirectoryPath, projectConfig.testsDirectoryPath),
+      ];
+}
+
+function createEmptyHistoryIndex(): CatalogHistoryIndex {
+  return {
+    entries: [],
+    bySet: {},
+    byEntity: {},
+    lastModifiedByEntity: {},
+  };
+}
+
+function addHistoryIndexEntry(
+  target: Record<string, CatalogHistoryEntry[]>,
+  key: string,
+  entry: CatalogHistoryEntry,
+) {
+  if (!target[key]) {
+    target[key] = [];
+  }
+
+  target[key].push(entry);
+}
+
+function buildCatalogHistoryIndex(entries: CatalogHistoryEntry[]): CatalogHistoryIndex {
+  const index = createEmptyHistoryIndex();
+  index.entries = entries;
+
+  for (const entry of entries) {
+    const seenSets = new Set<string>();
+
+    for (const entity of entry.entities) {
+      if (entity.type === "test") {
+        continue;
+      }
+
+      const entityKey = getHistoryEntityKey(entity.type, entity.key, entity.set);
+      addHistoryIndexEntry(index.byEntity, entityKey, entry);
+
+      if (!index.lastModifiedByEntity[entityKey]) {
+        index.lastModifiedByEntity[entityKey] = toLastModified(entry);
+      }
+
+      if (entity.set && !seenSets.has(entity.set)) {
+        seenSets.add(entity.set);
+        addHistoryIndexEntry(index.bySet, entity.set, entry);
+      }
+    }
+  }
+
+  return index;
+}
+
+function appendHistoryEntry(
+  history: CatalogHistoryEntry[],
+  current: StreamingGitCommit | undefined,
+) {
+  if (!current || current.entities.length === 0) {
+    return;
+  }
+
+  history.push({
+    commit: current.commit,
+    author: current.author,
+    timestamp: current.timestamp,
+    entities: current.entities,
+  });
+}
+
+function addHistoryEntity(current: StreamingGitCommit, entity: CatalogHistoryEntity) {
+  if (entity.type === "test") {
+    return;
+  }
+
+  const entityKey = getHistoryEntityKey(entity.type, entity.key, entity.set);
+
+  if (current.seenEntityKeys.has(entityKey)) {
+    return;
+  }
+
+  current.seenEntityKeys.add(entityKey);
+  current.entities.push(entity);
+}
+
+async function streamCatalogGitHistory(
+  rootDirectoryPath: string,
+  projectConfig: any,
+): Promise<CatalogHistoryEntry[]> {
+  const pathPatterns = getCatalogHistoryPathPatterns(rootDirectoryPath, projectConfig);
+  const args = [
+    "-C",
+    rootDirectoryPath,
+    "log",
+    "--name-only",
+    "--pretty=format:%x1e%h%x1f%an%x1f%aI",
+    "--relative",
+    "--no-merges",
+    "--",
+    ...pathPatterns,
+  ];
+
+  return new Promise((resolve, reject) => {
+    let current: StreamingGitCommit | undefined;
+    let buffer = "";
+    const history: CatalogHistoryEntry[] = [];
+    const git = childProcess.spawn("git", args, {
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+
+    function processLine(line: string) {
+      if (!line) {
+        return;
+      }
+
+      if (line.startsWith("\x1e")) {
+        appendHistoryEntry(history, current);
+
+        const [commit, author, timestamp] = line.slice(1).split("\x1f");
+        current =
+          commit && author && timestamp
+            ? {
+                commit,
+                author,
+                timestamp,
+                entities: [],
+                seenEntityKeys: new Set(),
+              }
+            : undefined;
+        return;
+      }
+
+      if (!current) {
+        return;
+      }
+
+      const entity = getEntityInfoFromRelativePath(rootDirectoryPath, projectConfig, line);
+
+      if (entity) {
+        addHistoryEntity(current, entity);
+      }
+    }
+
+    git.stdout.setEncoding("utf8");
+    git.stdout.on("data", (chunk: string) => {
+      buffer += chunk;
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        processLine(line);
+      }
+    });
+    git.on("error", reject);
+    git.on("close", (code) => {
+      if (buffer) {
+        processLine(buffer);
+      }
+
+      appendHistoryEntry(history, current);
+
+      if (code === 0) {
+        resolve(history);
+        return;
+      }
+
+      reject(new Error(`git log exited with code ${code}`));
+    });
+  });
+}
+
 function isExecutableFile(filePath: string) {
   try {
     const stat = fs.statSync(filePath);
@@ -791,51 +981,16 @@ function detectDevEditors(): CatalogDevEditor[] {
   return editors;
 }
 
-function getGitHistory(rootDirectoryPath: string, projectConfig: any): CatalogHistoryEntry[] {
+async function getGitHistoryIndex(
+  rootDirectoryPath: string,
+  projectConfig: any,
+): Promise<CatalogHistoryIndex> {
   try {
-    const pathPatterns = projectConfig.sets
-      ? [path.relative(rootDirectoryPath, projectConfig.setsDirectoryPath)]
-      : [
-          path.relative(rootDirectoryPath, projectConfig.localesDirectoryPath),
-          path.relative(rootDirectoryPath, projectConfig.messagesDirectoryPath),
-          path.relative(rootDirectoryPath, projectConfig.attributesDirectoryPath),
-          path.relative(rootDirectoryPath, projectConfig.segmentsDirectoryPath),
-          path.relative(rootDirectoryPath, projectConfig.targetsDirectoryPath),
-          path.relative(rootDirectoryPath, projectConfig.testsDirectoryPath),
-        ];
-    const raw = runGit(rootDirectoryPath, [
-      "log",
-      "--name-only",
-      "--pretty=format:%h|%an|%aI",
-      "--relative",
-      "--no-merges",
-      "--",
-      ...pathPatterns,
-    ]);
-    const blocks = raw.split("\n\n");
-    const history: CatalogHistoryEntry[] = [];
-
-    for (const block of blocks) {
-      if (!block.trim()) {
-        continue;
-      }
-
-      const lines = block.split("\n").filter(Boolean);
-      const [commit, author, timestamp] = lines[0].split("|");
-      const entities = lines
-        .slice(1)
-        .map((line) => getEntityInfoFromRelativePath(rootDirectoryPath, projectConfig, line))
-        .filter(Boolean) as CatalogHistoryEntity[];
-      const filteredEntities = entities.filter((entity) => entity.type !== "test");
-
-      if (filteredEntities.length > 0) {
-        history.push({ commit, author, timestamp, entities: filteredEntities });
-      }
-    }
-
-    return history;
+    return buildCatalogHistoryIndex(
+      await streamCatalogGitHistory(rootDirectoryPath, projectConfig),
+    );
   } catch (_error) {
-    return [];
+    return createEmptyHistoryIndex();
   }
 }
 
@@ -946,24 +1101,13 @@ async function writeHistoryPages(directoryPath: string, history: CatalogHistoryE
   }
 }
 
-function filterHistoryForEntity(
-  history: CatalogHistoryEntry[],
+function getHistoryForEntity(
+  historyIndex: CatalogHistoryIndex,
   type: CatalogEntityType,
   key: string,
   set?: string,
 ) {
-  return history.filter((entry) =>
-    entry.entities.some(
-      (entity) =>
-        entity.type === type &&
-        entity.key === key &&
-        (typeof set === "undefined" || entity.set === set),
-    ),
-  );
-}
-
-function filterHistoryForSet(history: CatalogHistoryEntry[], set: string) {
-  return history.filter((entry) => entry.entities.some((entity) => entity.set === set));
+  return historyIndex.byEntity[getHistoryEntityKey(type, key, set)] || [];
 }
 
 function getSourceFileInfo(
@@ -1137,7 +1281,7 @@ async function buildSetCatalog(
     }
   }
 
-  const history = set ? filterHistoryForSet(context.fullHistory, set) : context.fullHistory;
+  const history = set ? context.historyIndex.bySet[set] || [] : context.historyIndex.entries;
   const localeDirections = getLocaleDirections(locales);
   const duplicateResult = context.duplicateResultsBySet[getDuplicateSetKey(set)] || {
     set: set || null,
@@ -1225,11 +1369,11 @@ async function buildSetCatalog(
           context.runtime.resolveFormats(localeKey, locales, targets[targetKey]),
         ]),
       ),
-      lastModified: getLastModified(context.fullHistory, "locale", localeKey, set || undefined),
+      lastModified: getLastModified(context.historyIndex, "locale", localeKey, set || undefined),
     };
 
     index.entities.locale.push(
-      getEntitySummary(locale, "locale", localeKey, context.fullHistory, set || undefined, {
+      getEntitySummary(locale, "locale", localeKey, context.historyIndex, set || undefined, {
         targets: sortStrings(Array.from(localeTargets[localeKey] || [])),
       }),
     );
@@ -1243,7 +1387,7 @@ async function buildSetCatalog(
     );
     await writeHistoryPages(
       path.join(outputDirectoryPath, "history", "locale", encodeKey(localeKey)),
-      filterHistoryForEntity(context.fullHistory, "locale", localeKey, set || undefined),
+      getHistoryForEntity(context.historyIndex, "locale", localeKey, set || undefined),
     );
   }
 
@@ -1305,7 +1449,7 @@ async function buildSetCatalog(
           resolveTranslationRow(override.translations, localeKey, locales),
         ),
       })),
-      lastModified: getLastModified(context.fullHistory, "message", messageKey, set || undefined),
+      lastModified: getLastModified(context.historyIndex, "message", messageKey, set || undefined),
     };
 
     const directLocales = localeKeys.filter(
@@ -1334,7 +1478,7 @@ async function buildSetCatalog(
     }
 
     index.entities.message.push(
-      getEntitySummary(message, "message", messageKey, context.fullHistory, set || undefined, {
+      getEntitySummary(message, "message", messageKey, context.historyIndex, set || undefined, {
         targets: sortStrings(messageTargets[messageKey] || []),
         ...(directLocales.length > 0 ? { locales: sortStrings(directLocales) } : {}),
         ...(overrideLocalesList.length > 0 ? { overrideLocales: overrideLocalesList } : {}),
@@ -1346,7 +1490,7 @@ async function buildSetCatalog(
     );
     await writeHistoryPages(
       path.join(outputDirectoryPath, "history", "message", encodeKey(messageKey)),
-      filterHistoryForEntity(context.fullHistory, "message", messageKey, set || undefined),
+      getHistoryForEntity(context.historyIndex, "message", messageKey, set || undefined),
     );
   }
 
@@ -1378,7 +1522,7 @@ async function buildSetCatalog(
         messages: sortStrings(Array.from(attributesUsedInMessages[attributeKey] || [])),
       },
       lastModified: getLastModified(
-        context.fullHistory,
+        context.historyIndex,
         "attribute",
         attributeKey,
         set || undefined,
@@ -1390,7 +1534,7 @@ async function buildSetCatalog(
         attribute,
         "attribute",
         attributeKey,
-        context.fullHistory,
+        context.historyIndex,
         set || undefined,
         {
           targets: sortStrings(Array.from(attributeTargets[attributeKey] || [])),
@@ -1403,7 +1547,7 @@ async function buildSetCatalog(
     );
     await writeHistoryPages(
       path.join(outputDirectoryPath, "history", "attribute", encodeKey(attributeKey)),
-      filterHistoryForEntity(context.fullHistory, "attribute", attributeKey, set || undefined),
+      getHistoryForEntity(context.historyIndex, "attribute", attributeKey, set || undefined),
     );
   }
 
@@ -1428,11 +1572,11 @@ async function buildSetCatalog(
         attributes: sortStrings(Array.from(usedAttributes)),
         messages: sortStrings(Array.from(segmentsUsedInMessages[segmentKey] || [])),
       },
-      lastModified: getLastModified(context.fullHistory, "segment", segmentKey, set || undefined),
+      lastModified: getLastModified(context.historyIndex, "segment", segmentKey, set || undefined),
     };
 
     index.entities.segment.push(
-      getEntitySummary(segment, "segment", segmentKey, context.fullHistory, set || undefined, {
+      getEntitySummary(segment, "segment", segmentKey, context.historyIndex, set || undefined, {
         targets: sortStrings(Array.from(segmentTargets[segmentKey] || [])),
       }),
     );
@@ -1442,7 +1586,7 @@ async function buildSetCatalog(
     );
     await writeHistoryPages(
       path.join(outputDirectoryPath, "history", "segment", encodeKey(segmentKey)),
-      filterHistoryForEntity(context.fullHistory, "segment", segmentKey, set || undefined),
+      getHistoryForEntity(context.historyIndex, "segment", segmentKey, set || undefined),
     );
   }
 
@@ -1474,11 +1618,11 @@ async function buildSetCatalog(
       formatsByLocale,
       formatRowsByLocale,
       messages: targetMessages[targetKey],
-      lastModified: getLastModified(context.fullHistory, "target", targetKey, set || undefined),
+      lastModified: getLastModified(context.historyIndex, "target", targetKey, set || undefined),
     };
 
     index.entities.target.push(
-      getEntitySummary(target, "target", targetKey, context.fullHistory, set || undefined, {
+      getEntitySummary(target, "target", targetKey, context.historyIndex, set || undefined, {
         messageCount: targetMessages[targetKey].length,
       }),
     );
@@ -1488,7 +1632,7 @@ async function buildSetCatalog(
     );
     await writeHistoryPages(
       path.join(outputDirectoryPath, "history", "target", encodeKey(targetKey)),
-      filterHistoryForEntity(context.fullHistory, "target", targetKey, set || undefined),
+      getHistoryForEntity(context.historyIndex, "target", targetKey, set || undefined),
     );
   }
 
@@ -1543,7 +1687,7 @@ export async function exportCatalog(
   }
 
   const devEditors = options.dev ? options.devEditors || detectDevEditors() : [];
-  const fullHistory = getGitHistory(rootDirectoryPath, projectConfig);
+  const historyIndex = await getGitHistoryIndex(rootDirectoryPath, projectConfig);
   const duplicateTranslations = await runtime.findDuplicateTranslations(projectConfig, datasource);
   const duplicateResultsBySet = Object.fromEntries(
     duplicateTranslations.results.map((result) => [getDuplicateSetKey(result.set), result]),
@@ -1553,7 +1697,7 @@ export async function exportCatalog(
     repositoryRootDirectoryPath: getRepositoryRootDirectoryPath(rootDirectoryPath),
     outputDirectoryPath,
     dataDirectoryPath,
-    fullHistory,
+    historyIndex,
     runtime,
     devEditors,
     duplicateResultsBySet,
@@ -1561,7 +1705,7 @@ export async function exportCatalog(
   const executions = await runtime.getProjectSetExecutions(projectConfig, datasource);
   const setIndexes: Record<string, CatalogSetIndex> = {};
 
-  await writeHistoryPages(path.join(dataDirectoryPath, "project", "history"), fullHistory);
+  await writeHistoryPages(path.join(dataDirectoryPath, "project", "history"), historyIndex.entries);
 
   for (const execution of executions) {
     const outputRelativeDirectory = projectConfig.sets ? path.join("sets", execution.set) : "root";

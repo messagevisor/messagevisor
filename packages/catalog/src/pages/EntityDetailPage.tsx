@@ -1199,7 +1199,10 @@ export function EntityDetailPage() {
         title={
           <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className="whitespace-nowrap">{entityLabels[type].singular}:</span>
-            <EntityKey value={detail.key} className="min-w-0 text-[1.65rem] leading-tight" />
+            <EntityKey
+              value={detail.key}
+              className="min-w-0 text-[1.45rem] font-extrabold leading-tight"
+            />
           </span>
         }
         description={

@@ -410,10 +410,7 @@ export function EntityList(props: {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-col justify-between gap-2 md:flex-row md:items-start">
                   <div className="min-w-0">
-                    <EntityKey
-                      value={entity.key}
-                      className="text-sm font-bold text-primary md:text-base"
-                    />
+                    <EntityKey value={entity.key} className="text-sm font-semibold text-primary" />
                     <div className="mt-1 truncate text-sm text-muted">
                       {entity.description || "No description"}
                     </div>

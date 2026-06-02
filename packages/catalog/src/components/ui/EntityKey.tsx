@@ -3,9 +3,7 @@ export function EntityKey(props: { value: string; className?: string }) {
 
   return (
     <span
-      className={["font-mono leading-snug [overflow-wrap:anywhere]", props.className || ""].join(
-        " ",
-      )}
+      className={["inline leading-snug [overflow-wrap:anywhere]", props.className || ""].join(" ")}
     >
       {parts.map((part, index) => (
         <span key={`${part}-${index}`}>

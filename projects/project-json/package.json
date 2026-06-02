@@ -1,7 +1,7 @@
 {
   "name": "@messagevisor/project-json",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Minimal JSON starter project for Messagevisor",
   "scripts": {
     "lint": "messagevisor lint",
@@ -9,7 +9,7 @@
     "test": "messagevisor test"
   },
   "dependencies": {
-    "@messagevisor/cli": "0.2.0",
-    "@messagevisor/module-icu": "0.2.0"
+    "@messagevisor/cli": "0.3.0",
+    "@messagevisor/module-icu": "0.3.0"
   }
 }

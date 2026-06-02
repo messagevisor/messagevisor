@@ -9,6 +9,7 @@ import { Badge } from "../ui/Badge";
 import { EmptyState } from "../ui/EmptyState";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
+import { EntityKey } from "../ui/EntityKey";
 import { CATALOG_LIST_INITIAL_LIMIT } from "../../config";
 import type { ParsedQuery } from "../../utils/searchQuery";
 import { parseQuery } from "../../utils/searchQuery";
@@ -409,7 +410,7 @@ export function EntityList(props: {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-col justify-between gap-2 md:flex-row md:items-start">
                   <div className="min-w-0">
-                    <div className="font-bold text-primary">{entity.key}</div>
+                    <EntityKey value={entity.key} className="text-sm font-semibold text-primary" />
                     <div className="mt-1 truncate text-sm text-muted">
                       {entity.description || "No description"}
                     </div>

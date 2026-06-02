@@ -7,6 +7,7 @@ import type { HistoryEntry } from "../../types";
 import { formatCatalogTimestamp } from "../../utils/formatCatalogTimestamp";
 import { CATALOG_HISTORY_VISIBLE_ENTITY_LIMIT } from "../../config";
 import { Button } from "../ui/Button";
+import { EntityKey } from "../ui/EntityKey";
 import { EmptyState } from "../ui/EmptyState";
 
 function HistoryEntryCard(props: { entry: HistoryEntry; setKey?: string; commitUrl?: string }) {
@@ -36,17 +37,17 @@ function HistoryEntryCard(props: { entry: HistoryEntry; setKey?: string; commitU
       </div>
       <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-muted">
         {visibleEntities.map((entity) => (
-          <li key={`${entity.type}-${entity.key}`}>
+          <li key={`${entity.type}-${entity.key}`} className="[overflow-wrap:anywhere]">
             {entity.type !== "test" ? entityLabels[entity.type].singular : "Test"}{" "}
             {entity.type !== "test" ? (
               <Link
                 className="font-medium text-primary hover:underline"
                 to={getEntityRoute(entity.type, entity.key, entity.set || props.setKey)}
               >
-                {entity.key}
+                <EntityKey value={entity.key} className="font-medium" />
               </Link>
             ) : (
-              entity.key
+              <EntityKey value={entity.key} className="font-medium" />
             )}
           </li>
         ))}

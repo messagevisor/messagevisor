@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { GroupSegment } from "@messagevisor/types";
 
 import { Badge } from "../ui/Badge";
+import { EntityKey } from "../ui/EntityKey";
 import { getEntityRoute } from "../../entityTypes";
 
 function SegmentLeaf(props: { segmentKey: string; setKey?: string }) {
@@ -13,7 +14,7 @@ function SegmentLeaf(props: { segmentKey: string; setKey?: string }) {
           to={getEntityRoute("segment", props.segmentKey, props.setKey)}
           className="font-semibold text-primary hover:underline"
         >
-          {props.segmentKey}
+          <EntityKey value={props.segmentKey} className="font-semibold" />
         </Link>
       </div>
     </div>

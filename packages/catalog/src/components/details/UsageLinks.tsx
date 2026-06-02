@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import type { EntityType } from "../../types";
 import { getEntityRoute } from "../../entityTypes";
+import { EntityKey } from "../ui/EntityKey";
 
 export function UsageLinks(props: { type: EntityType; keys?: string[]; setKey?: string }) {
   if (!props.keys || props.keys.length === 0) {
@@ -11,7 +12,7 @@ export function UsageLinks(props: { type: EntityType; keys?: string[]; setKey?: 
   return (
     <ul className="list-inside list-disc space-y-1 text-sm">
       {props.keys.map((key) => (
-        <li key={key}>
+        <li key={key} className="[overflow-wrap:anywhere]">
           <Link
             className="text-primary hover:underline"
             to={getEntityRoute(
@@ -20,7 +21,7 @@ export function UsageLinks(props: { type: EntityType; keys?: string[]; setKey?: 
               props.setKey,
             )}
           >
-            {key}
+            <EntityKey value={key} className="font-medium" />
           </Link>
         </li>
       ))}

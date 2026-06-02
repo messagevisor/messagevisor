@@ -30,6 +30,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { Tabs } from "../components/layout/Tabs";
 import { Badge } from "../components/ui/Badge";
 import { CodeBlock } from "../components/ui/CodeBlock";
+import { EntityKey } from "../components/ui/EntityKey";
 import { LabelValueBadge } from "../components/ui/LabelValueBadge";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
@@ -1195,7 +1196,12 @@ export function EntityDetailPage() {
   return (
     <div>
       <PageHeader
-        title={`${entityLabels[type].singular}: ${detail.key}`}
+        title={
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="whitespace-nowrap">{entityLabels[type].singular}:</span>
+            <EntityKey value={detail.key} className="min-w-0 text-[1.65rem] leading-tight" />
+          </span>
+        }
         description={
           <div className="flex flex-wrap items-center gap-2">
             {entity.archived && <Badge tone="danger">archived</Badge>}
@@ -1638,7 +1644,7 @@ function MessageTranslationOverridesDetails(props: {
                 to={`${getEntityRoute("message", props.messageKey, props.setKey)}/overrides#${key}`}
                 className="text-sm font-semibold text-primary hover:underline"
               >
-                {key}
+                <EntityKey value={key} className="font-semibold" />
               </Link>
               {row.source === "inherited" && row.from && (
                 <LabelValueBadge
@@ -1800,8 +1806,8 @@ export function MessageOverridesTab() {
           <section key={override.key} className="space-y-4">
             <div className="space-y-3">
               <div className="group flex items-center gap-2">
-                <h2 id={override.key} className="font-semibold">
-                  {override.key}
+                <h2 id={override.key} className="font-semibold [overflow-wrap:anywhere]">
+                  <EntityKey value={override.key} className="font-semibold" />
                 </h2>
                 <ExamplePermalink targetId={override.key} />
               </div>
@@ -3141,7 +3147,7 @@ export function LocaleDuplicatesTab() {
                                         <td className="min-w-0 border-b border-border px-3 py-2">
                                           <Link
                                             to={getEntityRoute("message", messageKey, setKey)}
-                                            className="font-medium text-primary hover:underline"
+                                            className="font-medium text-primary [overflow-wrap:anywhere] hover:underline"
                                           >
                                             <ExamplesSearchHighlight
                                               text={messageKey}

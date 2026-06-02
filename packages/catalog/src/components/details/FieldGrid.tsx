@@ -8,7 +8,7 @@ export function FieldGrid(props: {
       {props.fields.map((field) => (
         <div key={field.label} className={field.fullWidth ? "md:col-span-2" : ""}>
           <dt className="text-sm font-medium text-muted">{field.label}</dt>
-          <dd className="mt-1 text-sm">{field.value || "n/a"}</dd>
+          <dd className="mt-1 min-w-0 text-sm [overflow-wrap:anywhere]">{field.value || "n/a"}</dd>
         </div>
       ))}
     </dl>

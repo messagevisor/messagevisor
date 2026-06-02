@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/module-missing-translations",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Missing translations reporting module for Messagevisor",
   "main": "lib/index.js",
   "module": "lib/index.js",
@@ -38,6 +38,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@messagevisor/sdk": "0.1.0"
+    "@messagevisor/sdk": "0.2.0"
   }
 }

@@ -1,5 +1,6 @@
 import type { FormatPresets, Locale, Message } from "@messagevisor/types";
 
+import { mergeFormatPresets } from "../formats";
 import type { LintError } from "./index";
 
 const IntlMessageFormat =
@@ -21,28 +22,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function deepMerge<T>(parent?: T, child?: T): T | undefined {
-  if (typeof parent === "undefined") {
-    return child;
-  }
-
-  if (typeof child === "undefined") {
-    return parent;
-  }
-
-  if (!isPlainObject(parent) || !isPlainObject(child)) {
-    return child;
-  }
-
-  const result: Record<string, unknown> = { ...parent };
-
-  for (const key of Object.keys(child)) {
-    result[key] = deepMerge(result[key], child[key]);
-  }
-
-  return result as T;
-}
-
 function resolveLocaleFormatChain(localeKey: string, localesByKey: Record<string, Locale>) {
   const chain: string[] = [];
   const seen = new Set<string>();
@@ -62,7 +41,7 @@ function resolveLocaleFormats(localeKey: string, localesByKey: Record<string, Lo
   let formats: FormatPresets | undefined;
 
   for (const key of chain) {
-    formats = deepMerge(formats, localesByKey[key]?.formats);
+    formats = mergeFormatPresets(formats, localesByKey[key]?.formats);
   }
 
   return formats;

@@ -12,6 +12,7 @@ import type {
 
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
+import { mergeFormatPresets } from "../formats";
 import { getProjectSetExecutions } from "../sets";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 
@@ -151,31 +152,6 @@ function resolveInheritedTranslationValue(
   }
 }
 
-function mergeFormats(parent?: FormatPresets, child?: FormatPresets): FormatPresets | undefined {
-  if (typeof parent === "undefined") {
-    return child;
-  }
-
-  if (typeof child === "undefined") {
-    return parent;
-  }
-
-  if (!isPlainObject(parent) || !isPlainObject(child)) {
-    return child;
-  }
-
-  const result: Record<string, unknown> = { ...parent };
-
-  for (const key of Object.keys(child)) {
-    result[key] = mergeFormats(
-      result[key] as FormatPresets | undefined,
-      child[key] as FormatPresets,
-    );
-  }
-
-  return result as FormatPresets;
-}
-
 function resolveInheritedFormats(
   localeKey: string,
   locales: Record<string, Locale>,
@@ -191,7 +167,7 @@ function resolveInheritedFormats(
   let formats: FormatPresets | undefined;
 
   for (const key of chain) {
-    formats = mergeFormats(formats, locales[key]?.formats);
+    formats = mergeFormatPresets(formats, locales[key]?.formats);
   }
 
   cache.set(cacheKey, formats);
@@ -209,7 +185,7 @@ function resolveEffectiveFormatsForLocale(
     return cache.get(cacheKey);
   }
 
-  const effective = mergeFormats(
+  const effective = mergeFormatPresets(
     resolveInheritedFormats(localeKey, locales, cache),
     locales[localeKey]?.formats,
   );
@@ -437,7 +413,6 @@ async function pruneTranslations(
 function pruneFormatDuplicates(
   currentValue: Record<string, unknown>,
   inheritedValue: Record<string, unknown> | undefined,
-  pathSegments: string[],
   localeKey: string,
   filePath: string,
   locales: Record<string, Locale>,
@@ -446,46 +421,39 @@ function pruneFormatDuplicates(
 ) {
   let changed = false;
 
-  for (const key of Object.keys(currentValue)) {
-    const nextPath = [...pathSegments, key];
-    const localChild = currentValue[key];
-    const inheritedChild = isPlainObject(inheritedValue) ? inheritedValue[key] : undefined;
+  for (const typeKey of Object.keys(currentValue)) {
+    const localStyles = currentValue[typeKey];
+    const inheritedStyles = isPlainObject(inheritedValue) ? inheritedValue[typeKey] : undefined;
 
-    if (isPlainObject(localChild) && isPlainObject(inheritedChild)) {
-      changed =
-        pruneFormatDuplicates(
-          localChild,
-          inheritedChild,
-          nextPath,
-          localeKey,
-          filePath,
-          locales,
-          cache,
-          entries,
-        ) || changed;
-
-      if (Object.keys(localChild).length === 0) {
-        delete currentValue[key];
-        changed = true;
-      }
-
+    if (!isPlainObject(localStyles)) {
       continue;
     }
 
-    if (deepEqual(localChild, inheritedChild)) {
-      const inheritedFrom =
-        findInheritedFormatSource(localeKey, nextPath, localChild, locales, cache) ||
-        locales[localeKey]?.inheritFormatsFrom ||
-        "unknown";
+    for (const styleKey of Object.keys(localStyles)) {
+      const stylePath = [typeKey, styleKey];
+      const localStyle = localStyles[styleKey];
+      const inheritedStyle = isPlainObject(inheritedStyles) ? inheritedStyles[styleKey] : undefined;
 
-      entries.push({
-        kind: "locale",
-        key: localeKey,
-        filePath,
-        formatPath: nextPath.join("."),
-        inheritedFrom,
-      });
-      delete currentValue[key];
+      if (deepEqual(localStyle, inheritedStyle)) {
+        const inheritedFrom =
+          findInheritedFormatSource(localeKey, stylePath, localStyle, locales, cache) ||
+          locales[localeKey]?.inheritFormatsFrom ||
+          "unknown";
+
+        entries.push({
+          kind: "locale",
+          key: localeKey,
+          filePath,
+          formatPath: stylePath.join("."),
+          inheritedFrom,
+        });
+        delete localStyles[styleKey];
+        changed = true;
+      }
+    }
+
+    if (Object.keys(localStyles).length === 0) {
+      delete currentValue[typeKey];
       changed = true;
     }
   }
@@ -528,7 +496,6 @@ async function pruneFormats(
     const changed = pruneFormatDuplicates(
       updatedLocale.formats as Record<string, unknown>,
       inheritedFormats as Record<string, unknown>,
-      [],
       localeKey,
       filePath,
       locales,

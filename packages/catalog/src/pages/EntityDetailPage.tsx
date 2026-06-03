@@ -44,6 +44,12 @@ import { UsageLinks } from "../components/details/UsageLinks";
 import { HistoryTimeline } from "../components/history/HistoryTimeline";
 import { useCatalog } from "../context/CatalogContext";
 import { hashTranslationValue } from "../utils/hashTranslationValue";
+import {
+  getNextDuplicateValuesSort,
+  sortDuplicateValues,
+  type DuplicateValuesSort,
+  type SortDirection,
+} from "../utils/duplicateSorting";
 import type { ParsedQuery } from "../utils/searchQuery";
 import { parseQuery } from "../utils/searchQuery";
 
@@ -2879,12 +2885,24 @@ function filterDuplicateValuesBySearch(
   });
 }
 
+function SortArrow(props: { active: boolean; direction: SortDirection }) {
+  return (
+    <span className={props.active ? "text-primary" : "text-muted/60"} aria-hidden="true">
+      {props.active ? (props.direction === "asc" ? "↑" : "↓") : "↕"}
+    </span>
+  );
+}
+
 export function LocaleDuplicatesTab() {
   const { detail, setKey } = useEntityDetail();
   const [searchParams, setSearchParams] = useSearchParams();
   const [duplicates, setDuplicates] = React.useState<LocaleDuplicates | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [expandedDuplicateHashes, setExpandedDuplicateHashes] = React.useState<string[]>([]);
+  const [sort, setSort] = React.useState<DuplicateValuesSort>({
+    column: "messages",
+    direction: "desc",
+  });
   const localeDirection = (detail.entity as Record<string, any>).direction as string | undefined;
   const searchQuery = searchParams.get("q") ?? "";
 
@@ -2967,9 +2985,9 @@ export function LocaleDuplicatesTab() {
     return <p className="text-sm text-muted">No duplicate translations found for this locale.</p>;
   }
 
-  const visibleDuplicateValues = filterDuplicateValuesBySearch(
-    duplicates.duplicateValues,
-    searchQuery,
+  const visibleDuplicateValues = sortDuplicateValues(
+    filterDuplicateValuesBySearch(duplicates.duplicateValues, searchQuery),
+    sort,
   );
 
   return (
@@ -3015,8 +3033,48 @@ export function LocaleDuplicatesTab() {
             </colgroup>
             <thead className="bg-elevated text-left text-[11px] uppercase tracking-wide text-muted">
               <tr>
-                <th className="border-b border-border px-3 py-2 font-semibold">Duplicate value</th>
-                <th className="border-b border-border px-3 py-2 font-semibold">Messages</th>
+                <th
+                  className="border-b border-border px-3 py-2 font-semibold"
+                  aria-sort={
+                    sort.column === "value"
+                      ? sort.direction === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : "none"
+                  }
+                >
+                  <button
+                    type="button"
+                    className="inline-flex cursor-pointer items-center gap-1 text-left font-semibold uppercase tracking-wide text-muted transition-colors hover:text-text"
+                    onClick={() =>
+                      setSort((current) => getNextDuplicateValuesSort(current, "value"))
+                    }
+                  >
+                    <span>Duplicate value</span>
+                    <SortArrow active={sort.column === "value"} direction={sort.direction} />
+                  </button>
+                </th>
+                <th
+                  className="border-b border-border px-3 py-2 font-semibold"
+                  aria-sort={
+                    sort.column === "messages"
+                      ? sort.direction === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : "none"
+                  }
+                >
+                  <button
+                    type="button"
+                    className="inline-flex cursor-pointer items-center gap-1 text-left font-semibold uppercase tracking-wide text-muted transition-colors hover:text-text"
+                    onClick={() =>
+                      setSort((current) => getNextDuplicateValuesSort(current, "messages"))
+                    }
+                  >
+                    <span>Messages</span>
+                    <SortArrow active={sort.column === "messages"} direction={sort.direction} />
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>

@@ -88,6 +88,9 @@ export interface CatalogManifest {
     source: string;
     commit: string;
   };
+  features?: {
+    translationSearch?: boolean;
+  };
   paths: {
     projectHistory: string;
     root?: string;

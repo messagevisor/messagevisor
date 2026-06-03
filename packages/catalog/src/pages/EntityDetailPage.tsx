@@ -34,6 +34,7 @@ import { EntityKey } from "../components/ui/EntityKey";
 import { LabelValueBadge } from "../components/ui/LabelValueBadge";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
+import { SearchHighlight } from "../components/ui/SearchHighlight";
 import { FieldGrid } from "../components/details/FieldGrid";
 import { ConditionTree } from "../components/details/ConditionTree";
 import { GroupSegmentTree } from "../components/details/GroupSegmentTree";
@@ -43,6 +44,12 @@ import { UsageLinks } from "../components/details/UsageLinks";
 import { HistoryTimeline } from "../components/history/HistoryTimeline";
 import { useCatalog } from "../context/CatalogContext";
 import { hashTranslationValue } from "../utils/hashTranslationValue";
+import {
+  getNextDuplicateValuesSort,
+  sortDuplicateValues,
+  type DuplicateValuesSort,
+  type SortDirection,
+} from "../utils/duplicateSorting";
 import type { ParsedQuery } from "../utils/searchQuery";
 import { parseQuery } from "../utils/searchQuery";
 
@@ -92,51 +99,6 @@ function slugifyFragment(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function ExamplesSearchHighlight(props: { text: string; query: string }) {
-  const q = props.query.trim();
-  if (!q) {
-    return <>{props.text}</>;
-  }
-
-  const escaped = escapeRegExp(q);
-  const regex = new RegExp(escaped, "gi");
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let key = 0;
-
-  for (const match of props.text.matchAll(regex)) {
-    if (match.index !== undefined && match.index > lastIndex) {
-      parts.push(props.text.slice(lastIndex, match.index));
-    }
-
-    if (match.index !== undefined) {
-      parts.push(
-        <mark
-          key={`hm-${match.index}-${key++}`}
-          className={[
-            "rounded-[3px] bg-amber-100 px-0.5 py-px text-inherit",
-            "shadow-[inset_0_-2px_0_0_rgba(251,191,36,0.35)] ring-1 ring-amber-400/25 ring-inset",
-            "transition-[background-color,box-shadow] duration-150",
-          ].join(" ")}
-        >
-          {match[0]}
-        </mark>,
-      );
-      lastIndex = match.index + match[0].length;
-    }
-  }
-
-  if (lastIndex < props.text.length) {
-    parts.push(props.text.slice(lastIndex));
-  }
-
-  return <>{parts}</>;
 }
 
 function isEntityPath(value: string | undefined): value is EntityPath {
@@ -785,7 +747,7 @@ function FormatRowsTable(props: {
   function segmentBody(segment: string) {
     return segment ? (
       highlight ? (
-        <ExamplesSearchHighlight text={segment} query={highlightNeedle} />
+        <SearchHighlight text={segment} query={highlightNeedle} />
       ) : (
         segment
       )
@@ -851,11 +813,7 @@ function FormatRowsTable(props: {
               row.source === "inherited" ? "text-muted" : "",
             ].join(" ")}
           >
-            {highlight ? (
-              <ExamplesSearchHighlight text={valueText} query={highlightNeedle} />
-            ) : (
-              valueText
-            )}
+            {highlight ? <SearchHighlight text={valueText} query={highlightNeedle} /> : valueText}
           </div>
           {(showInheritedBadge || showTargetBadge) && (
             <div className="flex shrink-0 flex-col items-end justify-center gap-1">
@@ -881,7 +839,7 @@ function FormatRowsTable(props: {
   function renderExampleCellContent(preview: string | undefined) {
     return preview ? (
       highlight ? (
-        <ExamplesSearchHighlight text={preview} query={highlightNeedle} />
+        <SearchHighlight text={preview} query={highlightNeedle} />
       ) : (
         preview
       )
@@ -1078,7 +1036,7 @@ function FormatRowsTable(props: {
                     <td className={flatFormatClass}>
                       <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">
                         {highlight ? (
-                          <ExamplesSearchHighlight text={row.path} query={highlightNeedle} />
+                          <SearchHighlight text={row.path} query={highlightNeedle} />
                         ) : (
                           row.path
                         )}
@@ -1959,7 +1917,7 @@ function ExampleTitle(props: {
 }) {
   const titleContent =
     props.highlightQuery?.trim() && props.title ? (
-      <ExamplesSearchHighlight text={props.title} query={props.highlightQuery} />
+      <SearchHighlight text={props.title} query={props.highlightQuery} />
     ) : (
       props.title
     );
@@ -1975,7 +1933,7 @@ function ExampleTitle(props: {
       {props.description?.trim() ? (
         props.highlightQuery?.trim() ? (
           <div className="text-sm text-muted whitespace-pre-wrap [overflow-wrap:anywhere]">
-            <ExamplesSearchHighlight text={props.description.trim()} query={props.highlightQuery} />
+            <SearchHighlight text={props.description.trim()} query={props.highlightQuery} />
           </div>
         ) : (
           <div className="text-sm text-muted">
@@ -2009,7 +1967,7 @@ function ExampleTable(props: {
         .join(" ")}
       style={props.direction ? { unicodeBidi: "plaintext" } : undefined}
     >
-      <ExamplesSearchHighlight
+      <SearchHighlight
         text={
           typeof props.evaluatedTranslation === "string"
             ? props.evaluatedTranslation
@@ -2420,7 +2378,7 @@ function LocaleExampleDetails(props: {
         to={getEntityRoute("locale", localeKey, setKey)}
         className="font-medium text-primary hover:underline"
       >
-        <ExamplesSearchHighlight text={localeKey} query={q} />
+        <SearchHighlight text={localeKey} query={q} />
       </Link>
     ) : (
       <SourceLocaleLink localeKey={localeKey} />
@@ -2444,11 +2402,7 @@ function LocaleExampleDetails(props: {
               to={getEntityRoute("message", example.message, setKey)}
               className="font-medium text-primary hover:underline"
             >
-              {highlight ? (
-                <ExamplesSearchHighlight text={example.message} query={q} />
-              ) : (
-                example.message
-              )}
+              {highlight ? <SearchHighlight text={example.message} query={q} /> : example.message}
             </Link>
           </InputField>
 
@@ -2466,7 +2420,7 @@ function LocaleExampleDetails(props: {
                       .join(" ")}
                     style={localeDirection ? { unicodeBidi: "plaintext" } : undefined}
                   >
-                    <ExamplesSearchHighlight text={example.originalTranslation} query={q} />
+                    <SearchHighlight text={example.originalTranslation} query={q} />
                   </div>
                 ) : (
                   <TranslationValueBlock
@@ -2508,7 +2462,7 @@ function LocaleExampleDetails(props: {
           >
             {highlight ? (
               <pre className="max-w-full whitespace-pre-wrap rounded border border-border bg-elevated p-4 text-xs text-text [overflow-wrap:anywhere]">
-                <ExamplesSearchHighlight text={example.rawMessage} query={q} />
+                <SearchHighlight text={example.rawMessage} query={q} />
               </pre>
             ) : (
               <CodeBlock value={example.rawMessage} />
@@ -2521,7 +2475,7 @@ function LocaleExampleDetails(props: {
         <InputField label="Values">
           {highlight ? (
             <pre className="max-w-full whitespace-pre-wrap rounded border border-border bg-elevated p-4 text-xs text-text [overflow-wrap:anywhere]">
-              <ExamplesSearchHighlight text={JSON.stringify(example.values, null, 2)} query={q} />
+              <SearchHighlight text={JSON.stringify(example.values, null, 2)} query={q} />
             </pre>
           ) : (
             <JsonValueBlock value={example.values} />
@@ -2533,7 +2487,7 @@ function LocaleExampleDetails(props: {
         <InputField label="Context">
           {highlight ? (
             <pre className="max-w-full whitespace-pre-wrap rounded border border-border bg-elevated p-4 text-xs text-text [overflow-wrap:anywhere]">
-              <ExamplesSearchHighlight text={JSON.stringify(example.context, null, 2)} query={q} />
+              <SearchHighlight text={JSON.stringify(example.context, null, 2)} query={q} />
             </pre>
           ) : (
             <JsonValueBlock value={example.context} />
@@ -2544,11 +2498,7 @@ function LocaleExampleDetails(props: {
       {typeof example.timeZone !== "undefined" && (
         <InputField label="Time zone">
           <span className="font-mono text-sm text-text">
-            {highlight ? (
-              <ExamplesSearchHighlight text={example.timeZone} query={q} />
-            ) : (
-              example.timeZone
-            )}
+            {highlight ? <SearchHighlight text={example.timeZone} query={q} /> : example.timeZone}
           </span>
         </InputField>
       )}
@@ -2556,11 +2506,7 @@ function LocaleExampleDetails(props: {
       {typeof example.currency !== "undefined" && (
         <InputField label="Currency">
           <span className="font-mono text-sm text-text">
-            {highlight ? (
-              <ExamplesSearchHighlight text={example.currency} query={q} />
-            ) : (
-              example.currency
-            )}
+            {highlight ? <SearchHighlight text={example.currency} query={q} /> : example.currency}
           </span>
         </InputField>
       )}
@@ -2569,7 +2515,7 @@ function LocaleExampleDetails(props: {
         <InputField label="Formats">
           {highlight ? (
             <pre className="max-w-full whitespace-pre-wrap rounded border border-border bg-elevated p-4 text-xs text-text [overflow-wrap:anywhere]">
-              <ExamplesSearchHighlight text={JSON.stringify(example.formats, null, 2)} query={q} />
+              <SearchHighlight text={JSON.stringify(example.formats, null, 2)} query={q} />
             </pre>
           ) : (
             <JsonValueBlock value={example.formats} />
@@ -2712,14 +2658,14 @@ function LocaleExamplesCompactView(props: {
                   onClick={() => toggleExample(exampleId)}
                 >
                   <td className="border-b border-border px-3 py-2 font-medium text-muted">
-                    <ExamplesSearchHighlight
+                    <SearchHighlight
                       text={getLocaleExampleCompactLabel(example)}
                       query={props.searchQuery}
                     />
                   </td>
                   <td className="min-w-0 border-b border-border px-3 py-2 text-muted">
                     <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-                      <ExamplesSearchHighlight
+                      <SearchHighlight
                         text={example.description || "—"}
                         query={props.searchQuery}
                       />
@@ -2734,7 +2680,7 @@ function LocaleExamplesCompactView(props: {
                     style={props.localeDirection ? { unicodeBidi: "plaintext" } : undefined}
                   >
                     <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-                      <ExamplesSearchHighlight
+                      <SearchHighlight
                         text={
                           typeof example.evaluatedTranslation === "string"
                             ? example.evaluatedTranslation
@@ -2752,7 +2698,7 @@ function LocaleExamplesCompactView(props: {
                         <div className="group flex items-center gap-2">
                           <h3 className="text-sm font-semibold">
                             {props.searchQuery.trim() ? (
-                              <ExamplesSearchHighlight
+                              <SearchHighlight
                                 text={getLocaleExampleTitle(example)}
                                 query={props.searchQuery}
                               />
@@ -2939,12 +2885,24 @@ function filterDuplicateValuesBySearch(
   });
 }
 
+function SortArrow(props: { active: boolean; direction: SortDirection }) {
+  return (
+    <span className={props.active ? "text-primary" : "text-muted/60"} aria-hidden="true">
+      {props.active ? (props.direction === "asc" ? "↑" : "↓") : "↕"}
+    </span>
+  );
+}
+
 export function LocaleDuplicatesTab() {
   const { detail, setKey } = useEntityDetail();
   const [searchParams, setSearchParams] = useSearchParams();
   const [duplicates, setDuplicates] = React.useState<LocaleDuplicates | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [expandedDuplicateHashes, setExpandedDuplicateHashes] = React.useState<string[]>([]);
+  const [sort, setSort] = React.useState<DuplicateValuesSort>({
+    column: "messages",
+    direction: "desc",
+  });
   const localeDirection = (detail.entity as Record<string, any>).direction as string | undefined;
   const searchQuery = searchParams.get("q") ?? "";
 
@@ -3027,9 +2985,9 @@ export function LocaleDuplicatesTab() {
     return <p className="text-sm text-muted">No duplicate translations found for this locale.</p>;
   }
 
-  const visibleDuplicateValues = filterDuplicateValuesBySearch(
-    duplicates.duplicateValues,
-    searchQuery,
+  const visibleDuplicateValues = sortDuplicateValues(
+    filterDuplicateValuesBySearch(duplicates.duplicateValues, searchQuery),
+    sort,
   );
 
   return (
@@ -3075,8 +3033,48 @@ export function LocaleDuplicatesTab() {
             </colgroup>
             <thead className="bg-elevated text-left text-[11px] uppercase tracking-wide text-muted">
               <tr>
-                <th className="border-b border-border px-3 py-2 font-semibold">Duplicate value</th>
-                <th className="border-b border-border px-3 py-2 font-semibold">Messages</th>
+                <th
+                  className="border-b border-border px-3 py-2 font-semibold"
+                  aria-sort={
+                    sort.column === "value"
+                      ? sort.direction === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : "none"
+                  }
+                >
+                  <button
+                    type="button"
+                    className="inline-flex cursor-pointer items-center gap-1 text-left font-semibold uppercase tracking-wide text-muted transition-colors hover:text-text"
+                    onClick={() =>
+                      setSort((current) => getNextDuplicateValuesSort(current, "value"))
+                    }
+                  >
+                    <span>Duplicate value</span>
+                    <SortArrow active={sort.column === "value"} direction={sort.direction} />
+                  </button>
+                </th>
+                <th
+                  className="border-b border-border px-3 py-2 font-semibold"
+                  aria-sort={
+                    sort.column === "messages"
+                      ? sort.direction === "asc"
+                        ? "ascending"
+                        : "descending"
+                      : "none"
+                  }
+                >
+                  <button
+                    type="button"
+                    className="inline-flex cursor-pointer items-center gap-1 text-left font-semibold uppercase tracking-wide text-muted transition-colors hover:text-text"
+                    onClick={() =>
+                      setSort((current) => getNextDuplicateValuesSort(current, "messages"))
+                    }
+                  >
+                    <span>Messages</span>
+                    <SortArrow active={sort.column === "messages"} direction={sort.direction} />
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -3106,7 +3104,7 @@ export function LocaleDuplicatesTab() {
                         style={localeDirection ? { unicodeBidi: "plaintext" } : undefined}
                       >
                         <div className="truncate">
-                          <ExamplesSearchHighlight text={duplicate.value} query={searchQuery} />
+                          <SearchHighlight text={duplicate.value} query={searchQuery} />
                         </div>
                       </td>
                       <td className="min-w-0 border-b border-border px-3 py-2 text-muted">
@@ -3152,7 +3150,7 @@ export function LocaleDuplicatesTab() {
                                             to={getEntityRoute("message", messageKey, setKey)}
                                             className="font-medium text-primary [overflow-wrap:anywhere] hover:underline"
                                           >
-                                            <ExamplesSearchHighlight
+                                            <SearchHighlight
                                               text={messageKey}
                                               query={searchQuery}
                                             />
@@ -3167,7 +3165,7 @@ export function LocaleDuplicatesTab() {
                                                 className="font-medium text-primary hover:underline"
                                                 onClick={(event) => event.stopPropagation()}
                                               >
-                                                <ExamplesSearchHighlight
+                                                <SearchHighlight
                                                   text={sourceLocale}
                                                   query={searchQuery}
                                                 />

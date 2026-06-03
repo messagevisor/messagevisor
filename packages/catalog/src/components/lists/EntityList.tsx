@@ -10,14 +10,23 @@ import { EmptyState } from "../ui/EmptyState";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { EntityKey } from "../ui/EntityKey";
+import { SearchHighlight } from "../ui/SearchHighlight";
 import { CATALOG_LIST_INITIAL_LIMIT } from "../../config";
 import type { ParsedQuery } from "../../utils/searchQuery";
 import { parseQuery } from "../../utils/searchQuery";
+
+interface EntityListHighlightTerms {
+  key: string[];
+  description: string[];
+  relationship: string[];
+  lastModified: string[];
+}
 
 function matchesQuery(
   entity: EntitySummary,
   parsed: ParsedQuery,
   translationShard: TranslationShard | null,
+  translationSearchEnabled: boolean,
 ): boolean {
   const { freeText, qualifiers } = parsed;
 
@@ -70,6 +79,7 @@ function matchesQuery(
         break;
       }
       case "translation": {
+        if (!translationSearchEnabled) break;
         if (q.value.length < 3) return true; // require 3+ chars; don't filter otherwise
         if (!translationShard) return true; // optimistically include while loading
         const values = translationShard[entity.key];
@@ -91,13 +101,14 @@ function getQueryHints(
   type: EntityType,
   firstTargetKey: string | undefined,
   firstLocaleKey: string | undefined,
+  translationSearchEnabled: boolean,
 ): string[] | null {
   const target = firstTargetKey;
   const locale = firstLocaleKey;
 
   if (type === "message") {
     return [
-      'translation:"keyword"',
+      ...(translationSearchEnabled ? ['translation:"keyword"'] : []),
       ...(target ? [`target:${target}`] : []),
       ...(locale ? [`locale:${locale}`] : []),
       'description:"keyword"',
@@ -116,15 +127,17 @@ function QueryHints({
   query,
   firstTargetKey,
   firstLocaleKey,
+  translationSearchEnabled,
   onHintClick,
 }: {
   type: EntityType;
   query: string;
   firstTargetKey: string | undefined;
   firstLocaleKey: string | undefined;
+  translationSearchEnabled: boolean;
   onHintClick: (hint: string) => void;
 }) {
-  const hints = getQueryHints(type, firstTargetKey, firstLocaleKey);
+  const hints = getQueryHints(type, firstTargetKey, firstLocaleKey, translationSearchEnabled);
   if (!hints) return null;
 
   return (
@@ -164,7 +177,7 @@ function getStatusBadges(entity: EntitySummary) {
   );
 }
 
-function LastModified(props: { entity: EntitySummary }) {
+function LastModified(props: { entity: EntitySummary; highlightQuery: string[] }) {
   if (!props.entity.lastModified) {
     return <span>Last modified n/a</span>;
   }
@@ -180,8 +193,11 @@ function LastModified(props: { entity: EntitySummary }) {
 
   return (
     <span>
-      Last modified by <span className="font-semibold">{props.entity.lastModified.author}</span> on{" "}
-      {formattedDate}
+      Last modified by{" "}
+      <span className="font-semibold">
+        <SearchHighlight text={props.entity.lastModified.author} query={props.highlightQuery} />
+      </span>{" "}
+      on <SearchHighlight text={formattedDate} query={props.highlightQuery} />
     </span>
   );
 }
@@ -192,6 +208,32 @@ function getRelationshipBadges(type: EntityType, entity: EntitySummary) {
   }
 
   return entity.targets || [];
+}
+
+function uniqueTerms(terms: string[]) {
+  return Array.from(new Set(terms.map((term) => term.trim()).filter(Boolean)));
+}
+
+export function getEntityListHighlightTerms(query: string): EntityListHighlightTerms {
+  const parsed = parseQuery(query);
+  const freeText = uniqueTerms(parsed.freeText);
+  const description = uniqueTerms(
+    parsed.qualifiers
+      .filter((qualifier) => qualifier.key === "description")
+      .map((qualifier) => qualifier.value),
+  );
+  const relationship = uniqueTerms(
+    parsed.qualifiers
+      .filter((qualifier) => qualifier.key === "target" || qualifier.key === "locale")
+      .map((qualifier) => qualifier.value),
+  );
+
+  return {
+    key: freeText,
+    description,
+    relationship,
+    lastModified: freeText,
+  };
 }
 
 function getSortDirection(sortValue: string | null) {
@@ -225,6 +267,7 @@ export function EntityList(props: {
   entities: EntitySummary[];
   setKey?: string;
   allEntities?: Record<EntityType, EntitySummary[]>;
+  translationSearchEnabled?: boolean;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAll, setShowAll] = React.useState(false);
@@ -242,12 +285,14 @@ export function EntityList(props: {
 
   const firstTargetKey = props.allEntities?.target?.find((e) => !e.archived)?.key;
   const firstLocaleKey = props.allEntities?.locale?.find((e) => !e.archived)?.key;
-  const hasHintsDefined = getQueryHints(props.type, firstTargetKey, firstLocaleKey) !== null;
+  const translationSearchEnabled = props.translationSearchEnabled === true;
+  const hasHintsDefined =
+    getQueryHints(props.type, firstTargetKey, firstLocaleKey, translationSearchEnabled) !== null;
 
   // Compute the 3-char shard prefix needed for the current query
   const _translationQual = parseQuery(query).qualifiers.find((q) => q.key === "translation");
   const neededShardKey =
-    _translationQual && _translationQual.value.length >= 3
+    translationSearchEnabled && _translationQual && _translationQual.value.length >= 3
       ? _translationQual.value.slice(0, 3).toLowerCase()
       : null;
 
@@ -279,6 +324,7 @@ export function EntityList(props: {
 
   // Pass shard to matchesQuery only when the loaded shard matches what's needed
   const activeShard = loadedShardKey === neededShardKey ? translationShard : null;
+  const highlightTerms = React.useMemo(() => getEntityListHighlightTerms(query), [query]);
 
   const filtered = React.useMemo(() => {
     const parsed = parseQuery(query);
@@ -286,14 +332,14 @@ export function EntityList(props: {
 
     const matching = props.entities.filter((entity) => {
       if (!hasQuery) return true;
-      return matchesQuery(entity, parsed, activeShard);
+      return matchesQuery(entity, parsed, activeShard, translationSearchEnabled);
     });
 
     return matching.slice().sort((left, right) => {
       const result = left.key.localeCompare(left.key === right.key ? "" : right.key);
       return sortDirection === "desc" ? result * -1 : result;
     });
-  }, [query, props.entities, sortDirection, activeShard]);
+  }, [query, props.entities, sortDirection, activeShard, translationSearchEnabled]);
 
   const visible = showAll ? filtered : filtered.slice(0, CATALOG_LIST_INITIAL_LIMIT);
   const hasHiddenEntities = filtered.length > CATALOG_LIST_INITIAL_LIMIT && !showAll;
@@ -365,6 +411,7 @@ export function EntityList(props: {
                   query={query}
                   firstTargetKey={firstTargetKey}
                   firstLocaleKey={firstLocaleKey}
+                  translationSearchEnabled={translationSearchEnabled}
                   onHintClick={handleHintClick}
                 />
               </div>
@@ -410,9 +457,16 @@ export function EntityList(props: {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-col justify-between gap-2 md:flex-row md:items-start">
                   <div className="min-w-0">
-                    <EntityKey value={entity.key} className="text-sm font-semibold text-primary" />
+                    <EntityKey
+                      value={entity.key}
+                      className="text-sm font-semibold text-primary"
+                      highlightQuery={highlightTerms.key}
+                    />
                     <div className="mt-1 truncate text-sm text-muted">
-                      {entity.description || "No description"}
+                      <SearchHighlight
+                        text={entity.description || "No description"}
+                        query={highlightTerms.description}
+                      />
                     </div>
                   </div>
                   <div className="shrink-0">{getStatusBadges(entity)}</div>
@@ -420,11 +474,13 @@ export function EntityList(props: {
                 <div className="mt-2 flex flex-col gap-2 text-xs text-muted md:flex-row md:items-center md:justify-between">
                   <div className="flex flex-wrap gap-2">
                     {getRelationshipBadges(props.type, entity).map((label) => (
-                      <Badge key={label}>{label}</Badge>
+                      <Badge key={label}>
+                        <SearchHighlight text={label} query={highlightTerms.relationship} />
+                      </Badge>
                     ))}
                   </div>
                   <span className="shrink-0 md:text-right">
-                    <LastModified entity={entity} />
+                    <LastModified entity={entity} highlightQuery={highlightTerms.lastModified} />
                   </span>
                 </div>
               </div>

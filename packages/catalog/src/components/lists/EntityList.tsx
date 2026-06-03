@@ -10,9 +10,17 @@ import { EmptyState } from "../ui/EmptyState";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { EntityKey } from "../ui/EntityKey";
+import { SearchHighlight } from "../ui/SearchHighlight";
 import { CATALOG_LIST_INITIAL_LIMIT } from "../../config";
 import type { ParsedQuery } from "../../utils/searchQuery";
 import { parseQuery } from "../../utils/searchQuery";
+
+interface EntityListHighlightTerms {
+  key: string[];
+  description: string[];
+  relationship: string[];
+  lastModified: string[];
+}
 
 function matchesQuery(
   entity: EntitySummary,
@@ -169,7 +177,7 @@ function getStatusBadges(entity: EntitySummary) {
   );
 }
 
-function LastModified(props: { entity: EntitySummary }) {
+function LastModified(props: { entity: EntitySummary; highlightQuery: string[] }) {
   if (!props.entity.lastModified) {
     return <span>Last modified n/a</span>;
   }
@@ -185,8 +193,11 @@ function LastModified(props: { entity: EntitySummary }) {
 
   return (
     <span>
-      Last modified by <span className="font-semibold">{props.entity.lastModified.author}</span> on{" "}
-      {formattedDate}
+      Last modified by{" "}
+      <span className="font-semibold">
+        <SearchHighlight text={props.entity.lastModified.author} query={props.highlightQuery} />
+      </span>{" "}
+      on <SearchHighlight text={formattedDate} query={props.highlightQuery} />
     </span>
   );
 }
@@ -197,6 +208,32 @@ function getRelationshipBadges(type: EntityType, entity: EntitySummary) {
   }
 
   return entity.targets || [];
+}
+
+function uniqueTerms(terms: string[]) {
+  return Array.from(new Set(terms.map((term) => term.trim()).filter(Boolean)));
+}
+
+export function getEntityListHighlightTerms(query: string): EntityListHighlightTerms {
+  const parsed = parseQuery(query);
+  const freeText = uniqueTerms(parsed.freeText);
+  const description = uniqueTerms(
+    parsed.qualifiers
+      .filter((qualifier) => qualifier.key === "description")
+      .map((qualifier) => qualifier.value),
+  );
+  const relationship = uniqueTerms(
+    parsed.qualifiers
+      .filter((qualifier) => qualifier.key === "target" || qualifier.key === "locale")
+      .map((qualifier) => qualifier.value),
+  );
+
+  return {
+    key: freeText,
+    description,
+    relationship,
+    lastModified: freeText,
+  };
 }
 
 function getSortDirection(sortValue: string | null) {
@@ -287,6 +324,7 @@ export function EntityList(props: {
 
   // Pass shard to matchesQuery only when the loaded shard matches what's needed
   const activeShard = loadedShardKey === neededShardKey ? translationShard : null;
+  const highlightTerms = React.useMemo(() => getEntityListHighlightTerms(query), [query]);
 
   const filtered = React.useMemo(() => {
     const parsed = parseQuery(query);
@@ -419,9 +457,16 @@ export function EntityList(props: {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-col justify-between gap-2 md:flex-row md:items-start">
                   <div className="min-w-0">
-                    <EntityKey value={entity.key} className="text-sm font-semibold text-primary" />
+                    <EntityKey
+                      value={entity.key}
+                      className="text-sm font-semibold text-primary"
+                      highlightQuery={highlightTerms.key}
+                    />
                     <div className="mt-1 truncate text-sm text-muted">
-                      {entity.description || "No description"}
+                      <SearchHighlight
+                        text={entity.description || "No description"}
+                        query={highlightTerms.description}
+                      />
                     </div>
                   </div>
                   <div className="shrink-0">{getStatusBadges(entity)}</div>
@@ -429,11 +474,13 @@ export function EntityList(props: {
                 <div className="mt-2 flex flex-col gap-2 text-xs text-muted md:flex-row md:items-center md:justify-between">
                   <div className="flex flex-wrap gap-2">
                     {getRelationshipBadges(props.type, entity).map((label) => (
-                      <Badge key={label}>{label}</Badge>
+                      <Badge key={label}>
+                        <SearchHighlight text={label} query={highlightTerms.relationship} />
+                      </Badge>
                     ))}
                   </div>
                   <span className="shrink-0 md:text-right">
-                    <LastModified entity={entity} />
+                    <LastModified entity={entity} highlightQuery={highlightTerms.lastModified} />
                   </span>
                 </div>
               </div>

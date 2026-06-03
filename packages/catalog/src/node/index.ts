@@ -222,6 +222,7 @@ export interface CatalogExportOptions {
   browserRouter?: boolean;
   dev?: boolean;
   devEditors?: CatalogDevEditor[];
+  withTranslationSearch?: boolean;
 }
 
 export interface CatalogServeOptions {
@@ -245,6 +246,7 @@ interface CatalogBuildContext {
   runtime: CatalogRuntime;
   devEditors: CatalogDevEditor[];
   duplicateResultsBySet: Record<string, CatalogDuplicateTranslationsSetResult>;
+  withTranslationSearch: boolean;
 }
 
 interface SourceFileInfo {
@@ -1463,16 +1465,18 @@ async function buildSetCatalog(
     }
     const overrideLocalesList = sortStrings(Array.from(overrideLocalesSet));
 
-    // Build translation shards (direct + inherited + override, all locales combined)
-    for (const localeKey of localeKeys) {
-      const row = resolveTranslationRow(message.translations, localeKey, locales);
-      if (row.source !== "missing" && row.value) {
-        addToTranslationShard(messageKey, row.value);
-      }
-      for (const override of overrides) {
-        const overrideRow = resolveTranslationRow(override.translations, localeKey, locales);
-        if (overrideRow.source !== "missing" && overrideRow.value) {
-          addToTranslationShard(messageKey, overrideRow.value);
+    if (context.withTranslationSearch) {
+      // Build translation shards (direct + inherited + override, all locales combined)
+      for (const localeKey of localeKeys) {
+        const row = resolveTranslationRow(message.translations, localeKey, locales);
+        if (row.source !== "missing" && row.value) {
+          addToTranslationShard(messageKey, row.value);
+        }
+        for (const override of overrides) {
+          const overrideRow = resolveTranslationRow(override.translations, localeKey, locales);
+          if (overrideRow.source !== "missing" && overrideRow.value) {
+            addToTranslationShard(messageKey, overrideRow.value);
+          }
         }
       }
     }
@@ -1494,12 +1498,14 @@ async function buildSetCatalog(
     );
   }
 
-  for (const [prefix, messageMap] of Object.entries(translationShards)) {
-    const shardData: Record<string, string[]> = {};
-    for (const [msgKey, valueSet] of Object.entries(messageMap)) {
-      shardData[msgKey] = Array.from(valueSet);
+  if (context.withTranslationSearch) {
+    for (const [prefix, messageMap] of Object.entries(translationShards)) {
+      const shardData: Record<string, string[]> = {};
+      for (const [msgKey, valueSet] of Object.entries(messageMap)) {
+        shardData[msgKey] = Array.from(valueSet);
+      }
+      await writeJson(path.join(outputDirectoryPath, "translations", `${prefix}.json`), shardData);
     }
-    await writeJson(path.join(outputDirectoryPath, "translations", `${prefix}.json`), shardData);
   }
 
   for (const attributeKey of attributeKeys) {
@@ -1678,6 +1684,7 @@ export async function exportCatalog(
     ? path.resolve(rootDirectoryPath, options.outDir)
     : projectConfig.catalogDirectoryPath;
   const dataDirectoryPath = path.join(outputDirectoryPath, "data");
+  const withTranslationSearch = options.withTranslationSearch === true;
 
   await fs.promises.rm(outputDirectoryPath, { recursive: true, force: true });
   await fs.promises.mkdir(dataDirectoryPath, { recursive: true });
@@ -1701,6 +1708,7 @@ export async function exportCatalog(
     runtime,
     devEditors,
     duplicateResultsBySet,
+    withTranslationSearch,
   };
   const executions = await runtime.getProjectSetExecutions(projectConfig, datasource);
   const setIndexes: Record<string, CatalogSetIndex> = {};
@@ -1725,6 +1733,9 @@ export async function exportCatalog(
     sets: projectConfig.sets,
     setKeys: projectConfig.sets ? executions.map((execution) => execution.set) : [],
     dev: options.dev ? { editors: devEditors } : undefined,
+    features: {
+      translationSearch: withTranslationSearch,
+    },
     links: getRepoLinks(rootDirectoryPath),
     paths: {
       projectHistory: "data/project/history/page-1.json",
@@ -2017,6 +2028,10 @@ export function createCatalogApi(runtime: CatalogRuntime) {
   };
 }
 
+function isWithTranslationSearchEnabled(parsed: CatalogPluginParsedOptions) {
+  return parsed.withTranslationSearch === true || parsed["with-translation-search"] === true;
+}
+
 export function createCatalogPlugin(
   runtime: CatalogRuntime,
   api: ReturnType<typeof createCatalogApi> = createCatalogApi(runtime),
@@ -2026,6 +2041,7 @@ export function createCatalogPlugin(
     handler: async ({ rootDirectoryPath, projectConfig, datasource, parsed }) => {
       const allowedSubcommands = ["export", "serve"];
       const browserRouter = !(parsed.hashRouter || parsed["hash-router"]);
+      const withTranslationSearch = isWithTranslationSearchEnabled(parsed);
 
       if (!parsed.subcommand) {
         await api.exportCatalog(rootDirectoryPath, projectConfig, datasource, {
@@ -2033,6 +2049,7 @@ export function createCatalogPlugin(
           copyAssets: !parsed.noAssets,
           browserRouter,
           dev: true,
+          withTranslationSearch,
         });
         const server = await api.serveCatalog(rootDirectoryPath, projectConfig, datasource, {
           outDir: parsed.outDir,
@@ -2075,6 +2092,7 @@ export function createCatalogPlugin(
               copyAssets: !parsed.noAssets,
               browserRouter,
               dev: true,
+              withTranslationSearch,
             });
             server.triggerReload();
           } catch (error) {
@@ -2122,6 +2140,7 @@ export function createCatalogPlugin(
           outDir: parsed.outDir,
           copyAssets: !parsed.noAssets,
           browserRouter,
+          withTranslationSearch,
         });
       }
 

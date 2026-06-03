@@ -18,6 +18,7 @@ function matchesQuery(
   entity: EntitySummary,
   parsed: ParsedQuery,
   translationShard: TranslationShard | null,
+  translationSearchEnabled: boolean,
 ): boolean {
   const { freeText, qualifiers } = parsed;
 
@@ -70,6 +71,7 @@ function matchesQuery(
         break;
       }
       case "translation": {
+        if (!translationSearchEnabled) break;
         if (q.value.length < 3) return true; // require 3+ chars; don't filter otherwise
         if (!translationShard) return true; // optimistically include while loading
         const values = translationShard[entity.key];
@@ -91,13 +93,14 @@ function getQueryHints(
   type: EntityType,
   firstTargetKey: string | undefined,
   firstLocaleKey: string | undefined,
+  translationSearchEnabled: boolean,
 ): string[] | null {
   const target = firstTargetKey;
   const locale = firstLocaleKey;
 
   if (type === "message") {
     return [
-      'translation:"keyword"',
+      ...(translationSearchEnabled ? ['translation:"keyword"'] : []),
       ...(target ? [`target:${target}`] : []),
       ...(locale ? [`locale:${locale}`] : []),
       'description:"keyword"',
@@ -116,15 +119,17 @@ function QueryHints({
   query,
   firstTargetKey,
   firstLocaleKey,
+  translationSearchEnabled,
   onHintClick,
 }: {
   type: EntityType;
   query: string;
   firstTargetKey: string | undefined;
   firstLocaleKey: string | undefined;
+  translationSearchEnabled: boolean;
   onHintClick: (hint: string) => void;
 }) {
-  const hints = getQueryHints(type, firstTargetKey, firstLocaleKey);
+  const hints = getQueryHints(type, firstTargetKey, firstLocaleKey, translationSearchEnabled);
   if (!hints) return null;
 
   return (
@@ -225,6 +230,7 @@ export function EntityList(props: {
   entities: EntitySummary[];
   setKey?: string;
   allEntities?: Record<EntityType, EntitySummary[]>;
+  translationSearchEnabled?: boolean;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAll, setShowAll] = React.useState(false);
@@ -242,12 +248,14 @@ export function EntityList(props: {
 
   const firstTargetKey = props.allEntities?.target?.find((e) => !e.archived)?.key;
   const firstLocaleKey = props.allEntities?.locale?.find((e) => !e.archived)?.key;
-  const hasHintsDefined = getQueryHints(props.type, firstTargetKey, firstLocaleKey) !== null;
+  const translationSearchEnabled = props.translationSearchEnabled === true;
+  const hasHintsDefined =
+    getQueryHints(props.type, firstTargetKey, firstLocaleKey, translationSearchEnabled) !== null;
 
   // Compute the 3-char shard prefix needed for the current query
   const _translationQual = parseQuery(query).qualifiers.find((q) => q.key === "translation");
   const neededShardKey =
-    _translationQual && _translationQual.value.length >= 3
+    translationSearchEnabled && _translationQual && _translationQual.value.length >= 3
       ? _translationQual.value.slice(0, 3).toLowerCase()
       : null;
 
@@ -286,14 +294,14 @@ export function EntityList(props: {
 
     const matching = props.entities.filter((entity) => {
       if (!hasQuery) return true;
-      return matchesQuery(entity, parsed, activeShard);
+      return matchesQuery(entity, parsed, activeShard, translationSearchEnabled);
     });
 
     return matching.slice().sort((left, right) => {
       const result = left.key.localeCompare(left.key === right.key ? "" : right.key);
       return sortDirection === "desc" ? result * -1 : result;
     });
-  }, [query, props.entities, sortDirection, activeShard]);
+  }, [query, props.entities, sortDirection, activeShard, translationSearchEnabled]);
 
   const visible = showAll ? filtered : filtered.slice(0, CATALOG_LIST_INITIAL_LIMIT);
   const hasHiddenEntities = filtered.length > CATALOG_LIST_INITIAL_LIMIT && !showAll;
@@ -365,6 +373,7 @@ export function EntityList(props: {
                   query={query}
                   firstTargetKey={firstTargetKey}
                   firstLocaleKey={firstLocaleKey}
+                  translationSearchEnabled={translationSearchEnabled}
                   onHintClick={handleHintClick}
                 />
               </div>

@@ -37,6 +37,15 @@ async function readJson<T>(root: string, relativePath: string): Promise<T> {
   return JSON.parse(await fs.promises.readFile(path.join(root, relativePath), "utf8"));
 }
 
+async function pathExists(root: string, relativePath: string) {
+  try {
+    await fs.promises.access(path.join(root, relativePath));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function createProject() {
   const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
   const interpolationModulePath = path.join(
@@ -242,7 +251,11 @@ describe("catalog", function () {
     expect(manifest.sets).toBe(false);
     expect(manifest.router).toBe("browser");
     expect(manifest.dev).toBeUndefined();
+    expect(manifest.features).toEqual({ translationSearch: false });
     expect(manifest.paths.root).toBe("data/root/index.json");
+    await expect(pathExists(root, "catalog-out/data/root/translations/77656c.json")).resolves.toBe(
+      false,
+    );
     expect(index.counts.message).toBe(2);
     expect(
       index.entities.message.find((entry: any) => entry.key === "common.welcome").targets,
@@ -389,6 +402,26 @@ describe("catalog", function () {
     expect(segment.usage.messages).toEqual(["common.welcome"]);
     expect(target.messages).toEqual(["common.draft", "common.welcome"]);
     expect(history.entries).toEqual([]);
+  });
+
+  it("exports translation search shards only when opted in", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+      withTranslationSearch: true,
+    });
+
+    const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
+    const shard = await readJson<any>(root, "catalog-out/data/root/translations/77656c.json");
+
+    expect(manifest.features).toEqual({ translationSearch: true });
+    expect(shard["common.welcome"]).toEqual(expect.arrayContaining(["welcome", "welcome pro"]));
+    expect(shard["common.draft"]).toEqual(["welcome"]);
   });
 
   it("streams Git history into project, entity, and last-modified catalog data", async function () {
@@ -668,7 +701,11 @@ describe("catalog", function () {
     const admin = await readJson<any>(root, "catalog-out/data/sets/admin/index.json");
 
     expect(manifest.sets).toBe(true);
+    expect(manifest.features).toEqual({ translationSearch: false });
     expect(manifest.setKeys).toEqual(["admin", "storefront"]);
+    await expect(
+      pathExists(root, "catalog-out/data/sets/storefront/translations/73746f.json"),
+    ).resolves.toBe(false);
     const storefrontDuplicates = await readJson<any>(
       root,
       "catalog-out/data/sets/storefront/duplicates/locales/en.json",
@@ -706,6 +743,45 @@ describe("catalog", function () {
       key: "common.welcome",
       entity: { translations: { en: "storefront" } },
     });
+  });
+
+  it("exports set translation search shards when opted in", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = { sets: true };\n");
+
+    for (const set of ["storefront", "admin"]) {
+      await writeFile(root, `sets/${set}/locales/en.yml`, "description: English\n");
+      await writeFile(
+        root,
+        `sets/${set}/messages/common/welcome.yml`,
+        `description: Welcome\ntranslations:\n  en: ${set}\n`,
+      );
+    }
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+      withTranslationSearch: true,
+    });
+
+    const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
+    const storefrontShard = await readJson<any>(
+      root,
+      "catalog-out/data/sets/storefront/translations/73746f.json",
+    );
+    const adminShard = await readJson<any>(
+      root,
+      "catalog-out/data/sets/admin/translations/61646d.json",
+    );
+
+    expect(manifest.features).toEqual({ translationSearch: true });
+    expect(storefrontShard).toEqual({ "common.welcome": ["storefront"] });
+    expect(adminShard).toEqual({ "common.welcome": ["admin"] });
   });
 
   it("groups streamed Git history by set", async function () {
@@ -900,10 +976,46 @@ describe("catalog plugin", function () {
     );
   });
 
+  it("forwards translation search option for dev catalog mode", async function () {
+    const { handler } = createPlugin();
+
+    await handler({ _: ["catalog"], withTranslationSearch: true });
+
+    expect(exportMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({ withTranslationSearch: true, dev: true }),
+    );
+  });
+
+  it("forwards translation search option for export subcommand", async function () {
+    const { handler } = createPlugin();
+
+    await handler({
+      _: ["catalog", "export"],
+      subcommand: "export",
+      "with-translation-search": true,
+    });
+
+    expect(exportMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({ withTranslationSearch: true }),
+    );
+  });
+
   it("forwards long and short port options for serve subcommand", async function () {
     const { handler } = createPlugin();
 
     await handler({ _: ["catalog", "serve"], subcommand: "serve", port: 3103 });
+    expect(serveMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.not.objectContaining({ withTranslationSearch: true }),
+    );
     expect(serveMock).toHaveBeenLastCalledWith(
       expect.any(String),
       expect.any(Object),

@@ -7,6 +7,7 @@ import type { CatalogIndex, EntityPath } from "../types";
 import { EntityList } from "../components/lists/EntityList";
 import { PageHeader } from "../components/layout/PageHeader";
 import { EmptyState } from "../components/ui/EmptyState";
+import { useCatalog } from "../context/CatalogContext";
 
 function isEntityPath(value: string | undefined): value is EntityPath {
   return (
@@ -20,6 +21,7 @@ function isEntityPath(value: string | undefined): value is EntityPath {
 
 export function ListPage() {
   const { entityPath, setKey } = useParams();
+  const { manifest } = useCatalog();
   const [index, setIndex] = React.useState<CatalogIndex | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -53,6 +55,7 @@ export function ListPage() {
         entities={index.entities[type]}
         setKey={setKey}
         allEntities={index.entities}
+        translationSearchEnabled={manifest.features?.translationSearch === true}
       />
     </div>
   );

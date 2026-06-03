@@ -19,6 +19,7 @@ import type {
 import { SCHEMA_VERSION, ProjectConfig, formatDatafilePath } from "../config";
 import { Datasource } from "../datasource";
 import { evaluateCondition } from "../evaluate";
+import { mergeFormatPresets } from "../formats";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
@@ -70,37 +71,11 @@ export type BuildProjectSetsProgressEvent =
       datafiles: DatafileContent[];
     };
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function deepMerge<T>(parent?: T, child?: T): T | undefined {
-  if (typeof parent === "undefined") {
-    return child;
-  }
-
-  if (typeof child === "undefined") {
-    return parent;
-  }
-
-  if (!isPlainObject(parent) || !isPlainObject(child)) {
-    return child;
-  }
-
-  const result: Record<string, unknown> = { ...parent };
-
-  for (const key of Object.keys(child)) {
-    result[key] = deepMerge(result[key], child[key]);
-  }
-
-  return result as T;
-}
-
 export function mergeFormats(
   parent?: FormatPresets,
   child?: FormatPresets,
 ): FormatPresets | undefined {
-  return deepMerge(parent, child);
+  return mergeFormatPresets(parent, child);
 }
 
 function matchesPattern(key: string, patterns?: string[]) {

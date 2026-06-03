@@ -671,6 +671,56 @@ describe("lintProject", function () {
     );
   });
 
+  it("accepts ICU styles declared directly on child locales as full style overrides", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(
+      root,
+      "locales/en.yml",
+      [
+        "description: English",
+        "formats:",
+        "  number:",
+        "    money:",
+        "      style: currency",
+        "      currency: USD",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "locales/en-US.yml",
+      [
+        "description: English (US)",
+        "inheritFormatsFrom: en",
+        "formats:",
+        "  number:",
+        "    money:",
+        "      currency: EUR",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "messages/billing/summary.yml",
+      [
+        "description: Billing summary",
+        "translations:",
+        '  en-US: "Total {amount, number, money}"',
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(result.errors.filter((error) => error.code === "missing_icu_format_style")).toHaveLength(
+      0,
+    );
+  });
+
   it("reports missing ICU styles for the target locale format primitive", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
 

@@ -19,7 +19,18 @@ async function createProject() {
   await writeFile(
     root,
     "locales/en.yml",
-    "description: English\nformats:\n  number:\n    money:\n      style: currency\n      currency: USD\n",
+    [
+      "description: English",
+      "formats:",
+      "  number:",
+      "    decimal:",
+      "      maximumFractionDigits: 2",
+      "    money:",
+      "      style: currency",
+      "      currency: USD",
+      "      currencyDisplay: symbol",
+      "",
+    ].join("\n"),
   );
   await writeFile(
     root,
@@ -29,7 +40,19 @@ async function createProject() {
   await writeFile(
     root,
     "targets/web.yml",
-    "description: Web\nincludeMessages:\n  - auth*\nlocales:\n  - en-US\n",
+    [
+      "description: Web",
+      "includeMessages:",
+      "  - auth*",
+      "locales:",
+      "  - en-US",
+      "formats:",
+      "  en-US:",
+      "    number:",
+      "      money:",
+      "        currency: GBP",
+      "",
+    ].join("\n"),
   );
   await writeFile(root, "attributes/platform.yml", "description: Platform\ntype: string\n");
   await writeFile(
@@ -47,10 +70,13 @@ async function createProject() {
 }
 
 describe("buildProject", function () {
-  it("deep merges inherited format presets", function () {
+  it("merges format presets by type and style while replacing declared styles", function () {
     const formats = mergeFormats(
       {
         number: {
+          decimal: {
+            maximumFractionDigits: 2,
+          },
           money: {
             style: "currency",
             currency: "USD",
@@ -59,6 +85,10 @@ describe("buildProject", function () {
           },
         },
         date: {
+          short: {
+            month: "numeric",
+            day: "numeric",
+          },
           long: {
             year: "numeric",
             month: "long",
@@ -81,16 +111,17 @@ describe("buildProject", function () {
       } as any,
     );
 
+    expect(formats?.number?.decimal).toEqual({
+      maximumFractionDigits: 2,
+    });
     expect(formats?.number?.money).toEqual({
-      style: "currency",
       currency: "EUR",
-      currencyDisplay: "symbol",
-      minimumFractionDigits: 2,
+    });
+    expect(formats?.date?.short).toEqual({
+      month: "numeric",
+      day: "numeric",
     });
     expect(formats?.date?.long).toEqual({
-      year: "numeric",
-      month: "long",
-      day: "numeric",
       hour: "numeric",
       minute: "2-digit",
     });
@@ -111,7 +142,8 @@ describe("buildProject", function () {
     expect(datafiles[0].messages["auth.signin"].overrides?.[0].translation).toEqual(
       "Sign in on web",
     );
-    expect(datafiles[0].formats?.number?.money?.style).toEqual("currency");
+    expect(datafiles[0].formats?.number?.decimal).toEqual({ maximumFractionDigits: 2 });
+    expect(datafiles[0].formats?.number?.money).toEqual({ currency: "GBP" });
     expect(datafiles[0].segments["platform-web"].key).toBeUndefined();
     expect(datafiles[0].segments["platform-web"].description).toBeUndefined();
     expect((datafiles[0].segments["platform-web"] as any).promotable).toBeUndefined();

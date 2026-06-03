@@ -229,7 +229,7 @@ describe("pruneProject", function () {
     expect(updated.overrides?.[0].translations["en-US"]).toBeUndefined();
   });
 
-  it("prunes deep duplicate locale formats while preserving true overrides", async function () {
+  it("prunes duplicate locale format styles while preserving true overrides", async function () {
     const root = await createProject();
     const { projectConfig, datasource } = getDatasource(root);
 
@@ -243,19 +243,13 @@ describe("pruneProject", function () {
         expect.objectContaining({
           kind: "locale",
           key: "en-US",
-          formatPath: "date.short.year",
+          formatPath: "date.short",
           inheritedFrom: "en",
         }),
         expect.objectContaining({
           kind: "locale",
           key: "en-US",
-          formatPath: "number.currency.currency",
-          inheritedFrom: "en",
-        }),
-        expect.objectContaining({
-          kind: "locale",
-          key: "en-US",
-          formatPath: "number.currency.style",
+          formatPath: "number.currency",
           inheritedFrom: "en",
         }),
       ]),
@@ -293,7 +287,7 @@ describe("pruneProject", function () {
       expect.objectContaining({
         kind: "locale",
         key: "en-GB-x-test",
-        formatPath: "number.money.currency",
+        formatPath: "number.money",
         inheritedFrom: "en-GB",
       }),
     ]);

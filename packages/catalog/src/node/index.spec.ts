@@ -72,6 +72,8 @@ async function createProject() {
       "direction: ltr",
       "formats:",
       "  number:",
+      "    decimal:",
+      "      maximumFractionDigits: 2",
       "    money:",
       "      style: currency",
       "      currency: USD",
@@ -270,19 +272,16 @@ describe("catalog", function () {
       "web",
     ]);
     expect(index.entities.target.find((entry: any) => entry.key === "web").messageCount).toBe(2);
-    expect(locale.computedFormats.number.money).toEqual({
-      style: "currency",
-      currency: "USD",
-      currencyDisplay: "code",
-    });
+    expect(locale.computedFormats.number.decimal).toEqual({ maximumFractionDigits: 2 });
+    expect(locale.computedFormats.number.money).toEqual({ currencyDisplay: "code" });
     expect(locale.entity.examples).toHaveLength(1);
     expect(locale.entity.direction).toBe("ltr");
     expect(locale.entity.promotable).toBe(false);
     expect(locale.formatRows).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          path: "number.money.style",
-          value: "currency",
+          path: "number.decimal.maximumFractionDigits",
+          value: 2,
           source: "inherited",
           from: "en",
           examplePreview: expect.any(String),
@@ -357,8 +356,8 @@ describe("catalog", function () {
           examplePreview: expect.any(String),
         }),
         expect.objectContaining({
-          path: "number.money.style",
-          value: "currency",
+          path: "number.decimal.maximumFractionDigits",
+          value: 2,
           source: "inherited",
           from: "en",
           examplePreview: expect.any(String),

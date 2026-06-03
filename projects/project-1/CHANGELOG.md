@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.4.0](https://github.com/messagevisor/messagevisor/compare/v0.3.0...v0.4.0) (2026-06-03)
+
+
+### Features
+
+* opt in translation search in catalog ([#7](https://github.com/messagevisor/messagevisor/issues/7)) ([c8681ff](https://github.com/messagevisor/messagevisor/commit/c8681fff7df32d63fa1784a247b4df74f8bc3296))
+
+
+
+
+
 # [0.3.0](https://github.com/messagevisor/messagevisor/compare/v0.2.0...v0.3.0) (2026-06-02)
 
 

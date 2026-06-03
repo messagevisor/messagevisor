@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.5.0](https://github.com/messagevisor/messagevisor/compare/v0.4.0...v0.5.0) (2026-06-03)
+
+
+### Features
+
+* locale formats inheritance ([#9](https://github.com/messagevisor/messagevisor/issues/9)) ([dc4dff7](https://github.com/messagevisor/messagevisor/commit/dc4dff7242eac7cc29d514b9a60c918d6ff4ccd5))
+
+
+
+
+
 # [0.4.0](https://github.com/messagevisor/messagevisor/compare/v0.3.0...v0.4.0) (2026-06-03)
 
 

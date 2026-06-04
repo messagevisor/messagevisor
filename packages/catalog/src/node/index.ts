@@ -104,6 +104,12 @@ class CatalogProgressReporter {
     return Date.now();
   }
 
+  substep(label: string, detail?: string) {
+    const suffix = detail ? `: ${colorize(detail, 2)}` : "";
+    console.log(`    ${colorize("•", 36)} ${label}${suffix}`);
+    return Date.now();
+  }
+
   done(startedAt: number, detail?: string) {
     const suffix = detail ? ` ${detail}` : "";
     console.log(CLI_FORMAT_DIM, `    done in ${prettyDuration(Date.now() - startedAt)}${suffix}`);
@@ -352,6 +358,7 @@ export interface CatalogServerHandle {
 interface CatalogBuildContext {
   rootDirectoryPath: string;
   repositoryRootDirectoryPath: string;
+  repositorySourceRootDirectoryPath: string;
   outputDirectoryPath: string;
   dataDirectoryPath: string;
   historyIndex: CatalogHistoryIndex;
@@ -361,6 +368,7 @@ interface CatalogBuildContext {
   withTranslationSearch: boolean;
   withDuplicates: boolean;
   progress: CatalogProgressReporter;
+  writer: CatalogJsonWriter;
 }
 
 interface SourceFileInfo {
@@ -723,9 +731,41 @@ function toLocaleDuplicatesFile(
   };
 }
 
-async function writeJson(filePath: string, content: unknown) {
-  await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.promises.writeFile(filePath, JSON.stringify(content, null, 2));
+class CatalogJsonWriter {
+  private readonly directories = new Map<string, Promise<void>>();
+
+  private ensureDirectory(directoryPath: string) {
+    let promise = this.directories.get(directoryPath);
+
+    if (!promise) {
+      promise = fs.promises.mkdir(directoryPath, { recursive: true }).then(() => undefined);
+      this.directories.set(directoryPath, promise);
+    }
+
+    return promise;
+  }
+
+  async write(filePath: string, content: unknown) {
+    await this.ensureDirectory(path.dirname(filePath));
+    await fs.promises.writeFile(filePath, JSON.stringify(content, null, 2));
+  }
+}
+
+async function mapWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  callback: (item: T, index: number) => Promise<void>,
+) {
+  let nextIndex = 0;
+  const workerCount = Math.min(concurrency, items.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      await callback(items[index], index);
+    }
+  });
+
+  await Promise.all(workers);
 }
 
 function getEntityDirectoryPaths(config: any): Record<CatalogEntityType | "test", string> {
@@ -870,6 +910,18 @@ function addHistoryIndexEntry(
   target[key].push(entry);
 }
 
+function toEntityHistoryEntry(
+  entry: CatalogHistoryEntry,
+  entity: CatalogHistoryEntity,
+): CatalogHistoryEntry {
+  return {
+    commit: entry.commit,
+    author: entry.author,
+    timestamp: entry.timestamp,
+    entities: [entity],
+  };
+}
+
 function buildCatalogHistoryIndex(entries: CatalogHistoryEntry[]): CatalogHistoryIndex {
   const index = createEmptyHistoryIndex();
   index.entries = entries;
@@ -883,7 +935,7 @@ function buildCatalogHistoryIndex(entries: CatalogHistoryEntry[]): CatalogHistor
       }
 
       const entityKey = getHistoryEntityKey(entity.type, entity.key, entity.set);
-      addHistoryIndexEntry(index.byEntity, entityKey, entry);
+      addHistoryIndexEntry(index.byEntity, entityKey, toEntityHistoryEntry(entry, entity));
 
       if (!index.lastModifiedByEntity[entityKey]) {
         index.lastModifiedByEntity[entityKey] = toLastModified(entry);
@@ -1129,6 +1181,25 @@ function getRepositoryRootDirectoryPath(rootDirectoryPath: string) {
   }
 }
 
+function getRepositorySourceRootDirectoryPath(rootDirectoryPath: string) {
+  try {
+    const gitRootDirectoryPath =
+      runGit(rootDirectoryPath, ["rev-parse", "--show-toplevel"]).trim() || rootDirectoryPath;
+    const realRootDirectoryPath = getRealPath(rootDirectoryPath);
+
+    if (realRootDirectoryPath !== rootDirectoryPath) {
+      return path.resolve(
+        rootDirectoryPath,
+        path.relative(realRootDirectoryPath, gitRootDirectoryPath),
+      );
+    }
+
+    return gitRootDirectoryPath;
+  } catch (_error) {
+    return rootDirectoryPath;
+  }
+}
+
 function getOwnerAndRepoFromGitRemote(origin: string, host: string) {
   const escapedHost = host.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
   const match = origin.match(new RegExp(`${escapedHost}[:/]([^/]+)/(.+?)(?:\\.git)?$`));
@@ -1204,17 +1275,28 @@ function chunkHistory(history: CatalogHistoryEntry[], pageSize = CATALOG_HISTORY
   return pages.length > 0 ? pages : [[]];
 }
 
-async function writeHistoryPages(directoryPath: string, history: CatalogHistoryEntry[]) {
+async function writeHistoryPages(
+  writer: CatalogJsonWriter,
+  directoryPath: string,
+  history: CatalogHistoryEntry[],
+  options: { skipEmpty?: boolean } = {},
+) {
+  if (options.skipEmpty && history.length === 0) {
+    return 1;
+  }
+
   const pages = chunkHistory(history);
 
   for (let index = 0; index < pages.length; index++) {
-    await writeJson(path.join(directoryPath, `page-${index + 1}.json`), {
+    await writer.write(path.join(directoryPath, `page-${index + 1}.json`), {
       page: index + 1,
       pageSize: CATALOG_HISTORY_PAGE_SIZE,
       totalPages: pages.length,
       entries: pages[index],
     });
   }
+
+  return 0;
 }
 
 function getHistoryForEntity(
@@ -1227,11 +1309,12 @@ function getHistoryForEntity(
 }
 
 function getSourceFileInfo(
-  repositoryRootDirectoryPath: string,
+  repositorySourceRootDirectoryPath: string,
   rootDirectoryPath: string,
   projectConfig: any,
   type: CatalogEntityType,
   key: string,
+  options: { resolveAbsolutePath?: boolean } = {},
 ): SourceFileInfo {
   const directoryByType: Record<CatalogEntityType, string> = {
     locale: projectConfig.localesDirectoryPath,
@@ -1248,10 +1331,10 @@ function getSourceFileInfo(
       ...key.split(projectConfig.namespaceCharacter),
     ) + extension,
   );
-  const absolutePath = getRealPath(filePath);
+  const absolutePath = options.resolveAbsolutePath ? getRealPath(filePath) : filePath;
 
   return {
-    sourcePath: toPosixPath(path.relative(repositoryRootDirectoryPath, absolutePath)),
+    sourcePath: toPosixPath(path.relative(repositorySourceRootDirectoryPath, filePath)),
     absolutePath,
   };
 }
@@ -1284,13 +1367,13 @@ async function buildSetCatalog(
   const outputDirectoryPath = path.join(context.dataDirectoryPath, outputRelativeDirectory);
   const setStartedAt = context.progress.setStart(set);
   const entitiesStartedAt = context.progress.step("Processing entities");
-  const [localeKeys, messageKeys, attributeKeys, segmentKeys, targetKeys] = await Promise.all([
+  const [localeKeys, messageKeys, attributeKeys, segmentKeys, targetKeys] = (await Promise.all([
     datasource.listLocales(),
     datasource.listMessages(),
     datasource.listAttributes(),
     datasource.listSegments(),
     datasource.listTargets(),
-  ]);
+  ])) as [string[], string[], string[], string[], string[]];
   const [locales, messages, attributes, segments, targets] = await Promise.all([
     readAll<Locale>(localeKeys, (key) => datasource.readLocale(key)),
     readAll<Message>(messageKeys, (key) => datasource.readMessage(key)),
@@ -1440,7 +1523,7 @@ async function buildSetCatalog(
   };
 
   const historyStartedAt = context.progress.step("Writing history pages");
-  await writeHistoryPages(path.join(outputDirectoryPath, "history"), history);
+  await writeHistoryPages(context.writer, path.join(outputDirectoryPath, "history"), history);
   context.progress.done(historyStartedAt, `(${pluralize(history.length, "entry", "entries")})`);
 
   const examplesStartedAt = context.progress.step("Evaluating examples");
@@ -1492,14 +1575,16 @@ async function buildSetCatalog(
   );
 
   const localesStartedAt = context.progress.step("Writing locales");
-  for (const localeKey of localeKeys) {
+  let skippedEmptyHistoryCount = 0;
+  await mapWithConcurrency(localeKeys, 32, async (localeKey) => {
     const locale = locales[localeKey];
     const sourceFileInfo = getSourceFileInfo(
-      context.repositoryRootDirectoryPath,
+      context.repositorySourceRootDirectoryPath,
       context.rootDirectoryPath,
       projectConfig,
       "locale",
       localeKey,
+      { resolveAbsolutePath: context.devEditors.length > 0 },
     );
     const detail = {
       type: "locale",
@@ -1525,26 +1610,28 @@ async function buildSetCatalog(
         targets: sortStrings(Array.from(localeTargets[localeKey] || [])),
       }),
     );
-    await writeJson(
+    await context.writer.write(
       path.join(outputDirectoryPath, "entities", "locale", `${encodeKey(localeKey)}.json`),
       detail,
     );
-    await writeHistoryPages(
+    skippedEmptyHistoryCount += await writeHistoryPages(
+      context.writer,
       path.join(outputDirectoryPath, "history", "locale", encodeKey(localeKey)),
       getHistoryForEntity(context.historyIndex, "locale", localeKey, set || undefined),
+      { skipEmpty: true },
     );
-  }
+  });
   context.progress.done(localesStartedAt, `(${pluralize(localeKeys.length, "locale")})`);
 
   if (context.withDuplicates) {
     const duplicatesStartedAt = context.progress.step("Writing duplicate reports");
 
-    for (const localeKey of localeKeys) {
-      await writeJson(
+    await mapWithConcurrency(localeKeys, 32, async (localeKey) => {
+      await context.writer.write(
         path.join(outputDirectoryPath, "duplicates", "locales", `${encodeKey(localeKey)}.json`),
         toLocaleDuplicatesFile(localeKey, duplicatesByLocale),
       );
-    }
+    });
 
     context.progress.done(duplicatesStartedAt, `(${pluralize(localeKeys.length, "locale")})`);
   }
@@ -1568,7 +1655,9 @@ async function buildSetCatalog(
   }
 
   const messagesStartedAt = context.progress.step("Writing messages");
-  for (const messageKey of messageKeys) {
+  const messageDetailsStartedAt = context.progress.substep("Writing message details");
+  let skippedEmptyMessageHistoryCount = 0;
+  await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
     const message = messages[messageKey];
     const overrides = (message.overrides || []).map((override: Override) => {
       const attributes = new Set<string>();
@@ -1583,11 +1672,12 @@ async function buildSetCatalog(
       };
     });
     const sourceFileInfo = getSourceFileInfo(
-      context.repositoryRootDirectoryPath,
+      context.repositorySourceRootDirectoryPath,
       context.rootDirectoryPath,
       projectConfig,
       "message",
       messageKey,
+      { resolveAbsolutePath: context.devEditors.length > 0 },
     );
     const detail = {
       type: "message",
@@ -1629,16 +1719,40 @@ async function buildSetCatalog(
         ...(overrideLocalesList.length > 0 ? { overrideLocales: overrideLocalesList } : {}),
       }),
     );
-    await writeJson(
+    await context.writer.write(
       path.join(outputDirectoryPath, "entities", "message", `${encodeKey(messageKey)}.json`),
       detail,
     );
-    await writeHistoryPages(
+  });
+  context.progress.done(messageDetailsStartedAt, `(${pluralize(messageKeys.length, "message")})`);
+
+  const messageHistoryStartedAt = context.progress.substep("Writing message history pages");
+  await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
+    const skippedHistory = await writeHistoryPages(
+      context.writer,
       path.join(outputDirectoryPath, "history", "message", encodeKey(messageKey)),
       getHistoryForEntity(context.historyIndex, "message", messageKey, set || undefined),
+      { skipEmpty: true },
     );
-  }
-  context.progress.done(messagesStartedAt, `(${pluralize(messageKeys.length, "message")})`);
+    skippedEmptyMessageHistoryCount += skippedHistory;
+    skippedEmptyHistoryCount += skippedHistory;
+  });
+  context.progress.done(
+    messageHistoryStartedAt,
+    `(${pluralize(messageKeys.length, "message")}, ${pluralize(
+      skippedEmptyMessageHistoryCount,
+      "empty history",
+      "empty histories",
+    )} skipped)`,
+  );
+  context.progress.done(
+    messagesStartedAt,
+    `(${pluralize(messageKeys.length, "message")}, ${pluralize(
+      skippedEmptyMessageHistoryCount,
+      "empty history",
+      "empty histories",
+    )} skipped)`,
+  );
 
   if (context.withTranslationSearch) {
     const translationSearchStartedAt = context.progress.step("Building translation search shards");
@@ -1666,7 +1780,10 @@ async function buildSetCatalog(
       for (const [msgKey, valueSet] of Object.entries(messageMap)) {
         shardData[msgKey] = Array.from(valueSet);
       }
-      await writeJson(path.join(outputDirectoryPath, "translations", `${prefix}.json`), shardData);
+      await context.writer.write(
+        path.join(outputDirectoryPath, "translations", `${prefix}.json`),
+        shardData,
+      );
     }
     context.progress.done(
       translationSearchStartedAt,
@@ -1675,14 +1792,15 @@ async function buildSetCatalog(
   }
 
   const attributesStartedAt = context.progress.step("Writing attributes");
-  for (const attributeKey of attributeKeys) {
+  await mapWithConcurrency(attributeKeys, 32, async (attributeKey) => {
     const attribute = attributes[attributeKey];
     const sourceFileInfo = getSourceFileInfo(
-      context.repositoryRootDirectoryPath,
+      context.repositorySourceRootDirectoryPath,
       context.rootDirectoryPath,
       projectConfig,
       "attribute",
       attributeKey,
+      { resolveAbsolutePath: context.devEditors.length > 0 },
     );
     const detail = {
       type: "attribute",
@@ -1714,28 +1832,31 @@ async function buildSetCatalog(
         },
       ),
     );
-    await writeJson(
+    await context.writer.write(
       path.join(outputDirectoryPath, "entities", "attribute", `${encodeKey(attributeKey)}.json`),
       detail,
     );
-    await writeHistoryPages(
+    skippedEmptyHistoryCount += await writeHistoryPages(
+      context.writer,
       path.join(outputDirectoryPath, "history", "attribute", encodeKey(attributeKey)),
       getHistoryForEntity(context.historyIndex, "attribute", attributeKey, set || undefined),
+      { skipEmpty: true },
     );
-  }
+  });
   context.progress.done(attributesStartedAt, `(${pluralize(attributeKeys.length, "attribute")})`);
 
   const segmentsStartedAt = context.progress.step("Writing segments");
-  for (const segmentKey of segmentKeys) {
+  await mapWithConcurrency(segmentKeys, 32, async (segmentKey) => {
     const segment = segments[segmentKey];
     const usedAttributes = new Set<string>();
     collectAttributeKeysFromConditions(segment.conditions, usedAttributes);
     const sourceFileInfo = getSourceFileInfo(
-      context.repositoryRootDirectoryPath,
+      context.repositorySourceRootDirectoryPath,
       context.rootDirectoryPath,
       projectConfig,
       "segment",
       segmentKey,
+      { resolveAbsolutePath: context.devEditors.length > 0 },
     );
     const detail = {
       type: "segment",
@@ -1755,19 +1876,21 @@ async function buildSetCatalog(
         targets: sortStrings(Array.from(segmentTargets[segmentKey] || [])),
       }),
     );
-    await writeJson(
+    await context.writer.write(
       path.join(outputDirectoryPath, "entities", "segment", `${encodeKey(segmentKey)}.json`),
       detail,
     );
-    await writeHistoryPages(
+    skippedEmptyHistoryCount += await writeHistoryPages(
+      context.writer,
       path.join(outputDirectoryPath, "history", "segment", encodeKey(segmentKey)),
       getHistoryForEntity(context.historyIndex, "segment", segmentKey, set || undefined),
+      { skipEmpty: true },
     );
-  }
+  });
   context.progress.done(segmentsStartedAt, `(${pluralize(segmentKeys.length, "segment")})`);
 
   const targetsStartedAt = context.progress.step("Writing targets");
-  for (const targetKey of targetKeys) {
+  await mapWithConcurrency(targetKeys, 32, async (targetKey) => {
     const target = targets[targetKey];
     const targetLocaleKeys = target.locales?.length ? target.locales : localeKeys;
     const formatsByLocale: Record<string, FormatPresets | undefined> = {};
@@ -1779,11 +1902,12 @@ async function buildSetCatalog(
     }
 
     const sourceFileInfo = getSourceFileInfo(
-      context.repositoryRootDirectoryPath,
+      context.repositorySourceRootDirectoryPath,
       context.rootDirectoryPath,
       projectConfig,
       "target",
       targetKey,
+      { resolveAbsolutePath: context.devEditors.length > 0 },
     );
     const detail = {
       type: "target",
@@ -1803,15 +1927,17 @@ async function buildSetCatalog(
         messageCount: targetMessages[targetKey].length,
       }),
     );
-    await writeJson(
+    await context.writer.write(
       path.join(outputDirectoryPath, "entities", "target", `${encodeKey(targetKey)}.json`),
       detail,
     );
-    await writeHistoryPages(
+    skippedEmptyHistoryCount += await writeHistoryPages(
+      context.writer,
       path.join(outputDirectoryPath, "history", "target", encodeKey(targetKey)),
       getHistoryForEntity(context.historyIndex, "target", targetKey, set || undefined),
+      { skipEmpty: true },
     );
-  }
+  });
   context.progress.done(targetsStartedAt, `(${pluralize(targetKeys.length, "target")})`);
 
   const indexStartedAt = context.progress.step("Writing catalog index");
@@ -1819,9 +1945,12 @@ async function buildSetCatalog(
     index.entities[type].sort((a, b) => a.key.localeCompare(b.key));
   }
 
-  await writeJson(path.join(outputDirectoryPath, "index.json"), index);
+  await context.writer.write(path.join(outputDirectoryPath, "index.json"), index);
   context.progress.done(indexStartedAt);
-  context.progress.done(setStartedAt, "total");
+  context.progress.done(
+    setStartedAt,
+    `total (${pluralize(skippedEmptyHistoryCount, "empty history", "empty histories")} skipped)`,
+  );
 
   return index;
 }
@@ -1862,6 +1991,7 @@ export async function exportCatalog(
   const withTranslationSearch = options.withTranslationSearch === true;
   const withDuplicates = options.withDuplicates === true;
   const progress = new CatalogProgressReporter(rootDirectoryPath, outputDirectoryPath);
+  const writer = new CatalogJsonWriter();
 
   progress.start({
     browserRouter: options.browserRouter !== false,
@@ -1921,6 +2051,7 @@ export async function exportCatalog(
   const context: CatalogBuildContext = {
     rootDirectoryPath,
     repositoryRootDirectoryPath: getRepositoryRootDirectoryPath(rootDirectoryPath),
+    repositorySourceRootDirectoryPath: getRepositorySourceRootDirectoryPath(rootDirectoryPath),
     outputDirectoryPath,
     dataDirectoryPath,
     historyIndex,
@@ -1930,6 +2061,7 @@ export async function exportCatalog(
     withTranslationSearch,
     withDuplicates,
     progress,
+    writer,
   };
   stepStartedAt = progress.step("Discovering project sets");
   const executions = await runtime.getProjectSetExecutions(projectConfig, datasource);
@@ -1942,7 +2074,11 @@ export async function exportCatalog(
   const setIndexes: Record<string, CatalogSetIndex> = {};
 
   stepStartedAt = progress.step("Writing project history");
-  await writeHistoryPages(path.join(dataDirectoryPath, "project", "history"), historyIndex.entries);
+  await writeHistoryPages(
+    writer,
+    path.join(dataDirectoryPath, "project", "history"),
+    historyIndex.entries,
+  );
   progress.done(stepStartedAt, `(${pluralize(historyIndex.entries.length, "entry", "entries")})`);
 
   for (const execution of executions) {
@@ -1984,7 +2120,7 @@ export async function exportCatalog(
     counts: Object.fromEntries(Object.keys(setIndexes).map((key) => [key, setIndexes[key].counts])),
   };
 
-  await writeJson(path.join(dataDirectoryPath, "manifest.json"), manifest);
+  await writer.write(path.join(dataDirectoryPath, "manifest.json"), manifest);
   progress.done(stepStartedAt);
 
   progress.complete();

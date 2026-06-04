@@ -1,6 +1,30 @@
 import { runCLI, getProjectConfig, Datasource, getCLIErrorOutput } from "@messagevisor/core";
+import * as path from "path";
 
-const rootDirectoryPath = process.cwd();
+function getRootDirectoryPathFromArgs(args: string[]) {
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+
+    if (arg.startsWith("--rootDirectoryPath=")) {
+      return arg.slice("--rootDirectoryPath=".length);
+    }
+
+    if (arg.startsWith("--root-directory-path=")) {
+      return arg.slice("--root-directory-path=".length);
+    }
+
+    if (arg === "--rootDirectoryPath" || arg === "--root-directory-path") {
+      return args[index + 1];
+    }
+  }
+
+  return undefined;
+}
+
+const rootDirectoryPathOption = getRootDirectoryPathFromArgs(process.argv.slice(2));
+const rootDirectoryPath = rootDirectoryPathOption
+  ? path.resolve(process.cwd(), rootDirectoryPathOption)
+  : process.cwd();
 
 let projectConfig;
 let datasource;

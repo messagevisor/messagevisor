@@ -47,7 +47,35 @@ export function fetchEntityDetail(type: EntityType, key: string, setKey?: string
 }
 
 export function fetchHistoryPage(path: string, page: number) {
-  return fetchJson<HistoryPage>(getDataUrl(`${path}/page-${page}.json`));
+  const url = getDataUrl(`${path}/page-${page}.json`);
+  const emptyHistoryPage: HistoryPage = {
+    page: 1,
+    pageSize: 50,
+    totalPages: 1,
+    entries: [],
+  };
+
+  return fetch(url).then((response) => {
+    if (response.ok) {
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType.includes("text/html")) {
+        if (page === 1) {
+          return emptyHistoryPage;
+        }
+
+        throw new Error(`Unable to load ${url}`);
+      }
+
+      return response.json() as Promise<HistoryPage>;
+    }
+
+    if (response.status === 404 && page === 1) {
+      return emptyHistoryPage;
+    }
+
+    throw new Error(`Unable to load ${url}`);
+  });
 }
 
 export function fetchLocaleDuplicates(localeKey: string, setKey?: string) {

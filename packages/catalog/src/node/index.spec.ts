@@ -272,6 +272,12 @@ describe("catalog", function () {
     await expect(
       pathExists(root, "catalog-out/data/root/duplicates/locales/en-US.json"),
     ).resolves.toBe(false);
+    await expect(
+      pathExists(root, "catalog-out/data/root/history/message/common.welcome/page-1.json"),
+    ).resolves.toBe(false);
+    await expect(
+      pathExists(root, "catalog-out/data/root/history/message/common.draft/page-1.json"),
+    ).resolves.toBe(false);
     expect(index.counts.message).toBe(2);
     expect(
       index.entities.message.find((entry: any) => entry.key === "common.welcome").targets,
@@ -512,6 +518,62 @@ describe("catalog", function () {
     expect(output).toContain("Scanning duplicate translations");
     expect(output).toContain("Writing duplicate reports");
     expect(output).toContain("Building translation search shards");
+  });
+
+  it("exports many messages deterministically without empty history files", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+
+    const messageCount = 1200;
+    await Promise.all(
+      Array.from({ length: messageCount }, (_, index) => {
+        const key = String(index).padStart(4, "0");
+        return writeFile(
+          root,
+          `messages/bulk/${key}.yml`,
+          `description: Bulk ${key}\ntranslations:\n  en: Bulk ${key}\n`,
+        );
+      }),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const output = await captureConsoleLog(async () => {
+      await catalogApi.exportCatalog(root, projectConfig, datasource, {
+        outDir: "catalog-out",
+        copyAssets: false,
+      });
+    });
+
+    const index = await readJson<any>(root, "catalog-out/data/root/index.json");
+    const firstMessage = await readJson<any>(
+      root,
+      "catalog-out/data/root/entities/message/bulk.0000.json",
+    );
+    const lastMessage = await readJson<any>(
+      root,
+      "catalog-out/data/root/entities/message/bulk.1199.json",
+    );
+
+    expect(index.counts.message).toBe(messageCount);
+    expect(index.entities.message.slice(0, 3).map((entry: any) => entry.key)).toEqual([
+      "bulk.0000",
+      "bulk.0001",
+      "bulk.0002",
+    ]);
+    expect(firstMessage.sourcePath).toBe("messages/bulk/0000.yml");
+    expect(lastMessage.translations).toEqual([
+      { locale: "en", value: "Bulk 1199", source: "direct" },
+    ]);
+    await expect(
+      pathExists(root, "catalog-out/data/root/history/message/bulk.0000/page-1.json"),
+    ).resolves.toBe(false);
+    expect(output).toContain("1200 messages");
+    expect(output).toContain("1200 empty histories skipped");
   });
 
   it("streams Git history into project, entity, and last-modified catalog data", async function () {

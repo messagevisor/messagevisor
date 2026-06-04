@@ -650,9 +650,9 @@ describe("catalog", function () {
     expect(messageHistory.entries[0].entities).toEqual([
       { type: "message", key: "common.welcome" },
     ]);
-    expect(spacedMessageHistory.entries[0].entities).toEqual(
-      [{ type: "message", key: "common.with space" }],
-    );
+    expect(spacedMessageHistory.entries[0].entities).toEqual([
+      { type: "message", key: "common.with space" },
+    ]);
     expect(message.lastModified).toMatchObject({
       author: "Catalog Tester",
       commit: projectHistory.entries[0].commit,
@@ -722,9 +722,7 @@ describe("catalog", function () {
       timestamp: projectHistory.entries[0].timestamp,
       entities: [{ type: "message", key: "bulk.0000" }],
     });
-    expect(lastMessageHistory.entries[0].entities).toEqual([
-      { type: "message", key: "bulk.1199" },
-    ]);
+    expect(lastMessageHistory.entries[0].entities).toEqual([{ type: "message", key: "bulk.1199" }]);
   });
 
   it("exports branch-aware repository links and hash router mode when requested", async function () {

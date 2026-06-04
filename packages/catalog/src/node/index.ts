@@ -1327,7 +1327,7 @@ function getSourceFileInfo(
   const filePath = path.resolve(
     path.resolve(
       rootDirectoryPath,
-    directoryByType[type],
+      directoryByType[type],
       ...key.split(projectConfig.namespaceCharacter),
     ) + extension,
   );

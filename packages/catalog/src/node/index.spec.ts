@@ -492,6 +492,8 @@ describe("catalog", function () {
     expect(output).toContain("Root catalog");
     expect(output).toContain("Processing entities");
     expect(output).toContain("Writing messages");
+    expect(output).toContain("Writing message details");
+    expect(output).toContain("Writing message history pages");
     expect(output).toContain("Writing manifest");
     expect(output).toContain("Catalog exported to catalog-out");
     expect(output).toContain("Time:");
@@ -645,8 +647,11 @@ describe("catalog", function () {
       ]),
     );
     expect(messageHistory.entries).toHaveLength(2);
+    expect(messageHistory.entries[0].entities).toEqual([
+      { type: "message", key: "common.welcome" },
+    ]);
     expect(spacedMessageHistory.entries[0].entities).toEqual(
-      expect.arrayContaining([{ type: "message", key: "common.with space" }]),
+      [{ type: "message", key: "common.with space" }],
     );
     expect(message.lastModified).toMatchObject({
       author: "Catalog Tester",
@@ -657,6 +662,69 @@ describe("catalog", function () {
     ).toMatchObject({
       commit: projectHistory.entries[0].commit,
     });
+  });
+
+  it("keeps large commit entity lists out of per-entity history files", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+
+    const messageCount = 1200;
+    await Promise.all(
+      Array.from({ length: messageCount }, (_, index) => {
+        const key = String(index).padStart(4, "0");
+        return writeFile(
+          root,
+          `messages/bulk/${key}.yml`,
+          `description: Bulk ${key}\ntranslations:\n  en: Bulk ${key}\n`,
+        );
+      }),
+    );
+
+    git(root, ["init"]);
+    git(root, ["add", "."]);
+    gitCommit(root, "large message import");
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+
+    const projectHistory = await readJson<any>(
+      root,
+      "catalog-out/data/project/history/page-1.json",
+    );
+    const firstMessageHistory = await readJson<any>(
+      root,
+      "catalog-out/data/root/history/message/bulk.0000/page-1.json",
+    );
+    const lastMessageHistory = await readJson<any>(
+      root,
+      "catalog-out/data/root/history/message/bulk.1199/page-1.json",
+    );
+
+    expect(projectHistory.entries[0].entities).toHaveLength(messageCount + 1);
+    expect(projectHistory.entries[0].entities).toEqual(
+      expect.arrayContaining([
+        { type: "locale", key: "en" },
+        { type: "message", key: "bulk.0000" },
+        { type: "message", key: "bulk.1199" },
+      ]),
+    );
+    expect(firstMessageHistory.entries[0]).toMatchObject({
+      commit: projectHistory.entries[0].commit,
+      author: projectHistory.entries[0].author,
+      timestamp: projectHistory.entries[0].timestamp,
+      entities: [{ type: "message", key: "bulk.0000" }],
+    });
+    expect(lastMessageHistory.entries[0].entities).toEqual([
+      { type: "message", key: "bulk.1199" },
+    ]);
   });
 
   it("exports branch-aware repository links and hash router mode when requested", async function () {

@@ -104,6 +104,12 @@ class CatalogProgressReporter {
     return Date.now();
   }
 
+  substep(label: string, detail?: string) {
+    const suffix = detail ? `: ${colorize(detail, 2)}` : "";
+    console.log(`    ${colorize("•", 36)} ${label}${suffix}`);
+    return Date.now();
+  }
+
   done(startedAt: number, detail?: string) {
     const suffix = detail ? ` ${detail}` : "";
     console.log(CLI_FORMAT_DIM, `    done in ${prettyDuration(Date.now() - startedAt)}${suffix}`);
@@ -904,6 +910,18 @@ function addHistoryIndexEntry(
   target[key].push(entry);
 }
 
+function toEntityHistoryEntry(
+  entry: CatalogHistoryEntry,
+  entity: CatalogHistoryEntity,
+): CatalogHistoryEntry {
+  return {
+    commit: entry.commit,
+    author: entry.author,
+    timestamp: entry.timestamp,
+    entities: [entity],
+  };
+}
+
 function buildCatalogHistoryIndex(entries: CatalogHistoryEntry[]): CatalogHistoryIndex {
   const index = createEmptyHistoryIndex();
   index.entries = entries;
@@ -917,7 +935,7 @@ function buildCatalogHistoryIndex(entries: CatalogHistoryEntry[]): CatalogHistor
       }
 
       const entityKey = getHistoryEntityKey(entity.type, entity.key, entity.set);
-      addHistoryIndexEntry(index.byEntity, entityKey, entry);
+      addHistoryIndexEntry(index.byEntity, entityKey, toEntityHistoryEntry(entry, entity));
 
       if (!index.lastModifiedByEntity[entityKey]) {
         index.lastModifiedByEntity[entityKey] = toLastModified(entry);
@@ -1637,6 +1655,7 @@ async function buildSetCatalog(
   }
 
   const messagesStartedAt = context.progress.step("Writing messages");
+  const messageDetailsStartedAt = context.progress.substep("Writing message details");
   let skippedEmptyMessageHistoryCount = 0;
   await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
     const message = messages[messageKey];
@@ -1704,6 +1723,11 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "message", `${encodeKey(messageKey)}.json`),
       detail,
     );
+  });
+  context.progress.done(messageDetailsStartedAt, `(${pluralize(messageKeys.length, "message")})`);
+
+  const messageHistoryStartedAt = context.progress.substep("Writing message history pages");
+  await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
     const skippedHistory = await writeHistoryPages(
       context.writer,
       path.join(outputDirectoryPath, "history", "message", encodeKey(messageKey)),
@@ -1713,6 +1737,14 @@ async function buildSetCatalog(
     skippedEmptyMessageHistoryCount += skippedHistory;
     skippedEmptyHistoryCount += skippedHistory;
   });
+  context.progress.done(
+    messageHistoryStartedAt,
+    `(${pluralize(messageKeys.length, "message")}, ${pluralize(
+      skippedEmptyMessageHistoryCount,
+      "empty history",
+      "empty histories",
+    )} skipped)`,
+  );
   context.progress.done(
     messagesStartedAt,
     `(${pluralize(messageKeys.length, "message")}, ${pluralize(

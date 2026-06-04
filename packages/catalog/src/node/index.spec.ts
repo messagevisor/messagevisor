@@ -46,6 +46,25 @@ async function pathExists(root: string, relativePath: string) {
   }
 }
 
+function stripAnsi(value: string) {
+  return value.replace(/\x1b\[[0-9;]*m/g, "").replace(/%s/g, "");
+}
+
+async function captureConsoleLog(callback: () => Promise<void>) {
+  const logs: string[] = [];
+  const spy = jest.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+    logs.push(args.map(String).join(" "));
+  });
+
+  try {
+    await callback();
+  } finally {
+    spy.mockRestore();
+  }
+
+  return stripAnsi(logs.join("\n"));
+}
+
 async function createProject() {
   const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
   const interpolationModulePath = path.join(
@@ -443,6 +462,58 @@ describe("catalog", function () {
     expect(shard["common.draft"]).toEqual(["welcome"]);
   });
 
+  it("prints progress output for default catalog export", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const output = await captureConsoleLog(async () => {
+      await catalogApi.exportCatalog(root, projectConfig, datasource, {
+        outDir: "catalog-out",
+        copyAssets: false,
+      });
+    });
+
+    expect(output).toContain("Generating Messagevisor catalog");
+    expect(output).toContain("Output: catalog-out");
+    expect(output).toContain("Router: browser");
+    expect(output).toContain("Features: none");
+    expect(output).toContain("Preparing output directory");
+    expect(output).toContain("Reading Git history");
+    expect(output).toContain("Discovering project sets");
+    expect(output).toContain("Writing project history");
+    expect(output).toContain("Root catalog");
+    expect(output).toContain("Processing entities");
+    expect(output).toContain("Writing messages");
+    expect(output).toContain("Writing manifest");
+    expect(output).toContain("Catalog exported to catalog-out");
+    expect(output).toContain("Time:");
+    expect(output).not.toContain("Scanning duplicate translations");
+    expect(output).not.toContain("Building translation search shards");
+  });
+
+  it("prints optional catalog progress only when feature work is enabled", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const output = await captureConsoleLog(async () => {
+      await catalogApi.exportCatalog(root, projectConfig, datasource, {
+        outDir: "catalog-out",
+        copyAssets: false,
+        withDuplicates: true,
+        withTranslationSearch: true,
+      });
+    });
+
+    expect(output).toContain("Features: translation search, duplicates");
+    expect(output).toContain("Scanning duplicate translations");
+    expect(output).toContain("Writing duplicate reports");
+    expect(output).toContain("Building translation search shards");
+  });
+
   it("streams Git history into project, entity, and last-modified catalog data", async function () {
     const root = await createProject();
     roots.push(root);
@@ -775,6 +846,38 @@ describe("catalog", function () {
         ],
       },
     ]);
+  });
+
+  it("prints set names while exporting set project catalogs", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = { sets: true };\n");
+
+    for (const set of ["storefront", "admin"]) {
+      await writeFile(root, `sets/${set}/locales/en.yml`, "description: English\n");
+      await writeFile(
+        root,
+        `sets/${set}/messages/common/welcome.yml`,
+        `description: Welcome\ntranslations:\n  en: ${set}\n`,
+      );
+    }
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const output = await captureConsoleLog(async () => {
+      await catalogApi.exportCatalog(root, projectConfig, datasource, {
+        outDir: "catalog-out",
+        copyAssets: false,
+      });
+    });
+
+    expect(output).toContain("Sets:   enabled");
+    expect(output).toContain("Discovering project sets");
+    expect(output).toContain('Set "admin"');
+    expect(output).toContain('Set "storefront"');
+    expect(output).toContain("Processing entities");
   });
 
   it("exports set translation search shards when opted in", async function () {
@@ -1117,5 +1220,18 @@ describe("catalog plugin", function () {
       expect.any(Object),
       expect.objectContaining({ port: undefined }),
     );
+  });
+
+  it("does not print catalog generation progress for serve subcommand", async function () {
+    const { handler } = createPlugin();
+
+    const output = await captureConsoleLog(async () => {
+      await handler({ _: ["catalog", "serve"], subcommand: "serve" });
+    });
+
+    expect(output).not.toContain("Generating Messagevisor catalog");
+    expect(output).not.toContain("Processing entities");
+    expect(serveMock).toHaveBeenCalledTimes(1);
+    expect(exportMock).not.toHaveBeenCalled();
   });
 });

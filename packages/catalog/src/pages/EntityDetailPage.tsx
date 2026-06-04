@@ -1149,7 +1149,8 @@ export function EntityDetailPage() {
   }
 
   const entity = detail.entity as Record<string, any>;
-  const tabs = getTabs(type, baseRoute);
+  const { manifest } = useCatalog();
+  const tabs = getTabs(type, baseRoute, manifest.features?.duplicates === true);
 
   return (
     <div>
@@ -1178,7 +1179,7 @@ export function EntityDetailPage() {
   );
 }
 
-function getTabs(type: string, baseRoute: string) {
+function getTabs(type: string, baseRoute: string, duplicatesEnabled = false) {
   const shared = [
     { label: "Overview", to: baseRoute, end: true },
     { label: "History", to: `${baseRoute}/history` },
@@ -1189,7 +1190,7 @@ function getTabs(type: string, baseRoute: string) {
       shared[0],
       { label: "Formats", to: `${baseRoute}/formats` },
       { label: "Examples", to: `${baseRoute}/examples` },
-      { label: "Duplicates", to: `${baseRoute}/duplicates` },
+      ...(duplicatesEnabled ? [{ label: "Duplicates", to: `${baseRoute}/duplicates` }] : []),
       shared[1],
     ];
   }
@@ -2895,6 +2896,7 @@ function SortArrow(props: { active: boolean; direction: SortDirection }) {
 
 export function LocaleDuplicatesTab() {
   const { detail, setKey } = useEntityDetail();
+  const { manifest } = useCatalog();
   const [searchParams, setSearchParams] = useSearchParams();
   const [duplicates, setDuplicates] = React.useState<LocaleDuplicates | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -2905,6 +2907,7 @@ export function LocaleDuplicatesTab() {
   });
   const localeDirection = (detail.entity as Record<string, any>).direction as string | undefined;
   const searchQuery = searchParams.get("q") ?? "";
+  const duplicatesEnabled = manifest.features?.duplicates === true;
 
   function toggleDuplicateValue(duplicate: DuplicateTranslationValue) {
     const duplicateHash = hashTranslationValue(duplicate.value);
@@ -2922,6 +2925,10 @@ export function LocaleDuplicatesTab() {
   }
 
   React.useEffect(() => {
+    if (!duplicatesEnabled) {
+      return;
+    }
+
     let cancelled = false;
 
     setDuplicates(null);
@@ -2943,7 +2950,7 @@ export function LocaleDuplicatesTab() {
     return () => {
       cancelled = true;
     };
-  }, [detail.key, setKey]);
+  }, [detail.key, duplicatesEnabled, setKey]);
 
   React.useEffect(() => {
     if (!duplicates || typeof window === "undefined") {
@@ -2972,6 +2979,10 @@ export function LocaleDuplicatesTab() {
   }, [duplicates]);
 
   useScrollToHash([duplicates?.duplicateValues.length, expandedDuplicateHashes.length]);
+
+  if (!duplicatesEnabled) {
+    return <Navigate to=".." replace />;
+  }
 
   if (error) {
     return <EmptyState title="Unable to load duplicate translations" description={error} />;

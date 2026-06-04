@@ -18,6 +18,117 @@ import type {
 
 import { attachFormatExamplePreviews } from "./formatExamplePreview";
 
+const CLI_FORMAT_GREEN = "\x1b[32m%s\x1b[0m";
+const CLI_FORMAT_DIM = "\x1b[2m%s\x1b[0m";
+const CLI_FORMAT_BOLD = "\x1b[1m%s\x1b[0m";
+
+function colorize(value: string, colorCode: number) {
+  return `\x1b[${colorCode}m${value}\x1b[0m`;
+}
+
+function prettyDuration(diffInMs: number) {
+  let diff = Math.abs(diffInMs);
+
+  if (diff === 0) {
+    return "0ms";
+  }
+
+  const ms = diff % 1000;
+  diff = (diff - ms) / 1000;
+  const secs = diff % 60;
+  diff = (diff - secs) / 60;
+  const mins = diff % 60;
+  const hrs = (diff - mins) / 60;
+
+  let result = "";
+
+  if (hrs) {
+    result += ` ${hrs}h`;
+  }
+
+  if (mins) {
+    result += ` ${mins}m`;
+  }
+
+  if (secs) {
+    result += ` ${secs}s`;
+  }
+
+  if (ms) {
+    result += ` ${ms}ms`;
+  }
+
+  return result.trim();
+}
+
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function formatCatalogPath(rootDirectoryPath: string, filePath: string) {
+  const relativePath = path.relative(rootDirectoryPath, filePath);
+
+  if (relativePath && !relativePath.startsWith("..") && !path.isAbsolute(relativePath)) {
+    return relativePath;
+  }
+
+  return filePath;
+}
+
+class CatalogProgressReporter {
+  private readonly startedAt = Date.now();
+
+  constructor(
+    private readonly rootDirectoryPath: string,
+    private readonly outputDirectoryPath: string,
+  ) {}
+
+  start(options: { browserRouter: boolean; sets: boolean; features: string[] }) {
+    console.log("");
+    console.log(CLI_FORMAT_BOLD, "Generating Messagevisor catalog");
+    console.log(
+      `  ${colorize("Output", 36)}: ${formatCatalogPath(
+        this.rootDirectoryPath,
+        this.outputDirectoryPath,
+      )}`,
+    );
+    console.log(`  ${colorize("Router", 36)}: ${options.browserRouter ? "browser" : "hash"}`);
+    console.log(`  ${colorize("Sets", 36)}:   ${options.sets ? "enabled" : "none"}`);
+    console.log(`  ${colorize("Features", 36)}: ${options.features.join(", ") || "none"}`);
+    console.log("");
+  }
+
+  step(label: string, detail?: string) {
+    const suffix = detail ? `: ${colorize(detail, 2)}` : "";
+    console.log(`  ${colorize("•", 36)} ${label}${suffix}`);
+    return Date.now();
+  }
+
+  done(startedAt: number, detail?: string) {
+    const suffix = detail ? ` ${detail}` : "";
+    console.log(CLI_FORMAT_DIM, `    done in ${prettyDuration(Date.now() - startedAt)}${suffix}`);
+  }
+
+  setStart(set: string | undefined) {
+    console.log("");
+    if (set) {
+      console.log(CLI_FORMAT_BOLD, `Set "${set}"`);
+    } else {
+      console.log(CLI_FORMAT_BOLD, "Root catalog");
+    }
+    return Date.now();
+  }
+
+  complete() {
+    console.log("");
+    console.log(
+      CLI_FORMAT_GREEN,
+      `Catalog exported to ${formatCatalogPath(this.rootDirectoryPath, this.outputDirectoryPath)}`,
+    );
+    console.log(CLI_FORMAT_BOLD, `Time: ${prettyDuration(Date.now() - this.startedAt)}`);
+  }
+}
+
 export interface CatalogPluginParsedOptions {
   _: string[];
   [key: string]: any;
@@ -223,6 +334,7 @@ export interface CatalogExportOptions {
   dev?: boolean;
   devEditors?: CatalogDevEditor[];
   withTranslationSearch?: boolean;
+  withDuplicates?: boolean;
 }
 
 export interface CatalogServeOptions {
@@ -247,6 +359,8 @@ interface CatalogBuildContext {
   devEditors: CatalogDevEditor[];
   duplicateResultsBySet: Record<string, CatalogDuplicateTranslationsSetResult>;
   withTranslationSearch: boolean;
+  withDuplicates: boolean;
+  progress: CatalogProgressReporter;
 }
 
 interface SourceFileInfo {
@@ -1168,6 +1282,8 @@ async function buildSetCatalog(
   outputRelativeDirectory: string,
 ) {
   const outputDirectoryPath = path.join(context.dataDirectoryPath, outputRelativeDirectory);
+  const setStartedAt = context.progress.setStart(set);
+  const entitiesStartedAt = context.progress.step("Processing entities");
   const [localeKeys, messageKeys, attributeKeys, segmentKeys, targetKeys] = await Promise.all([
     datasource.listLocales(),
     datasource.listMessages(),
@@ -1182,6 +1298,18 @@ async function buildSetCatalog(
     readAll<Segment>(segmentKeys, (key) => datasource.readSegment(key)),
     readAll<Target>(targetKeys, (key) => datasource.readTarget(key)),
   ]);
+  context.progress.done(
+    entitiesStartedAt,
+    `(${[
+      pluralize(localeKeys.length, "locale"),
+      pluralize(messageKeys.length, "message"),
+      pluralize(attributeKeys.length, "attribute"),
+      pluralize(segmentKeys.length, "segment"),
+      pluralize(targetKeys.length, "target"),
+    ].join(", ")})`,
+  );
+
+  const relationshipsStartedAt = context.progress.step("Mapping relationships");
   const messageTargets: Record<string, string[]> = {};
   const targetMessages: Record<string, string[]> = {};
   const localeTargets: Record<string, Set<string>> = {};
@@ -1282,6 +1410,7 @@ async function buildSetCatalog(
       }
     }
   }
+  context.progress.done(relationshipsStartedAt);
 
   const history = set ? context.historyIndex.bySet[set] || [] : context.historyIndex.entries;
   const localeDirections = getLocaleDirections(locales);
@@ -1310,8 +1439,11 @@ async function buildSetCatalog(
     },
   };
 
+  const historyStartedAt = context.progress.step("Writing history pages");
   await writeHistoryPages(path.join(outputDirectoryPath, "history"), history);
+  context.progress.done(historyStartedAt, `(${pluralize(history.length, "entry", "entries")})`);
 
+  const examplesStartedAt = context.progress.step("Evaluating examples");
   const evaluatedMessageExamplesByKey = (
     await context.runtime.resolveExamples(projectConfig, datasource, {
       onlyMessages: true,
@@ -1345,7 +1477,21 @@ async function buildSetCatalog(
     });
     return accumulator;
   }, {});
+  context.progress.done(
+    examplesStartedAt,
+    `(${pluralize(
+      Object.values(evaluatedMessageExamplesByKey).reduce(
+        (total, items) => total + items.length,
+        0,
+      ),
+      "message example",
+    )}, ${pluralize(
+      Object.values(evaluatedLocaleExamplesByKey).reduce((total, items) => total + items.length, 0),
+      "locale example",
+    )})`,
+  );
 
+  const localesStartedAt = context.progress.step("Writing locales");
   for (const localeKey of localeKeys) {
     const locale = locales[localeKey];
     const sourceFileInfo = getSourceFileInfo(
@@ -1383,14 +1529,24 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "locale", `${encodeKey(localeKey)}.json`),
       detail,
     );
-    await writeJson(
-      path.join(outputDirectoryPath, "duplicates", "locales", `${encodeKey(localeKey)}.json`),
-      toLocaleDuplicatesFile(localeKey, duplicatesByLocale),
-    );
     await writeHistoryPages(
       path.join(outputDirectoryPath, "history", "locale", encodeKey(localeKey)),
       getHistoryForEntity(context.historyIndex, "locale", localeKey, set || undefined),
     );
+  }
+  context.progress.done(localesStartedAt, `(${pluralize(localeKeys.length, "locale")})`);
+
+  if (context.withDuplicates) {
+    const duplicatesStartedAt = context.progress.step("Writing duplicate reports");
+
+    for (const localeKey of localeKeys) {
+      await writeJson(
+        path.join(outputDirectoryPath, "duplicates", "locales", `${encodeKey(localeKey)}.json`),
+        toLocaleDuplicatesFile(localeKey, duplicatesByLocale),
+      );
+    }
+
+    context.progress.done(duplicatesStartedAt, `(${pluralize(localeKeys.length, "locale")})`);
   }
 
   // translationShards[3charPrefix][messageKey] = Set<lowercased value>
@@ -1411,6 +1567,7 @@ async function buildSetCatalog(
     }
   }
 
+  const messagesStartedAt = context.progress.step("Writing messages");
   for (const messageKey of messageKeys) {
     const message = messages[messageKey];
     const overrides = (message.overrides || []).map((override: Override) => {
@@ -1465,22 +1622,6 @@ async function buildSetCatalog(
     }
     const overrideLocalesList = sortStrings(Array.from(overrideLocalesSet));
 
-    if (context.withTranslationSearch) {
-      // Build translation shards (direct + inherited + override, all locales combined)
-      for (const localeKey of localeKeys) {
-        const row = resolveTranslationRow(message.translations, localeKey, locales);
-        if (row.source !== "missing" && row.value) {
-          addToTranslationShard(messageKey, row.value);
-        }
-        for (const override of overrides) {
-          const overrideRow = resolveTranslationRow(override.translations, localeKey, locales);
-          if (overrideRow.source !== "missing" && overrideRow.value) {
-            addToTranslationShard(messageKey, overrideRow.value);
-          }
-        }
-      }
-    }
-
     index.entities.message.push(
       getEntitySummary(message, "message", messageKey, context.historyIndex, set || undefined, {
         targets: sortStrings(messageTargets[messageKey] || []),
@@ -1497,8 +1638,29 @@ async function buildSetCatalog(
       getHistoryForEntity(context.historyIndex, "message", messageKey, set || undefined),
     );
   }
+  context.progress.done(messagesStartedAt, `(${pluralize(messageKeys.length, "message")})`);
 
   if (context.withTranslationSearch) {
+    const translationSearchStartedAt = context.progress.step("Building translation search shards");
+
+    for (const messageKey of messageKeys) {
+      const message = messages[messageKey];
+
+      for (const localeKey of localeKeys) {
+        const row = resolveTranslationRow(message.translations, localeKey, locales);
+        if (row.source !== "missing" && row.value) {
+          addToTranslationShard(messageKey, row.value);
+        }
+
+        for (const override of message.overrides || []) {
+          const overrideRow = resolveTranslationRow(override.translations, localeKey, locales);
+          if (overrideRow.source !== "missing" && overrideRow.value) {
+            addToTranslationShard(messageKey, overrideRow.value);
+          }
+        }
+      }
+    }
+
     for (const [prefix, messageMap] of Object.entries(translationShards)) {
       const shardData: Record<string, string[]> = {};
       for (const [msgKey, valueSet] of Object.entries(messageMap)) {
@@ -1506,8 +1668,13 @@ async function buildSetCatalog(
       }
       await writeJson(path.join(outputDirectoryPath, "translations", `${prefix}.json`), shardData);
     }
+    context.progress.done(
+      translationSearchStartedAt,
+      `(${pluralize(Object.keys(translationShards).length, "shard")})`,
+    );
   }
 
+  const attributesStartedAt = context.progress.step("Writing attributes");
   for (const attributeKey of attributeKeys) {
     const attribute = attributes[attributeKey];
     const sourceFileInfo = getSourceFileInfo(
@@ -1556,7 +1723,9 @@ async function buildSetCatalog(
       getHistoryForEntity(context.historyIndex, "attribute", attributeKey, set || undefined),
     );
   }
+  context.progress.done(attributesStartedAt, `(${pluralize(attributeKeys.length, "attribute")})`);
 
+  const segmentsStartedAt = context.progress.step("Writing segments");
   for (const segmentKey of segmentKeys) {
     const segment = segments[segmentKey];
     const usedAttributes = new Set<string>();
@@ -1595,7 +1764,9 @@ async function buildSetCatalog(
       getHistoryForEntity(context.historyIndex, "segment", segmentKey, set || undefined),
     );
   }
+  context.progress.done(segmentsStartedAt, `(${pluralize(segmentKeys.length, "segment")})`);
 
+  const targetsStartedAt = context.progress.step("Writing targets");
   for (const targetKey of targetKeys) {
     const target = targets[targetKey];
     const targetLocaleKeys = target.locales?.length ? target.locales : localeKeys;
@@ -1641,12 +1812,16 @@ async function buildSetCatalog(
       getHistoryForEntity(context.historyIndex, "target", targetKey, set || undefined),
     );
   }
+  context.progress.done(targetsStartedAt, `(${pluralize(targetKeys.length, "target")})`);
 
+  const indexStartedAt = context.progress.step("Writing catalog index");
   for (const type of Object.keys(index.entities) as CatalogEntityType[]) {
     index.entities[type].sort((a, b) => a.key.localeCompare(b.key));
   }
 
   await writeJson(path.join(outputDirectoryPath, "index.json"), index);
+  context.progress.done(indexStartedAt);
+  context.progress.done(setStartedAt, "total");
 
   return index;
 }
@@ -1685,20 +1860,64 @@ export async function exportCatalog(
     : projectConfig.catalogDirectoryPath;
   const dataDirectoryPath = path.join(outputDirectoryPath, "data");
   const withTranslationSearch = options.withTranslationSearch === true;
+  const withDuplicates = options.withDuplicates === true;
+  const progress = new CatalogProgressReporter(rootDirectoryPath, outputDirectoryPath);
 
+  progress.start({
+    browserRouter: options.browserRouter !== false,
+    sets: projectConfig.sets === true,
+    features: [
+      ...(withTranslationSearch ? ["translation search"] : []),
+      ...(withDuplicates ? ["duplicates"] : []),
+    ],
+  });
+
+  let stepStartedAt = progress.step("Preparing output directory");
   await fs.promises.rm(outputDirectoryPath, { recursive: true, force: true });
   await fs.promises.mkdir(dataDirectoryPath, { recursive: true });
+  progress.done(stepStartedAt);
 
   if (options.copyAssets !== false) {
+    stepStartedAt = progress.step("Copying Catalog UI assets");
     await copyCatalogAssets(outputDirectoryPath);
+    progress.done(stepStartedAt);
   }
 
   const devEditors = options.dev ? options.devEditors || detectDevEditors() : [];
+  stepStartedAt = progress.step("Reading Git history");
   const historyIndex = await getGitHistoryIndex(rootDirectoryPath, projectConfig);
-  const duplicateTranslations = await runtime.findDuplicateTranslations(projectConfig, datasource);
-  const duplicateResultsBySet = Object.fromEntries(
-    duplicateTranslations.results.map((result) => [getDuplicateSetKey(result.set), result]),
-  );
+  progress.done(stepStartedAt, `(${pluralize(historyIndex.entries.length, "commit")})`);
+
+  stepStartedAt = progress.step("Resolving repository links");
+  const links = getRepoLinks(rootDirectoryPath);
+  progress.done(stepStartedAt);
+
+  let duplicateResultsBySet: Record<string, CatalogDuplicateTranslationsSetResult> = {};
+  if (withDuplicates) {
+    stepStartedAt = progress.step("Scanning duplicate translations");
+    duplicateResultsBySet = Object.fromEntries(
+      (await runtime.findDuplicateTranslations(projectConfig, datasource)).results.map((result) => [
+        getDuplicateSetKey(result.set),
+        result,
+      ]),
+    );
+    progress.done(
+      stepStartedAt,
+      `(${pluralize(
+        Object.values(duplicateResultsBySet).reduce(
+          (total, result) =>
+            total +
+            result.locales.reduce(
+              (localeTotal, localeResult) => localeTotal + localeResult.duplicateValues.length,
+              0,
+            ),
+          0,
+        ),
+        "duplicate value",
+      )})`,
+    );
+  }
+
   const context: CatalogBuildContext = {
     rootDirectoryPath,
     repositoryRootDirectoryPath: getRepositoryRootDirectoryPath(rootDirectoryPath),
@@ -1709,11 +1928,22 @@ export async function exportCatalog(
     devEditors,
     duplicateResultsBySet,
     withTranslationSearch,
+    withDuplicates,
+    progress,
   };
+  stepStartedAt = progress.step("Discovering project sets");
   const executions = await runtime.getProjectSetExecutions(projectConfig, datasource);
+  progress.done(
+    stepStartedAt,
+    projectConfig.sets
+      ? `(${executions.map((execution) => execution.set).join(", ") || "none"})`
+      : "(root)",
+  );
   const setIndexes: Record<string, CatalogSetIndex> = {};
 
+  stepStartedAt = progress.step("Writing project history");
   await writeHistoryPages(path.join(dataDirectoryPath, "project", "history"), historyIndex.entries);
+  progress.done(stepStartedAt, `(${pluralize(historyIndex.entries.length, "entry", "entries")})`);
 
   for (const execution of executions) {
     const outputRelativeDirectory = projectConfig.sets ? path.join("sets", execution.set) : "root";
@@ -1726,6 +1956,7 @@ export async function exportCatalog(
     );
   }
 
+  stepStartedAt = progress.step("Writing manifest");
   const manifest = {
     schemaVersion: CATALOG_SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
@@ -1735,8 +1966,9 @@ export async function exportCatalog(
     dev: options.dev ? { editors: devEditors } : undefined,
     features: {
       translationSearch: withTranslationSearch,
+      duplicates: withDuplicates,
     },
-    links: getRepoLinks(rootDirectoryPath),
+    links,
     paths: {
       projectHistory: "data/project/history/page-1.json",
       root: projectConfig.sets ? undefined : "data/root/index.json",
@@ -1753,8 +1985,9 @@ export async function exportCatalog(
   };
 
   await writeJson(path.join(dataDirectoryPath, "manifest.json"), manifest);
+  progress.done(stepStartedAt);
 
-  console.log(`Catalog exported to ${outputDirectoryPath}`);
+  progress.complete();
 
   return {
     outputDirectoryPath,
@@ -2032,6 +2265,10 @@ function isWithTranslationSearchEnabled(parsed: CatalogPluginParsedOptions) {
   return parsed.withTranslationSearch === true || parsed["with-translation-search"] === true;
 }
 
+function isWithDuplicatesEnabled(parsed: CatalogPluginParsedOptions) {
+  return parsed.withDuplicates === true || parsed["with-duplicates"] === true;
+}
+
 export function createCatalogPlugin(
   runtime: CatalogRuntime,
   api: ReturnType<typeof createCatalogApi> = createCatalogApi(runtime),
@@ -2042,6 +2279,7 @@ export function createCatalogPlugin(
       const allowedSubcommands = ["export", "serve"];
       const browserRouter = !(parsed.hashRouter || parsed["hash-router"]);
       const withTranslationSearch = isWithTranslationSearchEnabled(parsed);
+      const withDuplicates = isWithDuplicatesEnabled(parsed);
 
       if (!parsed.subcommand) {
         await api.exportCatalog(rootDirectoryPath, projectConfig, datasource, {
@@ -2050,6 +2288,7 @@ export function createCatalogPlugin(
           browserRouter,
           dev: true,
           withTranslationSearch,
+          withDuplicates,
         });
         const server = await api.serveCatalog(rootDirectoryPath, projectConfig, datasource, {
           outDir: parsed.outDir,
@@ -2093,6 +2332,7 @@ export function createCatalogPlugin(
               browserRouter,
               dev: true,
               withTranslationSearch,
+              withDuplicates,
             });
             server.triggerReload();
           } catch (error) {
@@ -2141,6 +2381,7 @@ export function createCatalogPlugin(
           copyAssets: !parsed.noAssets,
           browserRouter,
           withTranslationSearch,
+          withDuplicates,
         });
       }
 

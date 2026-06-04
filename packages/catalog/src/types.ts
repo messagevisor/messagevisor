@@ -90,6 +90,7 @@ export interface CatalogManifest {
   };
   features?: {
     translationSearch?: boolean;
+    duplicates?: boolean;
   };
   paths: {
     projectHistory: string;

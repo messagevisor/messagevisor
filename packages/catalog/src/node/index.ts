@@ -1480,7 +1480,10 @@ async function buildSetCatalog(
   context.progress.done(
     examplesStartedAt,
     `(${pluralize(
-      Object.values(evaluatedMessageExamplesByKey).reduce((total, items) => total + items.length, 0),
+      Object.values(evaluatedMessageExamplesByKey).reduce(
+        (total, items) => total + items.length,
+        0,
+      ),
       "message example",
     )}, ${pluralize(
       Object.values(evaluatedLocaleExamplesByKey).reduce((total, items) => total + items.length, 0),
@@ -1893,9 +1896,10 @@ export async function exportCatalog(
   if (withDuplicates) {
     stepStartedAt = progress.step("Scanning duplicate translations");
     duplicateResultsBySet = Object.fromEntries(
-      (
-        await runtime.findDuplicateTranslations(projectConfig, datasource)
-      ).results.map((result) => [getDuplicateSetKey(result.set), result]),
+      (await runtime.findDuplicateTranslations(projectConfig, datasource)).results.map((result) => [
+        getDuplicateSetKey(result.set),
+        result,
+      ]),
     );
     progress.done(
       stepStartedAt,
@@ -1904,8 +1908,7 @@ export async function exportCatalog(
           (total, result) =>
             total +
             result.locales.reduce(
-              (localeTotal, localeResult) =>
-                localeTotal + localeResult.duplicateValues.length,
+              (localeTotal, localeResult) => localeTotal + localeResult.duplicateValues.length,
               0,
             ),
           0,
@@ -1975,7 +1978,7 @@ export async function exportCatalog(
               execution.set,
               `data/sets/${encodeURIComponent(execution.set)}/index.json`,
             ]),
-      )
+          )
         : undefined,
     },
     counts: Object.fromEntries(Object.keys(setIndexes).map((key) => [key, setIndexes[key].counts])),

@@ -223,6 +223,7 @@ export interface CatalogExportOptions {
   dev?: boolean;
   devEditors?: CatalogDevEditor[];
   withTranslationSearch?: boolean;
+  withDuplicates?: boolean;
 }
 
 export interface CatalogServeOptions {
@@ -247,6 +248,7 @@ interface CatalogBuildContext {
   devEditors: CatalogDevEditor[];
   duplicateResultsBySet: Record<string, CatalogDuplicateTranslationsSetResult>;
   withTranslationSearch: boolean;
+  withDuplicates: boolean;
 }
 
 interface SourceFileInfo {
@@ -1383,10 +1385,12 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "locale", `${encodeKey(localeKey)}.json`),
       detail,
     );
-    await writeJson(
-      path.join(outputDirectoryPath, "duplicates", "locales", `${encodeKey(localeKey)}.json`),
-      toLocaleDuplicatesFile(localeKey, duplicatesByLocale),
-    );
+    if (context.withDuplicates) {
+      await writeJson(
+        path.join(outputDirectoryPath, "duplicates", "locales", `${encodeKey(localeKey)}.json`),
+        toLocaleDuplicatesFile(localeKey, duplicatesByLocale),
+      );
+    }
     await writeHistoryPages(
       path.join(outputDirectoryPath, "history", "locale", encodeKey(localeKey)),
       getHistoryForEntity(context.historyIndex, "locale", localeKey, set || undefined),
@@ -1685,6 +1689,7 @@ export async function exportCatalog(
     : projectConfig.catalogDirectoryPath;
   const dataDirectoryPath = path.join(outputDirectoryPath, "data");
   const withTranslationSearch = options.withTranslationSearch === true;
+  const withDuplicates = options.withDuplicates === true;
 
   await fs.promises.rm(outputDirectoryPath, { recursive: true, force: true });
   await fs.promises.mkdir(dataDirectoryPath, { recursive: true });
@@ -1695,10 +1700,13 @@ export async function exportCatalog(
 
   const devEditors = options.dev ? options.devEditors || detectDevEditors() : [];
   const historyIndex = await getGitHistoryIndex(rootDirectoryPath, projectConfig);
-  const duplicateTranslations = await runtime.findDuplicateTranslations(projectConfig, datasource);
-  const duplicateResultsBySet = Object.fromEntries(
-    duplicateTranslations.results.map((result) => [getDuplicateSetKey(result.set), result]),
-  );
+  const duplicateResultsBySet = withDuplicates
+    ? Object.fromEntries(
+        (
+          await runtime.findDuplicateTranslations(projectConfig, datasource)
+        ).results.map((result) => [getDuplicateSetKey(result.set), result]),
+      )
+    : {};
   const context: CatalogBuildContext = {
     rootDirectoryPath,
     repositoryRootDirectoryPath: getRepositoryRootDirectoryPath(rootDirectoryPath),
@@ -1709,6 +1717,7 @@ export async function exportCatalog(
     devEditors,
     duplicateResultsBySet,
     withTranslationSearch,
+    withDuplicates,
   };
   const executions = await runtime.getProjectSetExecutions(projectConfig, datasource);
   const setIndexes: Record<string, CatalogSetIndex> = {};
@@ -1735,6 +1744,7 @@ export async function exportCatalog(
     dev: options.dev ? { editors: devEditors } : undefined,
     features: {
       translationSearch: withTranslationSearch,
+      duplicates: withDuplicates,
     },
     links: getRepoLinks(rootDirectoryPath),
     paths: {
@@ -2032,6 +2042,10 @@ function isWithTranslationSearchEnabled(parsed: CatalogPluginParsedOptions) {
   return parsed.withTranslationSearch === true || parsed["with-translation-search"] === true;
 }
 
+function isWithDuplicatesEnabled(parsed: CatalogPluginParsedOptions) {
+  return parsed.withDuplicates === true || parsed["with-duplicates"] === true;
+}
+
 export function createCatalogPlugin(
   runtime: CatalogRuntime,
   api: ReturnType<typeof createCatalogApi> = createCatalogApi(runtime),
@@ -2042,6 +2056,7 @@ export function createCatalogPlugin(
       const allowedSubcommands = ["export", "serve"];
       const browserRouter = !(parsed.hashRouter || parsed["hash-router"]);
       const withTranslationSearch = isWithTranslationSearchEnabled(parsed);
+      const withDuplicates = isWithDuplicatesEnabled(parsed);
 
       if (!parsed.subcommand) {
         await api.exportCatalog(rootDirectoryPath, projectConfig, datasource, {
@@ -2050,6 +2065,7 @@ export function createCatalogPlugin(
           browserRouter,
           dev: true,
           withTranslationSearch,
+          withDuplicates,
         });
         const server = await api.serveCatalog(rootDirectoryPath, projectConfig, datasource, {
           outDir: parsed.outDir,
@@ -2093,6 +2109,7 @@ export function createCatalogPlugin(
               browserRouter,
               dev: true,
               withTranslationSearch,
+              withDuplicates,
             });
             server.triggerReload();
           } catch (error) {
@@ -2141,6 +2158,7 @@ export function createCatalogPlugin(
           copyAssets: !parsed.noAssets,
           browserRouter,
           withTranslationSearch,
+          withDuplicates,
         });
       }
 

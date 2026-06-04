@@ -230,14 +230,6 @@ describe("catalog", function () {
     const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
     const index = await readJson<any>(root, "catalog-out/data/root/index.json");
     const locale = await readJson<any>(root, "catalog-out/data/root/entities/locale/en-US.json");
-    const localeDuplicates = await readJson<any>(
-      root,
-      "catalog-out/data/root/duplicates/locales/en-US.json",
-    );
-    const emptyLocaleDuplicates = await readJson<any>(
-      root,
-      "catalog-out/data/root/duplicates/locales/nl.json",
-    );
     const message = await readJson<any>(
       root,
       "catalog-out/data/root/entities/message/common.welcome.json",
@@ -253,11 +245,14 @@ describe("catalog", function () {
     expect(manifest.sets).toBe(false);
     expect(manifest.router).toBe("browser");
     expect(manifest.dev).toBeUndefined();
-    expect(manifest.features).toEqual({ translationSearch: false });
+    expect(manifest.features).toEqual({ translationSearch: false, duplicates: false });
     expect(manifest.paths.root).toBe("data/root/index.json");
     await expect(pathExists(root, "catalog-out/data/root/translations/77656c.json")).resolves.toBe(
       false,
     );
+    await expect(
+      pathExists(root, "catalog-out/data/root/duplicates/locales/en-US.json"),
+    ).resolves.toBe(false);
     expect(index.counts.message).toBe(2);
     expect(
       index.entities.message.find((entry: any) => entry.key === "common.welcome").targets,
@@ -321,31 +316,6 @@ describe("catalog", function () {
       ]),
     );
     expect(locale.targetFormats.web.number.money.minimumFractionDigits).toBe(2);
-    expect(localeDuplicates).toEqual({
-      locale: "en-US",
-      summary: {
-        duplicateValues: 1,
-        duplicateMessageKeys: 2,
-      },
-      duplicateValues: [
-        {
-          value: "Welcome",
-          messageKeys: ["common.draft", "common.welcome"],
-          sources: [
-            { messageKey: "common.draft", locale: "en" },
-            { messageKey: "common.welcome", locale: "en" },
-          ],
-        },
-      ],
-    });
-    expect(emptyLocaleDuplicates).toEqual({
-      locale: "nl",
-      summary: {
-        duplicateValues: 0,
-        duplicateMessageKeys: 0,
-      },
-      duplicateValues: [],
-    });
     expect(target.formatRowsByLocale["en-US"]).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -403,6 +373,56 @@ describe("catalog", function () {
     expect(history.entries).toEqual([]);
   });
 
+  it("exports locale duplicate reports only when opted in", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+      withDuplicates: true,
+    });
+
+    const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
+    const localeDuplicates = await readJson<any>(
+      root,
+      "catalog-out/data/root/duplicates/locales/en-US.json",
+    );
+    const emptyLocaleDuplicates = await readJson<any>(
+      root,
+      "catalog-out/data/root/duplicates/locales/nl.json",
+    );
+
+    expect(manifest.features).toEqual({ translationSearch: false, duplicates: true });
+    expect(localeDuplicates).toEqual({
+      locale: "en-US",
+      summary: {
+        duplicateValues: 1,
+        duplicateMessageKeys: 2,
+      },
+      duplicateValues: [
+        {
+          value: "Welcome",
+          messageKeys: ["common.draft", "common.welcome"],
+          sources: [
+            { messageKey: "common.draft", locale: "en" },
+            { messageKey: "common.welcome", locale: "en" },
+          ],
+        },
+      ],
+    });
+    expect(emptyLocaleDuplicates).toEqual({
+      locale: "nl",
+      summary: {
+        duplicateValues: 0,
+        duplicateMessageKeys: 0,
+      },
+      duplicateValues: [],
+    });
+  });
+
   it("exports translation search shards only when opted in", async function () {
     const root = await createProject();
     roots.push(root);
@@ -418,7 +438,7 @@ describe("catalog", function () {
     const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
     const shard = await readJson<any>(root, "catalog-out/data/root/translations/77656c.json");
 
-    expect(manifest.features).toEqual({ translationSearch: true });
+    expect(manifest.features).toEqual({ translationSearch: true, duplicates: false });
     expect(shard["common.welcome"]).toEqual(expect.arrayContaining(["welcome", "welcome pro"]));
     expect(shard["common.draft"]).toEqual(["welcome"]);
   });
@@ -700,22 +720,41 @@ describe("catalog", function () {
     const admin = await readJson<any>(root, "catalog-out/data/sets/admin/index.json");
 
     expect(manifest.sets).toBe(true);
-    expect(manifest.features).toEqual({ translationSearch: false });
+    expect(manifest.features).toEqual({ translationSearch: false, duplicates: false });
     expect(manifest.setKeys).toEqual(["admin", "storefront"]);
     await expect(
       pathExists(root, "catalog-out/data/sets/storefront/translations/73746f.json"),
     ).resolves.toBe(false);
-    const storefrontDuplicates = await readJson<any>(
-      root,
-      "catalog-out/data/sets/storefront/duplicates/locales/en.json",
-    );
-    const adminDuplicates = await readJson<any>(
-      root,
-      "catalog-out/data/sets/admin/duplicates/locales/en.json",
-    );
+    await expect(
+      pathExists(root, "catalog-out/data/sets/storefront/duplicates/locales/en.json"),
+    ).resolves.toBe(false);
 
     expect(storefront.counts.message).toBe(2);
     expect(admin.counts.message).toBe(2);
+    await expect(
+      readJson<any>(root, "catalog-out/data/sets/storefront/entities/message/common.welcome.json"),
+    ).resolves.toMatchObject({
+      key: "common.welcome",
+      entity: { translations: { en: "storefront" } },
+    });
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-with-duplicates",
+      copyAssets: false,
+      withDuplicates: true,
+    });
+
+    const optInManifest = await readJson<any>(root, "catalog-with-duplicates/data/manifest.json");
+    const storefrontDuplicates = await readJson<any>(
+      root,
+      "catalog-with-duplicates/data/sets/storefront/duplicates/locales/en.json",
+    );
+    const adminDuplicates = await readJson<any>(
+      root,
+      "catalog-with-duplicates/data/sets/admin/duplicates/locales/en.json",
+    );
+
+    expect(optInManifest.features).toEqual({ translationSearch: false, duplicates: true });
     expect(storefrontDuplicates.duplicateValues).toEqual([
       {
         value: "storefront",
@@ -736,12 +775,6 @@ describe("catalog", function () {
         ],
       },
     ]);
-    await expect(
-      readJson<any>(root, "catalog-out/data/sets/storefront/entities/message/common.welcome.json"),
-    ).resolves.toMatchObject({
-      key: "common.welcome",
-      entity: { translations: { en: "storefront" } },
-    });
   });
 
   it("exports set translation search shards when opted in", async function () {
@@ -778,7 +811,7 @@ describe("catalog", function () {
       "catalog-out/data/sets/admin/translations/61646d.json",
     );
 
-    expect(manifest.features).toEqual({ translationSearch: true });
+    expect(manifest.features).toEqual({ translationSearch: true, duplicates: false });
     expect(storefrontShard).toEqual({ "common.welcome": ["storefront"] });
     expect(adminShard).toEqual({ "common.welcome": ["admin"] });
   });
@@ -988,6 +1021,19 @@ describe("catalog plugin", function () {
     );
   });
 
+  it("forwards duplicates option for dev catalog mode", async function () {
+    const { handler } = createPlugin();
+
+    await handler({ _: ["catalog"], withDuplicates: true });
+
+    expect(exportMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({ withDuplicates: true, dev: true }),
+    );
+  });
+
   it("forwards translation search option for export subcommand", async function () {
     const { handler } = createPlugin();
 
@@ -1005,15 +1051,44 @@ describe("catalog plugin", function () {
     );
   });
 
+  it("forwards duplicates option for export subcommand", async function () {
+    const { handler } = createPlugin();
+
+    await handler({
+      _: ["catalog", "export"],
+      subcommand: "export",
+      "with-duplicates": true,
+    });
+
+    expect(exportMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({ withDuplicates: true }),
+    );
+  });
+
   it("forwards long and short port options for serve subcommand", async function () {
     const { handler } = createPlugin();
 
-    await handler({ _: ["catalog", "serve"], subcommand: "serve", port: 3103 });
+    await handler({
+      _: ["catalog", "serve"],
+      subcommand: "serve",
+      port: 3103,
+      "with-duplicates": true,
+      "with-translation-search": true,
+    });
     expect(serveMock).toHaveBeenLastCalledWith(
       expect.any(String),
       expect.any(Object),
       expect.any(Object),
       expect.not.objectContaining({ withTranslationSearch: true }),
+    );
+    expect(serveMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.not.objectContaining({ withDuplicates: true }),
     );
     expect(serveMock).toHaveBeenLastCalledWith(
       expect.any(String),

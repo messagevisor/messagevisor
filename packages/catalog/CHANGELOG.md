@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.8.0](https://github.com/messagevisor/messagevisor/compare/v0.7.0...v0.8.0) (2026-06-06)
+
+
+### Features
+
+* catalog search with debounce ([#12](https://github.com/messagevisor/messagevisor/issues/12)) ([f915f08](https://github.com/messagevisor/messagevisor/commit/f915f08ba84d021aec09bf6968609e86c48d5c7a))
+
+
+
+
+
 # [0.7.0](https://github.com/messagevisor/messagevisor/compare/v0.6.0...v0.7.0) (2026-06-04)
 
 

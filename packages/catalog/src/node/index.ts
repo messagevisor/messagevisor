@@ -341,6 +341,8 @@ export interface CatalogExportOptions {
   devEditors?: CatalogDevEditor[];
   withTranslationSearch?: boolean;
   withDuplicates?: boolean;
+  devSession?: CatalogDevSession;
+  preserveAssets?: boolean;
 }
 
 export interface CatalogServeOptions {
@@ -369,6 +371,22 @@ interface CatalogBuildContext {
   withDuplicates: boolean;
   progress: CatalogProgressReporter;
   writer: CatalogJsonWriter;
+}
+
+interface CatalogDevSession {
+  outputDirectoryPath: string;
+  devEditors: CatalogDevEditor[];
+  historyIndex: CatalogHistoryIndex;
+  links: ReturnType<typeof getRepoLinks>;
+  repositoryRootDirectoryPath: string;
+  repositorySourceRootDirectoryPath: string;
+}
+
+interface CatalogDevRebuildRequest {
+  kind: "full" | "set" | "message";
+  reason: string;
+  set?: string;
+  messageKeys?: string[];
 }
 
 interface SourceFileInfo {
@@ -1977,6 +1995,438 @@ async function copyCatalogAssets(outputDirectoryPath: string) {
   await fs.promises.cp(distPath, outputDirectoryPath, { recursive: true });
 }
 
+async function createCatalogDevSession(
+  rootDirectoryPath: string,
+  projectConfig: any,
+  options: { outDir?: string; devEditors?: CatalogDevEditor[] } = {},
+): Promise<CatalogDevSession> {
+  const outputDirectoryPath = options.outDir
+    ? path.resolve(rootDirectoryPath, options.outDir)
+    : projectConfig.catalogDirectoryPath;
+
+  return {
+    outputDirectoryPath,
+    devEditors: options.devEditors || detectDevEditors(),
+    historyIndex: await getGitHistoryIndex(rootDirectoryPath, projectConfig),
+    links: getRepoLinks(rootDirectoryPath),
+    repositoryRootDirectoryPath: getRepositoryRootDirectoryPath(rootDirectoryPath),
+    repositorySourceRootDirectoryPath: getRepositorySourceRootDirectoryPath(rootDirectoryPath),
+  };
+}
+
+async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
+  try {
+    return JSON.parse(await fs.promises.readFile(filePath, "utf8")) as T;
+  } catch (_error) {
+    return undefined;
+  }
+}
+
+function getOutputRelativeDirectory(projectConfig: any, set?: string) {
+  return projectConfig.sets ? path.join("sets", set || "") : "root";
+}
+
+function getDataOutputDirectoryPath(session: CatalogDevSession, projectConfig: any, set?: string) {
+  return path.join(session.outputDirectoryPath, "data", getOutputRelativeDirectory(projectConfig, set));
+}
+
+function getEntityKeyFromChangedPath(
+  rootDirectoryPath: string,
+  projectConfig: any,
+  changedPath: string,
+): EntityPathInfo | undefined {
+  const relativePath = path.relative(rootDirectoryPath, changedPath);
+
+  if (!relativePath || relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    return undefined;
+  }
+
+  return getEntityInfoFromRelativePath(rootDirectoryPath, projectConfig, relativePath);
+}
+
+function getChangedPathSummary(rootDirectoryPath: string, changedPaths: string[]) {
+  return changedPaths
+    .slice(0, 3)
+    .map((changedPath) => formatCatalogPath(rootDirectoryPath, changedPath))
+    .join(", ");
+}
+
+function classifyCatalogDevChanges(
+  rootDirectoryPath: string,
+  projectConfig: any,
+  changedPaths: string[],
+  options: { withTranslationSearch: boolean; withDuplicates: boolean },
+): CatalogDevRebuildRequest {
+  const reason = getChangedPathSummary(rootDirectoryPath, changedPaths) || "project changes";
+  const infos = changedPaths.map((changedPath) =>
+    getEntityKeyFromChangedPath(rootDirectoryPath, projectConfig, changedPath),
+  );
+
+  if (infos.length === 0 || infos.some((info) => !info)) {
+    return { kind: "full", reason };
+  }
+
+  const sets = new Set(infos.map((info) => info?.set || ""));
+  const types = new Set(infos.map((info) => info?.type));
+
+  if (sets.size > 1) {
+    return { kind: "full", reason };
+  }
+
+  const set = Array.from(sets)[0] || undefined;
+
+  if (types.size === 1 && types.has("message") && !options.withTranslationSearch && !options.withDuplicates) {
+    return {
+      kind: "message",
+      reason,
+      set,
+      messageKeys: sortStrings(infos.map((info) => info?.key || "").filter(Boolean)),
+    };
+  }
+
+  if (
+    projectConfig.sets &&
+    set &&
+    types.size > 0 &&
+    !types.has("test") &&
+    !options.withTranslationSearch &&
+    !options.withDuplicates
+  ) {
+    return { kind: "set", reason, set };
+  }
+
+  return { kind: "full", reason };
+}
+
+async function writeCatalogManifest(
+  writer: CatalogJsonWriter,
+  rootDirectoryPath: string,
+  projectConfig: any,
+  session: CatalogDevSession,
+  options: {
+    browserRouter: boolean;
+    withTranslationSearch: boolean;
+    withDuplicates: boolean;
+    setIndexes: Record<string, CatalogSetIndex>;
+    executions: Array<{ set: string; projectConfig: any; datasource: any }>;
+  },
+) {
+  const manifest = {
+    schemaVersion: CATALOG_SCHEMA_VERSION,
+    generatedAt: new Date().toISOString(),
+    router: options.browserRouter === false ? "hash" : "browser",
+    sets: projectConfig.sets,
+    setKeys: projectConfig.sets ? options.executions.map((execution) => execution.set) : [],
+    dev: { editors: session.devEditors },
+    features: {
+      translationSearch: options.withTranslationSearch,
+      duplicates: options.withDuplicates,
+    },
+    links: session.links,
+    paths: {
+      projectHistory: "data/project/history/page-1.json",
+      root: projectConfig.sets ? undefined : "data/root/index.json",
+      sets: projectConfig.sets
+        ? Object.fromEntries(
+            options.executions.map((execution) => [
+              execution.set,
+              `data/sets/${encodeURIComponent(execution.set)}/index.json`,
+            ]),
+          )
+        : undefined,
+    },
+    counts: Object.fromEntries(
+      Object.keys(options.setIndexes).map((key) => [key, options.setIndexes[key].counts]),
+    ),
+  };
+
+  await writer.write(path.join(session.outputDirectoryPath, "data", "manifest.json"), manifest);
+  return manifest;
+}
+
+function getMessageRelationshipFingerprint(message: Message) {
+  const attributes = new Set<string>();
+  const segments = new Set<string>();
+
+  for (const override of message.overrides || []) {
+    collectAttributeKeysFromConditions(override.conditions, attributes);
+    collectSegmentKeys(override.segments, segments);
+  }
+
+  return {
+    attributes: sortStrings(Array.from(attributes)),
+    segments: sortStrings(Array.from(segments)),
+  };
+}
+
+function sameStringList(left: string[] = [], right: string[] = []) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => value === right[index]);
+}
+
+function summarizeMessage(
+  message: Message,
+  messageKey: string,
+  historyIndex: CatalogHistoryIndex,
+  set: string | undefined,
+  targets: string[],
+) {
+  const directLocales = Object.keys(message.translations || {});
+  const overrideLocalesSet = new Set<string>();
+
+  for (const override of message.overrides || []) {
+    for (const localeKey of Object.keys(override.translations || {})) {
+      overrideLocalesSet.add(localeKey);
+    }
+  }
+
+  const overrideLocales = sortStrings(Array.from(overrideLocalesSet));
+
+  return getEntitySummary(message, "message", messageKey, historyIndex, set, {
+    targets,
+    ...(directLocales.length > 0 ? { locales: sortStrings(directLocales) } : {}),
+    ...(overrideLocales.length > 0 ? { overrideLocales } : {}),
+  });
+}
+
+async function tryRebuildCatalogMessage(
+  runtime: CatalogRuntime,
+  rootDirectoryPath: string,
+  rootProjectConfig: any,
+  projectConfig: any,
+  datasource: any,
+  session: CatalogDevSession,
+  request: CatalogDevRebuildRequest,
+) {
+  if (request.kind !== "message" || !request.messageKeys || request.messageKeys.length === 0) {
+    return false;
+  }
+
+  const dataDirectoryPath = getDataOutputDirectoryPath(session, rootProjectConfig, request.set);
+  const indexPath = path.join(dataDirectoryPath, "index.json");
+  const index = await readJsonFile<CatalogSetIndex>(indexPath);
+
+  if (!index) {
+    return false;
+  }
+
+  const [localeKeys, messageKeys, targetKeys] = (await Promise.all([
+    datasource.listLocales(),
+    datasource.listMessages(),
+    datasource.listTargets(),
+  ])) as [string[], string[], string[]];
+  const messageKeySet = new Set(messageKeys);
+
+  if (request.messageKeys.some((messageKey) => !messageKeySet.has(messageKey))) {
+    return false;
+  }
+
+  const [locales, targets] = await Promise.all([
+    readAll<Locale>(localeKeys, (key) => datasource.readLocale(key)),
+    readAll<Target>(targetKeys, (key) => datasource.readTarget(key)),
+  ]);
+  const localeDirections = getLocaleDirections(locales);
+  const targetMessages = Object.fromEntries(
+    targetKeys.map((targetKey) => [targetKey, getTargetMessageKeys(targets[targetKey], messageKeys)]),
+  ) as Record<string, string[]>;
+  const writer = new CatalogJsonWriter();
+
+  for (const messageKey of request.messageKeys) {
+    const oldDetailPath = path.join(
+      dataDirectoryPath,
+      "entities",
+      "message",
+      `${encodeKey(messageKey)}.json`,
+    );
+    const oldDetail = await readJsonFile<any>(oldDetailPath);
+
+    if (!oldDetail) {
+      return false;
+    }
+
+    const message = await datasource.readMessage(messageKey);
+    const messageTargets = sortStrings(
+      targetKeys.filter((targetKey) => targetMessages[targetKey].includes(messageKey)),
+    );
+
+    if (!sameStringList(sortStrings(oldDetail.targets || []), messageTargets)) {
+      return false;
+    }
+
+    const oldRelationshipFingerprint = getMessageRelationshipFingerprint(oldDetail.entity || {});
+    const nextRelationshipFingerprint = getMessageRelationshipFingerprint(message);
+
+    if (
+      !sameStringList(oldRelationshipFingerprint.attributes, nextRelationshipFingerprint.attributes) ||
+      !sameStringList(oldRelationshipFingerprint.segments, nextRelationshipFingerprint.segments)
+    ) {
+      return false;
+    }
+
+    const examples = await runtime.resolveExamples(projectConfig, datasource, {
+      set: request.set,
+      message: messageKey,
+      onlyMessages: true,
+    });
+    const overrides = (message.overrides || []).map((override: Override) => {
+      const attributes = new Set<string>();
+      const overrideSegments = new Set<string>();
+      collectAttributeKeysFromConditions(override.conditions, attributes);
+      collectSegmentKeys(override.segments, overrideSegments);
+
+      return {
+        ...override,
+        usedAttributes: sortStrings(Array.from(attributes)),
+        usedSegments: sortStrings(Array.from(overrideSegments)),
+      };
+    });
+    const sourceFileInfo = getSourceFileInfo(
+      session.repositorySourceRootDirectoryPath,
+      rootDirectoryPath,
+      projectConfig,
+      "message",
+      messageKey,
+      { resolveAbsolutePath: session.devEditors.length > 0 },
+    );
+    const detail = {
+      type: "message",
+      key: messageKey,
+      entity: { ...message, overrides },
+      sourcePath: sourceFileInfo.sourcePath,
+      editLinks: getEditorLinks(session.devEditors, sourceFileInfo),
+      targets: messageTargets,
+      localeKeys,
+      localeDirections,
+      translations: localeKeys.map((localeKey) =>
+        resolveTranslationRow(message.translations, localeKey, locales),
+      ),
+      evaluatedExamples: examples.messages,
+      overrideTranslations: overrides.map((override) => ({
+        key: override.key,
+        rows: localeKeys.map((localeKey) =>
+          resolveTranslationRow(override.translations, localeKey, locales),
+        ),
+      })),
+      lastModified: getLastModified(session.historyIndex, "message", messageKey, request.set),
+    };
+
+    await writer.write(oldDetailPath, detail);
+
+    await writeHistoryPages(
+      writer,
+      path.join(dataDirectoryPath, "history", "message", encodeKey(messageKey)),
+      getHistoryForEntity(session.historyIndex, "message", messageKey, request.set),
+      { skipEmpty: true },
+    );
+
+    const nextSummary = summarizeMessage(
+      message,
+      messageKey,
+      session.historyIndex,
+      request.set,
+      messageTargets,
+    );
+    const existingSummaryIndex = index.entities.message.findIndex((entry) => entry.key === messageKey);
+
+    if (existingSummaryIndex === -1) {
+      index.entities.message.push(nextSummary);
+    } else {
+      index.entities.message[existingSummaryIndex] = nextSummary;
+    }
+  }
+
+  index.entities.message.sort((left, right) => left.key.localeCompare(right.key));
+  index.counts.message = messageKeys.length;
+  await writer.write(indexPath, index);
+
+  return true;
+}
+
+async function rebuildCatalogSetForDev(
+  runtime: CatalogRuntime,
+  rootDirectoryPath: string,
+  projectConfig: any,
+  datasource: any,
+  session: CatalogDevSession,
+  options: {
+    set?: string;
+    browserRouter: boolean;
+    withTranslationSearch: boolean;
+    withDuplicates: boolean;
+  },
+) {
+  const writer = new CatalogJsonWriter();
+  const progress = new CatalogProgressReporter(rootDirectoryPath, session.outputDirectoryPath);
+  const executions = await runtime.getProjectSetExecutions(projectConfig, datasource);
+  const setIndexes: Record<string, CatalogSetIndex> = {};
+  const existingIndexes = await Promise.all(
+    executions.map(async (execution) => {
+      const indexPath = path.join(
+        session.outputDirectoryPath,
+        "data",
+        getOutputRelativeDirectory(projectConfig, execution.set),
+        "index.json",
+      );
+      return [execution.set || "root", await readJsonFile<CatalogSetIndex>(indexPath)] as const;
+    }),
+  );
+
+  for (const [key, index] of existingIndexes) {
+    if (index) {
+      setIndexes[key] = index;
+    }
+  }
+
+  const execution = executions.find((item) => (item.set || undefined) === options.set);
+
+  if (!execution) {
+    return false;
+  }
+
+  const outputRelativeDirectory = getOutputRelativeDirectory(projectConfig, execution.set);
+  await fs.promises.rm(
+    path.join(session.outputDirectoryPath, "data", outputRelativeDirectory),
+    { recursive: true, force: true },
+  );
+
+  const context: CatalogBuildContext = {
+    rootDirectoryPath,
+    repositoryRootDirectoryPath: session.repositoryRootDirectoryPath,
+    repositorySourceRootDirectoryPath: session.repositorySourceRootDirectoryPath,
+    outputDirectoryPath: session.outputDirectoryPath,
+    dataDirectoryPath: path.join(session.outputDirectoryPath, "data"),
+    historyIndex: session.historyIndex,
+    runtime,
+    devEditors: session.devEditors,
+    duplicateResultsBySet: {},
+    withTranslationSearch: options.withTranslationSearch,
+    withDuplicates: options.withDuplicates,
+    progress,
+    writer,
+  };
+
+  setIndexes[execution.set || "root"] = await buildSetCatalog(
+    context,
+    execution.set,
+    execution.projectConfig,
+    execution.datasource,
+    outputRelativeDirectory,
+  );
+
+  await writeCatalogManifest(writer, rootDirectoryPath, projectConfig, session, {
+    browserRouter: options.browserRouter,
+    withTranslationSearch: options.withTranslationSearch,
+    withDuplicates: options.withDuplicates,
+    setIndexes,
+    executions,
+  });
+
+  return true;
+}
+
 export async function exportCatalog(
   runtime: CatalogRuntime,
   rootDirectoryPath: string,
@@ -2003,7 +2453,11 @@ export async function exportCatalog(
   });
 
   let stepStartedAt = progress.step("Preparing output directory");
-  await fs.promises.rm(outputDirectoryPath, { recursive: true, force: true });
+  if (options.preserveAssets) {
+    await fs.promises.rm(dataDirectoryPath, { recursive: true, force: true });
+  } else {
+    await fs.promises.rm(outputDirectoryPath, { recursive: true, force: true });
+  }
   await fs.promises.mkdir(dataDirectoryPath, { recursive: true });
   progress.done(stepStartedAt);
 
@@ -2013,13 +2467,16 @@ export async function exportCatalog(
     progress.done(stepStartedAt);
   }
 
-  const devEditors = options.dev ? options.devEditors || detectDevEditors() : [];
+  const devEditors = options.dev
+    ? options.devSession?.devEditors || options.devEditors || detectDevEditors()
+    : [];
   stepStartedAt = progress.step("Reading Git history");
-  const historyIndex = await getGitHistoryIndex(rootDirectoryPath, projectConfig);
+  const historyIndex =
+    options.devSession?.historyIndex || (await getGitHistoryIndex(rootDirectoryPath, projectConfig));
   progress.done(stepStartedAt, `(${pluralize(historyIndex.entries.length, "commit")})`);
 
   stepStartedAt = progress.step("Resolving repository links");
-  const links = getRepoLinks(rootDirectoryPath);
+  const links = options.devSession?.links || getRepoLinks(rootDirectoryPath);
   progress.done(stepStartedAt);
 
   let duplicateResultsBySet: Record<string, CatalogDuplicateTranslationsSetResult> = {};
@@ -2050,8 +2507,12 @@ export async function exportCatalog(
 
   const context: CatalogBuildContext = {
     rootDirectoryPath,
-    repositoryRootDirectoryPath: getRepositoryRootDirectoryPath(rootDirectoryPath),
-    repositorySourceRootDirectoryPath: getRepositorySourceRootDirectoryPath(rootDirectoryPath),
+    repositoryRootDirectoryPath:
+      options.devSession?.repositoryRootDirectoryPath ||
+      getRepositoryRootDirectoryPath(rootDirectoryPath),
+    repositorySourceRootDirectoryPath:
+      options.devSession?.repositorySourceRootDirectoryPath ||
+      getRepositorySourceRootDirectoryPath(rootDirectoryPath),
     outputDirectoryPath,
     dataDirectoryPath,
     historyIndex,
@@ -2177,11 +2638,34 @@ function injectCatalogLiveReloadClient(html: string) {
   return `${html}${script}`;
 }
 
-function createProjectWatcher(
+function getCatalogInputWatchPaths(rootDirectoryPath: string, projectConfig: any) {
+  const paths = [path.join(rootDirectoryPath, "messagevisor.config.js")];
+
+  if (projectConfig.sets) {
+    paths.push(projectConfig.setsDirectoryPath);
+    return paths;
+  }
+
+  paths.push(
+    projectConfig.localesDirectoryPath,
+    projectConfig.messagesDirectoryPath,
+    projectConfig.attributesDirectoryPath,
+    projectConfig.segmentsDirectoryPath,
+    projectConfig.targetsDirectoryPath,
+    projectConfig.testsDirectoryPath,
+  );
+
+  return paths.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
+}
+
+function createCatalogInputWatcher(
   rootDirectoryPath: string,
+  projectConfig: any,
   ignoredDirectoryPaths: string[],
-  onChange: (changedPath: string) => void,
+  onChange: (changedPaths: string[]) => void,
 ) {
+  const watchPaths = getCatalogInputWatchPaths(rootDirectoryPath, projectConfig);
+
   function shouldIgnore(targetPath: string) {
     const resolvedTargetPath = path.resolve(targetPath);
 
@@ -2195,7 +2679,24 @@ function createProjectWatcher(
     });
   }
 
-  function collectSnapshotEntries(directoryPath: string, snapshotEntries: string[]) {
+  function shouldWatch(targetPath: string) {
+    const resolvedTargetPath = path.resolve(targetPath);
+
+    if (shouldIgnore(resolvedTargetPath)) {
+      return false;
+    }
+
+    return watchPaths.some((watchPath) => {
+      const resolvedWatchPath = path.resolve(watchPath);
+
+      return (
+        resolvedTargetPath === resolvedWatchPath ||
+        resolvedTargetPath.startsWith(`${resolvedWatchPath}${path.sep}`)
+      );
+    });
+  }
+
+  function collectSnapshotEntries(directoryPath: string, snapshotEntries: Map<string, string>) {
     if (shouldIgnore(directoryPath)) {
       return;
     }
@@ -2226,8 +2727,7 @@ function createProjectWatcher(
 
       try {
         const stat = fs.statSync(entryPath);
-        const relativePath = path.relative(rootDirectoryPath, entryPath);
-        snapshotEntries.push(`${relativePath}:${stat.size}:${stat.mtimeMs}`);
+        snapshotEntries.set(entryPath, `${stat.size}:${stat.mtimeMs}`);
       } catch {
         // Ignore transient editor save races.
       }
@@ -2235,26 +2735,108 @@ function createProjectWatcher(
   }
 
   function createSnapshot() {
-    const snapshotEntries: string[] = [];
-    collectSnapshotEntries(rootDirectoryPath, snapshotEntries);
-    snapshotEntries.sort();
-    return snapshotEntries.join("|");
-  }
+    const snapshotEntries = new Map<string, string>();
 
-  let previousSnapshot = createSnapshot();
-  const interval = setInterval(() => {
-    const nextSnapshot = createSnapshot();
+    for (const watchPath of watchPaths) {
+      if (!fs.existsSync(watchPath)) {
+        continue;
+      }
 
-    if (nextSnapshot === previousSnapshot) {
-      return;
+      const stat = fs.statSync(watchPath);
+
+      if (stat.isFile()) {
+        snapshotEntries.set(watchPath, `${stat.size}:${stat.mtimeMs}`);
+        continue;
+      }
+
+      collectSnapshotEntries(watchPath, snapshotEntries);
     }
 
-    previousSnapshot = nextSnapshot;
-    onChange(rootDirectoryPath);
-  }, 250);
+    return snapshotEntries;
+  }
+
+  function getSnapshotChanges(previous: Map<string, string>, next: Map<string, string>) {
+    const changedPaths = new Set<string>();
+
+    for (const [filePath, signature] of Array.from(next.entries())) {
+      if (previous.get(filePath) !== signature) {
+        changedPaths.add(filePath);
+      }
+    }
+
+    for (const filePath of Array.from(previous.keys())) {
+      if (!next.has(filePath)) {
+        changedPaths.add(filePath);
+      }
+    }
+
+    return Array.from(changedPaths);
+  }
+
+  function createPollingWatcher() {
+    let previousSnapshot = createSnapshot();
+    const interval = setInterval(() => {
+      const nextSnapshot = createSnapshot();
+      const changedPaths = getSnapshotChanges(previousSnapshot, nextSnapshot).filter(shouldWatch);
+
+      previousSnapshot = nextSnapshot;
+
+      if (changedPaths.length === 0) {
+        return;
+      }
+
+      onChange(changedPaths);
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }
+
+  const watchers: fs.FSWatcher[] = [];
+  let nativeWatcherFailed = false;
+
+  for (const watchPath of watchPaths) {
+    if (!fs.existsSync(watchPath)) {
+      continue;
+    }
+
+    try {
+      const stat = fs.statSync(watchPath);
+      const directoryPath = stat.isDirectory() ? watchPath : path.dirname(watchPath);
+      const watcher = fs.watch(
+        directoryPath,
+        { recursive: stat.isDirectory() },
+        (_eventType, filename) => {
+          const changedPath = filename
+            ? path.resolve(directoryPath, filename.toString())
+            : directoryPath;
+
+          if (shouldWatch(changedPath)) {
+            onChange([changedPath]);
+          }
+        },
+      );
+
+      watchers.push(watcher);
+    } catch (_error) {
+      nativeWatcherFailed = true;
+      break;
+    }
+  }
+
+  if (nativeWatcherFailed || watchers.length === 0) {
+    for (const watcher of watchers) {
+      watcher.close();
+    }
+
+    return createPollingWatcher();
+  }
 
   return () => {
-    clearInterval(interval);
+    for (const watcher of watchers) {
+      watcher.close();
+    }
   };
 }
 
@@ -2405,6 +2987,11 @@ function isWithDuplicatesEnabled(parsed: CatalogPluginParsedOptions) {
   return parsed.withDuplicates === true || parsed["with-duplicates"] === true;
 }
 
+export const __catalogDevInternals = {
+  classifyCatalogDevChanges,
+  getCatalogInputWatchPaths,
+};
+
 export function createCatalogPlugin(
   runtime: CatalogRuntime,
   api: ReturnType<typeof createCatalogApi> = createCatalogApi(runtime),
@@ -2418,11 +3005,18 @@ export function createCatalogPlugin(
       const withDuplicates = isWithDuplicatesEnabled(parsed);
 
       if (!parsed.subcommand) {
+        const outputDirectoryPath = parsed.outDir
+          ? path.resolve(rootDirectoryPath, parsed.outDir)
+          : projectConfig.catalogDirectoryPath;
+        const devSession = await createCatalogDevSession(rootDirectoryPath, projectConfig, {
+          outDir: parsed.outDir,
+        });
         await api.exportCatalog(rootDirectoryPath, projectConfig, datasource, {
           outDir: parsed.outDir,
           copyAssets: !parsed.noAssets,
           browserRouter,
           dev: true,
+          devSession,
           withTranslationSearch,
           withDuplicates,
         });
@@ -2433,9 +3027,6 @@ export function createCatalogPlugin(
           liveReload: true,
         });
 
-        const outputDirectoryPath = parsed.outDir
-          ? path.resolve(rootDirectoryPath, parsed.outDir)
-          : projectConfig.catalogDirectoryPath;
         const ignoredDirectoryPaths = [
           path.join(rootDirectoryPath, ".git"),
           path.join(rootDirectoryPath, "node_modules"),
@@ -2447,29 +3038,74 @@ export function createCatalogPlugin(
           outputDirectoryPath,
         ];
         let exportInFlight = false;
-        let exportQueued = false;
-        let queuedReason: string | null = null;
+        let queuedChanges: string[] = [];
+        let pendingChanges: string[] = [];
         let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-        const runExportAndReload = async (reason: string) => {
+        const runRebuildAndReload = async (changedPaths: string[]) => {
           if (exportInFlight) {
-            exportQueued = true;
-            queuedReason = queuedReason || reason;
+            queuedChanges.push(...changedPaths);
             return;
           }
 
           exportInFlight = true;
-          console.log(`\n[catalog] Re-exporting because ${reason}`);
+          const request = classifyCatalogDevChanges(rootDirectoryPath, projectConfig, changedPaths, {
+            withTranslationSearch,
+            withDuplicates,
+          });
+          console.log(
+            `\n[catalog] Rebuilding (${request.kind}) because ${request.reason}`,
+          );
 
           try {
-            await api.exportCatalog(rootDirectoryPath, projectConfig, datasource, {
-              outDir: parsed.outDir,
-              copyAssets: !parsed.noAssets,
-              browserRouter,
-              dev: true,
-              withTranslationSearch,
-              withDuplicates,
-            });
+            let handled = false;
+
+            if (request.kind === "message") {
+              const [execution] = await runtime.getProjectSetExecutions(
+                projectConfig,
+                datasource,
+                request.set,
+              );
+              handled = await tryRebuildCatalogMessage(
+                runtime,
+                rootDirectoryPath,
+                projectConfig,
+                execution.projectConfig,
+                execution.datasource,
+                devSession,
+                request,
+              );
+            }
+
+            if (!handled && request.kind === "set" && request.set) {
+              handled = await rebuildCatalogSetForDev(
+                runtime,
+                rootDirectoryPath,
+                projectConfig,
+                datasource,
+                devSession,
+                {
+                  set: request.set,
+                  browserRouter,
+                  withTranslationSearch,
+                  withDuplicates,
+                },
+              );
+            }
+
+            if (!handled) {
+              await api.exportCatalog(rootDirectoryPath, projectConfig, datasource, {
+                outDir: parsed.outDir,
+                copyAssets: false,
+                preserveAssets: true,
+                browserRouter,
+                dev: true,
+                devSession,
+                withTranslationSearch,
+                withDuplicates,
+              });
+            }
+
             server.triggerReload();
           } catch (error) {
             console.error("[catalog] Export failed during watch mode");
@@ -2477,28 +3113,30 @@ export function createCatalogPlugin(
           } finally {
             exportInFlight = false;
 
-            if (exportQueued) {
-              const nextReason = queuedReason || "more project changes";
-              exportQueued = false;
-              queuedReason = null;
-              void runExportAndReload(nextReason);
+            if (queuedChanges.length > 0) {
+              const nextChanges = queuedChanges;
+              queuedChanges = [];
+              void runRebuildAndReload(nextChanges);
             }
           }
         };
 
-        const stopWatchingProject = createProjectWatcher(
+        const stopWatchingProject = createCatalogInputWatcher(
           rootDirectoryPath,
+          projectConfig,
           ignoredDirectoryPaths,
-          (changedPath) => {
-            const reason = `project change in ${path.relative(rootDirectoryPath, changedPath) || "."}`;
+          (changedPaths) => {
+            pendingChanges.push(...changedPaths);
 
             if (debounceTimer) {
               clearTimeout(debounceTimer);
             }
             debounceTimer = setTimeout(() => {
+              const nextChanges = Array.from(new Set(pendingChanges));
+              pendingChanges = [];
               debounceTimer = null;
-              void runExportAndReload(reason);
-            }, 150);
+              void runRebuildAndReload(nextChanges);
+            }, 250);
           },
         );
 

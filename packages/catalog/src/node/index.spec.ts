@@ -9,7 +9,12 @@ import { Datasource } from "../../../core/src/datasource";
 import { resolveExamples } from "../../../core/src/examples";
 import { findDuplicateTranslations } from "../../../core/src/find-duplicates";
 import { getProjectSetExecutions } from "../../../core/src/sets";
-import { createCatalogApi, createCatalogPlugin, type CatalogRuntime } from "./index";
+import {
+  __catalogDevInternals,
+  createCatalogApi,
+  createCatalogPlugin,
+  type CatalogRuntime,
+} from "./index";
 
 const catalogApi = createCatalogApi({
   mergeFormats,
@@ -1173,6 +1178,104 @@ describe("catalog", function () {
     );
 
     expect(viteConfigSource).toContain('base: "/"');
+  });
+
+  it("watches only catalog input roots in dev mode", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+
+    const watchPaths = __catalogDevInternals.getCatalogInputWatchPaths(root, projectConfig);
+
+    expect(watchPaths).toEqual(
+      expect.arrayContaining([
+        path.join(root, "messagevisor.config.js"),
+        projectConfig.localesDirectoryPath,
+        projectConfig.messagesDirectoryPath,
+        projectConfig.attributesDirectoryPath,
+        projectConfig.segmentsDirectoryPath,
+        projectConfig.targetsDirectoryPath,
+        projectConfig.testsDirectoryPath,
+      ]),
+    );
+    expect(watchPaths).not.toContain(projectConfig.catalogDirectoryPath);
+    expect(watchPaths).not.toContain(path.join(root, "node_modules"));
+  });
+
+  it("plans incremental message rebuilds only for safe dev changes", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+    const messagePath = path.join(root, "messages/common/welcome.yml");
+    const localePath = path.join(root, "locales/en-US.yml");
+
+    expect(
+      __catalogDevInternals.classifyCatalogDevChanges(root, projectConfig, [messagePath], {
+        withTranslationSearch: false,
+        withDuplicates: false,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        kind: "message",
+        messageKeys: ["common.welcome"],
+      }),
+    );
+
+    expect(
+      __catalogDevInternals.classifyCatalogDevChanges(root, projectConfig, [messagePath], {
+        withTranslationSearch: true,
+        withDuplicates: false,
+      }),
+    ).toEqual(expect.objectContaining({ kind: "full" }));
+
+    expect(
+      __catalogDevInternals.classifyCatalogDevChanges(root, projectConfig, [localePath], {
+        withTranslationSearch: false,
+        withDuplicates: false,
+      }),
+    ).toEqual(expect.objectContaining({ kind: "full" }));
+  });
+
+  it("plans set-scoped dev rebuilds for set project input changes", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = { sets: true };\n");
+    await writeFile(root, "sets/storefront/locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "sets/storefront/messages/common/welcome.yml",
+      "description: Welcome\ntranslations:\n  en: Welcome\n",
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const localePath = path.join(root, "sets/storefront/locales/en.yml");
+    const messagePath = path.join(root, "sets/storefront/messages/common/welcome.yml");
+
+    expect(__catalogDevInternals.getCatalogInputWatchPaths(root, projectConfig)).toEqual(
+      expect.arrayContaining([
+        path.join(root, "messagevisor.config.js"),
+        projectConfig.setsDirectoryPath,
+      ]),
+    );
+    expect(
+      __catalogDevInternals.classifyCatalogDevChanges(root, projectConfig, [messagePath], {
+        withTranslationSearch: false,
+        withDuplicates: false,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        kind: "message",
+        set: "storefront",
+        messageKeys: ["common.welcome"],
+      }),
+    );
+    expect(
+      __catalogDevInternals.classifyCatalogDevChanges(root, projectConfig, [localePath], {
+        withTranslationSearch: false,
+        withDuplicates: false,
+      }),
+    ).toEqual(expect.objectContaining({ kind: "set", set: "storefront" }));
   });
 });
 

@@ -2027,7 +2027,11 @@ function getOutputRelativeDirectory(projectConfig: any, set?: string) {
 }
 
 function getDataOutputDirectoryPath(session: CatalogDevSession, projectConfig: any, set?: string) {
-  return path.join(session.outputDirectoryPath, "data", getOutputRelativeDirectory(projectConfig, set));
+  return path.join(
+    session.outputDirectoryPath,
+    "data",
+    getOutputRelativeDirectory(projectConfig, set),
+  );
 }
 
 function getEntityKeyFromChangedPath(
@@ -2075,7 +2079,12 @@ function classifyCatalogDevChanges(
 
   const set = Array.from(sets)[0] || undefined;
 
-  if (types.size === 1 && types.has("message") && !options.withTranslationSearch && !options.withDuplicates) {
+  if (
+    types.size === 1 &&
+    types.has("message") &&
+    !options.withTranslationSearch &&
+    !options.withDuplicates
+  ) {
     return {
       kind: "message",
       reason,
@@ -2230,7 +2239,10 @@ async function tryRebuildCatalogMessage(
   ]);
   const localeDirections = getLocaleDirections(locales);
   const targetMessages = Object.fromEntries(
-    targetKeys.map((targetKey) => [targetKey, getTargetMessageKeys(targets[targetKey], messageKeys)]),
+    targetKeys.map((targetKey) => [
+      targetKey,
+      getTargetMessageKeys(targets[targetKey], messageKeys),
+    ]),
   ) as Record<string, string[]>;
   const writer = new CatalogJsonWriter();
 
@@ -2260,7 +2272,10 @@ async function tryRebuildCatalogMessage(
     const nextRelationshipFingerprint = getMessageRelationshipFingerprint(message);
 
     if (
-      !sameStringList(oldRelationshipFingerprint.attributes, nextRelationshipFingerprint.attributes) ||
+      !sameStringList(
+        oldRelationshipFingerprint.attributes,
+        nextRelationshipFingerprint.attributes,
+      ) ||
       !sameStringList(oldRelationshipFingerprint.segments, nextRelationshipFingerprint.segments)
     ) {
       return false;
@@ -2329,7 +2344,9 @@ async function tryRebuildCatalogMessage(
       request.set,
       messageTargets,
     );
-    const existingSummaryIndex = index.entities.message.findIndex((entry) => entry.key === messageKey);
+    const existingSummaryIndex = index.entities.message.findIndex(
+      (entry) => entry.key === messageKey,
+    );
 
     if (existingSummaryIndex === -1) {
       index.entities.message.push(nextSummary);
@@ -2387,10 +2404,10 @@ async function rebuildCatalogSetForDev(
   }
 
   const outputRelativeDirectory = getOutputRelativeDirectory(projectConfig, execution.set);
-  await fs.promises.rm(
-    path.join(session.outputDirectoryPath, "data", outputRelativeDirectory),
-    { recursive: true, force: true },
-  );
+  await fs.promises.rm(path.join(session.outputDirectoryPath, "data", outputRelativeDirectory), {
+    recursive: true,
+    force: true,
+  });
 
   const context: CatalogBuildContext = {
     rootDirectoryPath,
@@ -2472,7 +2489,8 @@ export async function exportCatalog(
     : [];
   stepStartedAt = progress.step("Reading Git history");
   const historyIndex =
-    options.devSession?.historyIndex || (await getGitHistoryIndex(rootDirectoryPath, projectConfig));
+    options.devSession?.historyIndex ||
+    (await getGitHistoryIndex(rootDirectoryPath, projectConfig));
   progress.done(stepStartedAt, `(${pluralize(historyIndex.entries.length, "commit")})`);
 
   stepStartedAt = progress.step("Resolving repository links");
@@ -3049,13 +3067,16 @@ export function createCatalogPlugin(
           }
 
           exportInFlight = true;
-          const request = classifyCatalogDevChanges(rootDirectoryPath, projectConfig, changedPaths, {
-            withTranslationSearch,
-            withDuplicates,
-          });
-          console.log(
-            `\n[catalog] Rebuilding (${request.kind}) because ${request.reason}`,
+          const request = classifyCatalogDevChanges(
+            rootDirectoryPath,
+            projectConfig,
+            changedPaths,
+            {
+              withTranslationSearch,
+              withDuplicates,
+            },
           );
+          console.log(`\n[catalog] Rebuilding (${request.kind}) because ${request.reason}`);
 
           try {
             let handled = false;

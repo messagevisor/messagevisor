@@ -22,6 +22,8 @@ interface EntityListHighlightTerms {
   lastModified: string[];
 }
 
+const LIST_SEARCH_QUERY_DEBOUNCE_MS = 450;
+
 function matchesQuery(
   entity: EntitySummary,
   parsed: ParsedQuery,
@@ -260,6 +262,168 @@ function setSearchParam(searchParams: URLSearchParams, key: string, value?: stri
   return next;
 }
 
+const EntityListSearchControls = React.memo(function EntityListSearchControls({
+  type,
+  query,
+  firstTargetKey,
+  firstLocaleKey,
+  translationSearchEnabled,
+  onQueryCommit,
+  onHintClick,
+}: {
+  type: EntityType;
+  query: string;
+  firstTargetKey: string | undefined;
+  firstLocaleKey: string | undefined;
+  translationSearchEnabled: boolean;
+  onQueryCommit: (value: string) => void;
+  onHintClick: (hint: string) => void;
+}) {
+  const [inputValue, setInputValue] = React.useState(query);
+  const [showHints, setShowHints] = React.useState(false);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleRef = React.useRef<number | null>(null);
+  const animationFrameRef = React.useRef<number | null>(null);
+  const postPaintTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasHintsDefined =
+    getQueryHints(type, firstTargetKey, firstLocaleKey, translationSearchEnabled) !== null;
+
+  const clearPendingCommit = React.useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+
+    if (idleRef.current !== null && "cancelIdleCallback" in window) {
+      window.cancelIdleCallback(idleRef.current);
+      idleRef.current = null;
+    }
+
+    if (animationFrameRef.current !== null) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    if (postPaintTimeoutRef.current) {
+      clearTimeout(postPaintTimeoutRef.current);
+      postPaintTimeoutRef.current = null;
+    }
+  }, []);
+
+  const commitAfterBrowserWork = React.useCallback(
+    (value: string) => {
+      if ("requestIdleCallback" in window) {
+        idleRef.current = window.requestIdleCallback(
+          () => {
+            idleRef.current = null;
+            onQueryCommit(value);
+          },
+          { timeout: 700 },
+        );
+        return;
+      }
+
+      animationFrameRef.current = window.requestAnimationFrame(() => {
+        animationFrameRef.current = null;
+        postPaintTimeoutRef.current = setTimeout(() => {
+          postPaintTimeoutRef.current = null;
+          onQueryCommit(value);
+        }, 0);
+      });
+    },
+    [onQueryCommit],
+  );
+
+  const scheduleQueryCommit = React.useCallback(
+    (value: string) => {
+      clearPendingCommit();
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        commitAfterBrowserWork(value);
+      }, LIST_SEARCH_QUERY_DEBOUNCE_MS);
+    },
+    [clearPendingCommit, commitAfterBrowserWork],
+  );
+
+  const flushQueryCommit = React.useCallback(
+    (value: string) => {
+      clearPendingCommit();
+      onQueryCommit(value);
+    },
+    [clearPendingCommit, onQueryCommit],
+  );
+
+  React.useEffect(() => {
+    clearPendingCommit();
+    setInputValue(query);
+  }, [query, clearPendingCommit]);
+
+  React.useEffect(() => {
+    return () => {
+      clearPendingCommit();
+    };
+  }, [clearPendingCommit]);
+
+  return (
+    <div>
+      <div className="relative">
+        <Input
+          value={inputValue}
+          onChange={(event) => {
+            const val = event.target.value;
+            setInputValue(val);
+            scheduleQueryCommit(val);
+          }}
+          onBlur={(event) => {
+            flushQueryCommit(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              flushQueryCommit(event.currentTarget.value);
+            }
+          }}
+          placeholder={`Search ${entityLabels[type].plural.toLowerCase()}...`}
+          className={hasHintsDefined ? "pr-10" : ""}
+        />
+        {hasHintsDefined && (
+          <button
+            type="button"
+            onClick={() => setShowHints((v) => !v)}
+            aria-label={showHints ? "Hide advanced search hints" : "Show advanced search hints"}
+            className={[
+              "absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full border text-xs font-bold transition-colors",
+              showHints
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-surface text-muted hover:border-primary hover:text-primary",
+            ].join(" ")}
+          >
+            ?
+          </button>
+        )}
+      </div>
+
+      {/* Animated slide-down hints panel, aligned to input's inner text area */}
+      <div
+        className={[
+          "grid transition-all duration-200 ease-in-out",
+          showHints ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        ].join(" ")}
+      >
+        <div className="overflow-hidden pl-5">
+          <QueryHints
+            type={type}
+            query={query}
+            firstTargetKey={firstTargetKey}
+            firstLocaleKey={firstLocaleKey}
+            translationSearchEnabled={translationSearchEnabled}
+            onHintClick={onHintClick}
+          />
+        </div>
+      </div>
+    </div>
+  );
+});
+
 // ---- Component ----
 
 export function EntityList(props: {
@@ -271,23 +435,39 @@ export function EntityList(props: {
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAll, setShowAll] = React.useState(false);
-  const [showHints, setShowHints] = React.useState(false);
   const [translationShard, setTranslationShard] = React.useState<TranslationShard | null>(null);
   const [loadedShardKey, setLoadedShardKey] = React.useState<string | null>(null);
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const translationShardDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const query = searchParams.get("q") || "";
-  const [inputValue, setInputValue] = React.useState(query);
+  const searchParamsRef = React.useRef(searchParams);
 
-  // Sync input display when the URL query changes externally (hint clicks, navigation)
   React.useEffect(() => {
-    setInputValue(query);
-  }, [query]);
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
+
+  const commitSearchQuery = React.useCallback(
+    (value: string) => {
+      const nextQuery = value.trim() ? value : undefined;
+      if ((searchParamsRef.current.get("q") || "") === (nextQuery || "")) return;
+      React.startTransition(() => {
+        setSearchParams(setSearchParam(searchParamsRef.current, "q", nextQuery));
+      });
+    },
+    [setSearchParams],
+  );
+
+  React.useEffect(() => {
+    return () => {
+      if (translationShardDebounceRef.current) {
+        clearTimeout(translationShardDebounceRef.current);
+        translationShardDebounceRef.current = null;
+      }
+    };
+  }, []);
 
   const firstTargetKey = props.allEntities?.target?.find((e) => !e.archived)?.key;
   const firstLocaleKey = props.allEntities?.locale?.find((e) => !e.archived)?.key;
   const translationSearchEnabled = props.translationSearchEnabled === true;
-  const hasHintsDefined =
-    getQueryHints(props.type, firstTargetKey, firstLocaleKey, translationSearchEnabled) !== null;
 
   // Compute the 3-char shard prefix needed for the current query
   const _translationQual = parseQuery(query).qualifiers.find((q) => q.key === "translation");
@@ -298,7 +478,9 @@ export function EntityList(props: {
 
   // Debounced fetch: only triggers when the 3-char prefix changes
   React.useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (translationShardDebounceRef.current) {
+      clearTimeout(translationShardDebounceRef.current);
+    }
 
     if (!neededShardKey) {
       setTranslationShard(null);
@@ -308,8 +490,8 @@ export function EntityList(props: {
 
     if (neededShardKey === loadedShardKey) return;
 
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
+    translationShardDebounceRef.current = setTimeout(() => {
+      translationShardDebounceRef.current = null;
       fetchTranslationShard(neededShardKey, props.setKey).then((data) => {
         setTranslationShard(data);
         setLoadedShardKey(neededShardKey);
@@ -317,7 +499,10 @@ export function EntityList(props: {
     }, 300);
 
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (translationShardDebounceRef.current) {
+        clearTimeout(translationShardDebounceRef.current);
+        translationShardDebounceRef.current = null;
+      }
     };
   }, [neededShardKey, loadedShardKey, props.setKey]);
   const sortDirection = getSortDirection(searchParams.get("sort"));
@@ -359,7 +544,7 @@ export function EntityList(props: {
         : current
           ? `${current} ${hint}`
           : hint;
-    setSearchParams(setSearchParam(searchParams, "q", next || undefined));
+    setSearchParams(setSearchParam(searchParamsRef.current, "q", next || undefined));
   }
 
   return (
@@ -367,56 +552,15 @@ export function EntityList(props: {
       <div className="px-6 pt-1">
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
           {/* Input + slide-down hints, confined to the first column */}
-          <div>
-            <div className="relative">
-              <Input
-                value={inputValue}
-                onChange={(event) => {
-                  const val = event.target.value;
-                  setInputValue(val);
-                  setSearchParams(setSearchParam(searchParams, "q", val.trim() ? val : undefined));
-                }}
-                placeholder={`Search ${entityLabels[props.type].plural.toLowerCase()}...`}
-                className={hasHintsDefined ? "pr-10" : ""}
-              />
-              {hasHintsDefined && (
-                <button
-                  type="button"
-                  onClick={() => setShowHints((v) => !v)}
-                  aria-label={
-                    showHints ? "Hide advanced search hints" : "Show advanced search hints"
-                  }
-                  className={[
-                    "absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full border text-xs font-bold transition-colors",
-                    showHints
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-surface text-muted hover:border-primary hover:text-primary",
-                  ].join(" ")}
-                >
-                  ?
-                </button>
-              )}
-            </div>
-
-            {/* Animated slide-down hints panel, aligned to input's inner text area */}
-            <div
-              className={[
-                "grid transition-all duration-200 ease-in-out",
-                showHints ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-              ].join(" ")}
-            >
-              <div className="overflow-hidden pl-5">
-                <QueryHints
-                  type={props.type}
-                  query={query}
-                  firstTargetKey={firstTargetKey}
-                  firstLocaleKey={firstLocaleKey}
-                  translationSearchEnabled={translationSearchEnabled}
-                  onHintClick={handleHintClick}
-                />
-              </div>
-            </div>
-          </div>
+          <EntityListSearchControls
+            type={props.type}
+            query={query}
+            firstTargetKey={firstTargetKey}
+            firstLocaleKey={firstLocaleKey}
+            translationSearchEnabled={translationSearchEnabled}
+            onQueryCommit={commitSearchQuery}
+            onHintClick={handleHintClick}
+          />
 
           <button
             type="button"

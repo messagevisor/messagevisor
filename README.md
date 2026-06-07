@@ -49,6 +49,16 @@ Three simple steps to visualize it:
 
 [![Messagevisor](./assets/flow.png)](https://messagevisor.com)
 
+## What do I need to use Messagevisor?
+
+- A Git repository for managing your [project](https://messagevisor.com/docs/projects) declaratively
+- A CI/CD pipeline (like [GitHub Actions](https://messagevisor.com/docs/deployment/github-actions)) for building and uploading the [datafiles](https://messagevisor.com/docs/building-datafiles)
+- A CDN or custom server for serving the generated [datafiles](https://messagevisor.com/docs/building-datafiles)
+
+Messagevisor [SDKs](https://messagevisor.com/docs/sdks/javascript) will take care of the rest for you.
+
+Learn more at [https://messagevisor.com](https://messagevisor.com).
+
 ## License
 
 MIT © [Fahad Heylaal](https://fahad19.com)

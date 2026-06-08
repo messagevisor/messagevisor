@@ -72,7 +72,7 @@ npx messagevisor catalog
 
 ## Evaluate directly
 
-Use `evaluate` for focused debugging:
+Use `evaluate` for focused debugging before making broader edits:
 
 ```sh
 npx messagevisor evaluate --message=auth.signin --locale=en-US --target=web
@@ -81,6 +81,16 @@ npx messagevisor evaluate --segment=pro-users --context='{"plan":"pro"}'
 ```
 
 Evaluation inputs can include locale, target, context, values, currency, timeZone, formats, and module options.
+
+`evaluate` is especially useful for AI agents because it gives a cheap directional check:
+
+- After editing a translation, evaluate that message key with realistic `values`.
+- After editing an override or segment, evaluate the segment first, then the message with matching `context`.
+- After editing locale formats, evaluate a `rawMessage` that uses the named format.
+- After changing modules, evaluate both a real message and a raw string that exercises the module.
+- In sets projects, always pass `--set=<name>` so the check runs against the intended source tree.
+
+Use `--json --pretty` when you need machine-readable output in an agent workflow.
 
 ## Reasoning model
 

@@ -39,9 +39,13 @@ Use these while authoring:
 ```sh
 npx messagevisor catalog
 npx messagevisor evaluate --message=auth.signin --locale=en-US --target=web
+npx messagevisor evaluate --rawMessage='Hello {name}' --locale=en-US --values='{"name":"Ada"}'
+npx messagevisor evaluate --segment=platform-web --context='{"platform":"web"}'
 npx messagevisor list --messages --target=web
 npx messagevisor find-duplicates --locale=en-US
 ```
+
+Use `evaluate` for quick directional checks while editing. It is the fastest way to verify one message, one raw formatting string, or one segment before writing tests or opening the Catalog.
 
 ## Sets
 

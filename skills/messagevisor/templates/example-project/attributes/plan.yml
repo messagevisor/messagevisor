@@ -1,0 +1,8 @@
+description: Subscription plan
+
+type: string
+
+enum:
+  - free
+  - pro
+  - enterprise

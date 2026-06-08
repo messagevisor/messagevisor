@@ -1,0 +1,10 @@
+description: Short description of what this attribute represents
+
+type: string
+
+# Uncomment and add allowed values for string attributes
+# enum:
+#   - value1
+#   - value2
+
+# Other supported types: boolean, integer, double, date, object, array

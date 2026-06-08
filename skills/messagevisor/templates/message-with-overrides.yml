@@ -1,0 +1,40 @@
+description: Message with conditional copy variants
+
+translations:
+  en: Default message text
+  nl: Standaard berichttekst
+
+overrides:
+  - key: plan-pro
+    segments: plan-pro
+    translations:
+      en: Pro plan message text
+      nl: Pro plan berichttekst
+
+  - key: platform-ios
+    conditions:
+      attribute: platform
+      operator: equals
+      value: ios
+    translations:
+      en: iOS-specific message text
+      nl: iOS-specifieke berichttekst
+
+examples:
+  - description: Default (free plan, web)
+    locale: en
+    context:
+      plan: free
+      platform: web
+
+  - description: Pro plan
+    locale: en
+    context:
+      plan: pro
+      platform: web
+
+  - description: iOS
+    locale: en
+    context:
+      plan: free
+      platform: ios

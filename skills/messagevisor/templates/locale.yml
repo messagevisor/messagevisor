@@ -1,0 +1,31 @@
+description: Language (Region)
+
+direction: ltr
+
+# inheritTranslationsFrom: en
+# inheritFormatsFrom: en
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: USD
+      currencyDisplay: symbol
+    decimal:
+      maximumFractionDigits: 2
+    percent:
+      style: percent
+      maximumFractionDigits: 1
+  date:
+    long:
+      year: numeric
+      month: long
+      day: numeric
+    short:
+      year: 2-digit
+      month: numeric
+      day: numeric
+  time:
+    short:
+      hour: numeric
+      minute: 2-digit

@@ -1,0 +1,14 @@
+description: Users who match combined conditions
+
+conditions:
+  and:
+    - attribute: platform
+      operator: equals
+      value: web
+    - or:
+        - attribute: plan
+          operator: equals
+          value: pro
+        - attribute: plan
+          operator: equals
+          value: enterprise

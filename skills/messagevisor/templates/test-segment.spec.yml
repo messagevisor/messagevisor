@@ -1,0 +1,14 @@
+segment: plan-pro
+
+assertions:
+  - context:
+      plan: pro
+    expectedToMatch: true
+
+  - context:
+      plan: free
+    expectedToMatch: false
+
+  - context:
+      plan: enterprise
+    expectedToMatch: false

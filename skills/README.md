@@ -1,44 +1,50 @@
-# Messagevisor agent skills
+# Messagevisor skills
 
-This directory contains Agent Skills for helping AI coding agents work accurately in Messagevisor projects.
+Agent skills for authoring, testing, building, and querying [Messagevisor](https://messagevisor.com) projects. Messagevisor is a Git-native i18n and l10n toolkit where teams manage translations as YAML or JSON files, validate them with a CLI, and ship compact datafiles to runtime SDKs.
 
-Each skill is a directory with a `SKILL.md` file. The format is intentionally simple: YAML frontmatter with `name` and `description`, followed by Markdown instructions. This shape works with tools that understand Agent Skills and with registries such as skills.sh.
+Installable via [`npx skills`](https://www.skills.sh):
 
-## Installation
+```bash
+# inside your Messagevisor project or app repo
+npx skills add messagevisor/messagevisor
 
-From a compatible agent or skill manager, install the repository or individual skill directories. The skills.sh CLI documents installation with:
-
-```sh
-npx skills add owner/repo
+# or pin to the path directly
+npx skills add https://github.com/messagevisor/messagevisor/tree/main/skills/messagevisor
 ```
 
-When this repository is published, developers can install the skill set from the repository and let their agent load the relevant skill on demand.
+Then in your agent (Claude Code, Cursor, Codex, OpenCode, etc.) ask things like:
 
-## Skills
+- "Add a `dashboard.welcome` message in English and Dutch with a Pro plan variant"
+- "Why is `checkout.total` rendering literal ICU syntax instead of a number?"
+- "Create a `nl-NL` locale that inherits formats from `nl` but overrides money to EUR"
+- "Export untranslated messages for German and prepare them for a translator"
+- "Set up a dev/staging/production sets workflow with promotion flows"
+- "Generate typed TypeScript helpers from the web target messages"
 
-| Skill | Use when |
-| --- | --- |
-| `messagevisor` | You need the project mental model, entities, workflow, and package map |
-| `messagevisor-init` | You are starting a new Messagevisor project or adding one to a repo |
-| `messagevisor-configuration` | You are changing project config, paths, parsers, modules, sets, or namespace behavior |
-| `messagevisor-authoring` | You are writing messages, locales, formats, examples, or inheritance |
-| `messagevisor-targets` | You are deciding what goes into target datafiles |
-| `messagevisor-overrides` | You are adding conditional translations with attributes, segments, or override conditions |
-| `messagevisor-icu` | You are authoring ICU plurals, selects, rich text, or named formats |
-| `messagevisor-modules` | You are adding, ordering, debugging, or writing Messagevisor runtime modules |
-| `messagevisor-examples` | You are authoring examples or debugging evaluated message, raw-message, or segment output |
-| `messagevisor-testing` | You are writing or fixing project tests |
-| `messagevisor-linting` | You are fixing schema, reference, condition, format, ICU, or CI lint failures |
-| `messagevisor-catalog` | You are using the generated Catalog UI for review or dev feedback |
-| `messagevisor-cli` | You are running or scripting `npx messagevisor` commands |
-| `messagevisor-sdk` | You are wiring datafiles into an app with the SDK, React, Vue, or react-intl compatibility |
-| `messagevisor-deployment` | You are building and publishing datafiles, state-aware artifacts, or static Catalog output |
-| `messagevisor-sets` | You are working with `sets: true` projects and promotion flows |
-| `messagevisor-csv` | You are exporting or importing translations for translator handoff |
-| `messagevisor-ai-translations` | You are asking an AI agent to translate exported Messagevisor content safely |
-| `messagevisor-codegen` | You are generating typed TypeScript helpers |
-| `messagevisor-featurevisor` | You are integrating Messagevisor copy with Featurevisor-style flags and experiments |
+## What's included
 
-## Source of truth
+A single skill, `messagevisor`, that the agent invokes (e.g. as `/messagevisor` in Claude Code) covering:
 
-These skills summarize the current repository. When code and website docs disagree, prefer the implementation in `packages/`, then update docs separately if needed.
+- **Authoring** — messages, locales, formats, translation inheritance, locale direction, `deprecated`, `archived`, `meta`, `promotable`.
+- **Conditional copy** — overrides, attributes, segments, `and/or/not` conditions, all operators, target context.
+- **ICU** — plurals, selects, selectordinals, named number/date/time formats, rich text tags, inline skeletons.
+- **Modules** — ICU, interpolation, Featurevisor flags, missing-translation reporting, custom modules, ordering.
+- **Targets** — message inclusion patterns, locale lists, compile-time context, format overlays, datafile options.
+- **Testing** — message, segment, locale, and target test specs, matrix expansion.
+- **Sets** — parallel release lanes, promotion flows, conflict resolution.
+- **Deployment** — CI shape, state files, revisions, CDN publishing, Catalog hosting.
+- **SDK** — core, React, Vue, react-intl compatibility.
+- **Translator workflows** — CSV/JSON export and import, pruning, regional inheritance.
+- **AI translations** — safe export/translate/import loop with guardrails.
+- **Code generation** — typed TypeScript helpers from message keys.
+- **Templates** — copy-and-adapt YAML for every common authoring shape.
+
+## Updating
+
+```bash
+npx skills update messagevisor
+```
+
+## Reporting issues
+
+This skill lives in the main Messagevisor monorepo: <https://github.com/messagevisor/messagevisor/issues>

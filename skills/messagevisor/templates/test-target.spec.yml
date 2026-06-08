@@ -1,0 +1,21 @@
+target: web
+
+assertions:
+  - locale: en
+    expectedToIncludeMessages:
+      - auth.signin
+      - auth.signout
+      - dashboard.welcome
+
+    expectedToNotIncludeMessages:
+      - internal.debug
+
+    expectedFormats:
+      number:
+        money:
+          currency: USD
+
+    rawMessage: "Total: {amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: "Total: $12.00"

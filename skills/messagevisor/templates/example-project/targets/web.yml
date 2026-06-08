@@ -1,0 +1,12 @@
+description: Web application
+
+includeMessages:
+  - auth*
+  - dashboard*
+
+locales:
+  - en
+  - nl
+
+context:
+  platform: web

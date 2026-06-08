@@ -1,0 +1,39 @@
+description: English
+
+direction: ltr
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: USD
+      currencyDisplay: symbol
+    decimal:
+      maximumFractionDigits: 2
+    percent:
+      style: percent
+      maximumFractionDigits: 1
+  date:
+    long:
+      year: numeric
+      month: long
+      day: numeric
+    short:
+      year: 2-digit
+      month: numeric
+      day: numeric
+  time:
+    short:
+      hour: numeric
+      minute: 2-digit
+
+examples:
+  - description: USD money format
+    rawMessage: "Total: {amount, number, money}"
+    values:
+      amount: 1234.56
+
+  - description: Plural count
+    rawMessage: "{count, plural, =0 {No items} one {# item} other {# items}}"
+    values:
+      count: 3

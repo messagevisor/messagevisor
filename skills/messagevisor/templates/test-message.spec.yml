@@ -1,0 +1,24 @@
+message: auth.signin
+
+assertions:
+  - locale: en
+    target: web
+    expectedTranslation: Sign in
+
+  - locale: nl
+    target: web
+    expectedTranslation: Aanmelden
+
+  - description: Pro plan override
+    locale: en
+    target: web
+    context:
+      plan: pro
+    expectedTranslation: Sign in (Pro)
+
+  - description: With interpolated value
+    locale: en
+    target: web
+    values:
+      name: Ada
+    expectedTranslation: Welcome back, Ada

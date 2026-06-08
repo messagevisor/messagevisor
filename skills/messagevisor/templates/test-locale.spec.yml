@@ -1,0 +1,14 @@
+locale: en-US
+
+assertions:
+  - expectedFormats:
+      number:
+        money:
+          style: currency
+          currency: USD
+
+  - description: plural copy
+    rawMessage: "{count, plural, =0 {No items} one {# item} other {# items}}"
+    values:
+      count: 3
+    expectedTranslation: 3 items

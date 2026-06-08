@@ -1,0 +1,29 @@
+description: Web application
+
+includeMessages:
+  - auth*
+  - dashboard*
+
+# excludeMessages:
+#   - dashboard.internal*
+
+locales:
+  - en
+  - nl
+
+# Compile-time context applied to all datafiles for this target.
+# Use only for values that are always true for every user of this target.
+context:
+  platform: web
+
+# Target-level format overrides. Replaces the entire named style object per locale.
+# formats:
+#   en:
+#     number:
+#       money:
+#         style: currency
+#         currency: USD
+
+# pretty: false
+# stringify: true
+# revisionFromHash: false

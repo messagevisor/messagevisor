@@ -1,0 +1,34 @@
+description: Dashboard welcome message
+
+translations:
+  en: Welcome back, {name}
+  nl: Welkom terug, {name}
+
+overrides:
+  - key: plan-pro
+    segments: plan-pro
+    translations:
+      en: Welcome back, {name}. Your Pro workspace is ready.
+      nl: Welkom terug, {name}. Je Pro-werkruimte staat klaar.
+
+examples:
+  - description: Free plan user
+    locale: en
+    values:
+      name: Ada
+    context:
+      plan: free
+
+  - description: Pro plan user
+    locale: en
+    values:
+      name: Ada
+    context:
+      plan: pro
+
+  - description: Dutch free plan
+    locale: nl
+    values:
+      name: Ada
+    context:
+      plan: free

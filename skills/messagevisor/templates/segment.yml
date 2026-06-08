@@ -1,0 +1,6 @@
+description: Short description of who this segment matches
+
+conditions:
+  attribute: plan
+  operator: equals
+  value: pro

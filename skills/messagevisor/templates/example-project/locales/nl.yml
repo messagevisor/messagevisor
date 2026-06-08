@@ -1,0 +1,12 @@
+description: Dutch
+
+direction: ltr
+inheritTranslationsFrom: en
+inheritFormatsFrom: en
+
+formats:
+  number:
+    money:
+      style: currency
+      currency: EUR
+      currencyDisplay: symbol

@@ -1,0 +1,6 @@
+description: Web platform
+
+conditions:
+  attribute: platform
+  operator: equals
+  value: web

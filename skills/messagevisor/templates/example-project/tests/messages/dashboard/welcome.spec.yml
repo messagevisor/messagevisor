@@ -1,0 +1,29 @@
+message: dashboard.welcome
+
+assertions:
+  - description: Default English free plan
+    locale: en
+    target: web
+    values:
+      name: Ada
+    context:
+      plan: free
+    expectedTranslation: Welcome back, Ada
+
+  - description: Pro plan override
+    locale: en
+    target: web
+    values:
+      name: Ada
+    context:
+      plan: pro
+    expectedTranslation: Welcome back, Ada. Your Pro workspace is ready.
+
+  - description: Dutch free plan
+    locale: nl
+    target: web
+    values:
+      name: Ada
+    context:
+      plan: free
+    expectedTranslation: Welkom terug, Ada

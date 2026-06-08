@@ -1,0 +1,15 @@
+{
+  "name": "my-messagevisor-project",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "messagevisor lint",
+    "test": "messagevisor test",
+    "build": "messagevisor build",
+    "catalog": "messagevisor catalog"
+  },
+  "dependencies": {
+    "@messagevisor/cli": "latest",
+    "@messagevisor/module-icu": "latest"
+  }
+}

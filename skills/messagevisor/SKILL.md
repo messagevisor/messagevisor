@@ -83,6 +83,21 @@ npx messagevisor promote --from=staging --to=production --apply
 | `@messagevisor/module-missing-translations` | Missing translation reporting |
 | `@messagevisor/types` | Shared TypeScript types |
 
+## Related focused skills
+
+Use these when the work is narrower than general Messagevisor orientation:
+
+| Skill | Use when |
+| --- | --- |
+| `messagevisor-configuration` | Config paths, parsers, modules, namespace settings, sets, and root-directory CLI behavior |
+| `messagevisor-authoring` | Messages, locales, namespaces, formats, examples, inheritance, archival, and deprecation |
+| `messagevisor-targets` | Target inclusion, locales, target context, format overlays, and datafile options |
+| `messagevisor-modules` | Runtime module setup, ordering, custom modules, and module mismatch debugging |
+| `messagevisor-examples` | Example authoring and direct evaluation debugging |
+| `messagevisor-linting` | Lint failures and schema/reference/condition/format validation |
+| `messagevisor-deployment` | Building, revisions, state files, CI, CDN datafile publishing, and Catalog hosting |
+| `messagevisor-ai-translations` | Agent-assisted translation workflows with export/import guardrails |
+
 ## Before changing a project
 
 1. Read `messagevisor.config.js`.

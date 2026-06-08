@@ -85,7 +85,7 @@ npm install @messagevisor/react
 Use the provider and hooks from `@messagevisor/react`. Keep the SDK instance lifecycle stable and update datafiles intentionally when locale or target changes.
 
 ```jsx
-import { MessagevisorProvider, useTranslate } from "@messagevisor/react";
+import { MessagevisorProvider, useMessagevisor } from "@messagevisor/react";
 
 function App({ m }) {
   return (
@@ -96,10 +96,12 @@ function App({ m }) {
 }
 
 function MyComponent() {
-  const { t } = useTranslate();
+  const { t } = useMessagevisor();
   return <p>{t("auth.signin")}</p>;
 }
 ```
+
+`useMessagevisor` returns `t`, `formatMessage`, and the format helpers bound to the active instance. Rich text values render as React nodes.
 
 ## Vue
 
@@ -107,15 +109,17 @@ function MyComponent() {
 npm install @messagevisor/vue
 ```
 
-Use the Vue plugin and composables from `@messagevisor/vue`:
+Use the provider plugin and composables from `@messagevisor/vue`:
 
 ```js
 import { createApp } from "vue";
-import { createMessagevisorPlugin } from "@messagevisor/vue";
+import { createMessagevisorProvider } from "@messagevisor/vue";
 
 const app = createApp(App);
-app.use(createMessagevisorPlugin({ instance: m }));
+app.use(createMessagevisorProvider({ instance: m }));
 ```
+
+Inside components, call `useMessagevisor()` for the bound API, or use the `$t` and `$messagevisor` global properties. A `MessagevisorProvider` component is also exported for scoped setups.
 
 ## react-intl compatibility
 

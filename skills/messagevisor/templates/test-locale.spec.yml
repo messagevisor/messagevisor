@@ -1,8 +1,6 @@
 locale: en-US
 
 assertions:
-  - expectedDirection: ltr
-
   - expectedFormats:
       number:
         money:

@@ -55,25 +55,28 @@ assertions:
 
 ## Segment test
 
+Each assertion repeats `segment` so it can be read in isolation.
+
 ```yml
 segment: plan-pro
 assertions:
-  - context:
+  - segment: plan-pro
+    context:
       plan: pro
     expectedToMatch: true
-  - context:
+  - segment: plan-pro
+    context:
       plan: free
     expectedToMatch: false
 ```
 
 ## Locale test
 
-Use locale tests for inherited formats, direction, and locale-level raw message evaluation.
+Use locale tests for inherited formats and locale-level raw message evaluation.
 
 ```yml
 locale: en-US
 assertions:
-  - expectedDirection: ltr
   - expectedFormats:
       number:
         money:
@@ -114,18 +117,19 @@ assertions:
 Use `matrix` when the same assertion should run across values, locales, or contexts:
 
 ```yml
-message: cart.total
+message: dashboard.welcome
 assertions:
   - matrix:
-      locale: [en-US, nl-NL]
-    locale: ${{ locale }}
+      name: [Ada, Sam]
+    locale: en-US
     target: web
+    description: Default welcome for ${{ name }}
     values:
-      amount: 42
-    expectedTranslation: ${{ locale == "en-US" ? "$42.00" : "€ 42,00" }}
+      name: ${{ name }}
+    expectedTranslation: Welcome back, ${{ name }}
 ```
 
-Keep matrices small enough that failures remain readable.
+Matrix only does plain `${{ var }}` substitution: a value that is exactly `${{ var }}` takes the combination value as is, otherwise the variable is interpolated into the surrounding string. There is no expression or conditional support, so vary the expected result by listing it as its own matrix axis when it differs per combination. Keep matrices small enough that failures remain readable.
 
 ## Running focused tests
 

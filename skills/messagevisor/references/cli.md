@@ -188,7 +188,7 @@ npx messagevisor build --showSize
 npx messagevisor build --json --pretty
 ```
 
-Use `--noStateFiles` only when you intentionally want a build that does not read or update state files.
+Use `--no-stateFiles` only when you intentionally want a build that does not read or update state files.
 
 ### `generate-code`
 

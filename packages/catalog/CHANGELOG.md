@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.9.0](https://github.com/messagevisor/messagevisor/compare/v0.8.1...v0.9.0) (2026-06-09)
+
+
+### Features
+
+* catalog showing formats with inheritance info ([#15](https://github.com/messagevisor/messagevisor/issues/15)) ([a6836fd](https://github.com/messagevisor/messagevisor/commit/a6836fd9ee6bd8326c77adf8862f61fd55978b8d))
+
+
+
+
+
 # [0.8.0](https://github.com/messagevisor/messagevisor/compare/v0.7.0...v0.8.0) (2026-06-06)
 
 

@@ -776,6 +776,30 @@ function FormatRowsTable(props: {
     return null;
   }
 
+  function renderFormatSourceMeta(row: FormatRow) {
+    if (row.source === "inherited" && row.from) {
+      return (
+        <div className="text-[10px] font-normal leading-snug text-faint">
+          Inherited from{" "}
+          <Link
+            to={getEntityRoute("locale", row.from, setKey)}
+            className="font-medium text-muted hover:text-primary hover:underline"
+          >
+            {row.from}
+          </Link>
+        </div>
+      );
+    }
+
+    if (row.source === "target") {
+      return (
+        <div className="text-[10px] font-normal leading-snug text-faint">Target override</div>
+      );
+    }
+
+    return null;
+  }
+
   /** Plain text in the cell. Param stays monospace for paths. */
   function renderSplitSegment(segment: string, role: "type" | "style" | "param") {
     const body = segmentBody(segment);
@@ -797,12 +821,12 @@ function FormatRowsTable(props: {
   }
 
   function renderSplitStyleCellContent(plan: FormatSplitRowPlan) {
-    const badge = renderFormatSourceBadge(plan.row);
+    const sourceMeta = renderFormatSourceMeta(plan.row);
 
     return (
-      <div className="flex min-w-0 flex-col items-start gap-1">
+      <div className="flex min-w-0 flex-col items-start gap-1.5">
         <div className="w-full min-w-0">{renderSplitSegment(plan.parts.style, "style")}</div>
-        {badge ? <div className="max-w-full overflow-hidden">{badge}</div> : null}
+        {sourceMeta}
       </div>
     );
   }
@@ -915,9 +939,9 @@ function FormatRowsTable(props: {
                 </>
               ) : (
                 <>
-                  <col className="min-w-0 w-[22%]" />
-                  <col className="min-w-0 w-[36%]" />
-                  <col className="min-w-0 w-[42%]" />
+                  <col className="min-w-0 w-[28%]" />
+                  <col className="min-w-0 w-[32%]" />
+                  <col className="min-w-0 w-[40%]" />
                 </>
               )
             ) : showExampleColumn ? (
@@ -931,9 +955,9 @@ function FormatRowsTable(props: {
             ) : (
               <>
                 <col className="min-w-0 w-[12%]" />
-                <col className="min-w-0 w-[18%]" />
-                <col className="min-w-0 w-[32%]" />
-                <col className="min-w-0 w-[38%]" />
+                <col className="min-w-0 w-[24%]" />
+                <col className="min-w-0 w-[28%]" />
+                <col className="min-w-0 w-[36%]" />
               </>
             )}
           </colgroup>

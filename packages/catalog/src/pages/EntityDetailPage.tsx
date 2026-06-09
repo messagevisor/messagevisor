@@ -342,6 +342,19 @@ function orderedFormatTypePillKeys(typesFromData: string[]): string[] {
   return [...FORMAT_TYPE_PRIMARY_PILLS, ...rest];
 }
 
+function orderedFormatSectionKeys(typesFromData: string[]): string[] {
+  const available = new Set(typesFromData);
+  const primary = FORMAT_TYPE_PRIMARY_PILLS.filter((type) => available.has(type));
+  const rest = typesFromData
+    .filter((type) => !FORMAT_TYPE_PRIMARY_PILLS.includes(type))
+    .sort((a, b) => a.localeCompare(b));
+  return [...primary, ...rest];
+}
+
+function formatStyleFragmentId(type: string, style: string): string {
+  return `format-${slugifyFragment(`${type}-${style || "default"}`)}`;
+}
+
 function setSearchParam(searchParams: URLSearchParams, key: string, value?: string) {
   const next = new URLSearchParams(searchParams);
 
@@ -729,6 +742,8 @@ function FormatRowsTable(props: {
     );
   }
 
+  useScrollToHash([splitPath, q, props.selectedFormatType, rows.length, visibleRows.length]);
+
   if (rows.length === 0) {
     return <p className="text-sm text-muted">No formats found.</p>;
   }
@@ -743,6 +758,19 @@ function FormatRowsTable(props: {
   }
 
   const splitPlans = splitPath ? buildFormatSplitRowPlans(visibleRows) : null;
+  const splitSectionKeys = splitPath
+    ? orderedFormatSectionKeys(collectSortedFormatTypes(visibleRows))
+    : [];
+  const splitRowsByType = splitPath
+    ? visibleRows.reduce<Record<string, FormatRow[]>>((groups, row) => {
+        const type = splitFormatPath(row.path).type;
+        if (!groups[type]) {
+          groups[type] = [];
+        }
+        groups[type].push(row);
+        return groups;
+      }, {})
+    : {};
 
   function segmentBody(segment: string) {
     return segment ? (
@@ -820,10 +848,16 @@ function FormatRowsTable(props: {
 
   function renderSplitStyleCellContent(plan: FormatSplitRowPlan) {
     const sourceMeta = renderFormatSourceMeta(plan.row);
+    const fragmentId = formatStyleFragmentId(plan.parts.type, plan.parts.style);
 
     return (
       <div className="flex min-w-0 flex-col items-start gap-1.5">
-        <div className="w-full min-w-0">{renderSplitSegment(plan.parts.style, "style")}</div>
+        <a
+          href={`#${fragmentId}`}
+          className="w-full min-w-0 rounded-sm text-text hover:text-primary hover:underline"
+        >
+          {renderSplitSegment(plan.parts.style, "style")}
+        </a>
         {sourceMeta}
       </div>
     );
@@ -917,6 +951,106 @@ function FormatRowsTable(props: {
       >
         {renderExampleCellContent(row.examplePreview)}
       </td>
+    );
+  }
+
+  function renderSplitTable(plans: FormatSplitRowPlan[]) {
+    return (
+      <div className="min-w-0 overflow-x-auto rounded-lg border border-border">
+        <table className="w-full min-w-[34rem] table-fixed border-collapse bg-surface text-xs">
+          <colgroup>
+            {showExampleColumn ? (
+              <>
+                <col className="min-w-0 w-[24%]" />
+                <col className="min-w-0 w-[18%]" />
+                <col className="min-w-0 w-[28%]" />
+                <col className="min-w-0 w-[30%]" />
+              </>
+            ) : (
+              <>
+                <col className="min-w-0 w-[30%]" />
+                <col className="min-w-0 w-[30%]" />
+                <col className="min-w-0 w-[40%]" />
+              </>
+            )}
+          </colgroup>
+          <thead className="bg-elevated text-left text-[11px] uppercase tracking-wide text-muted">
+            <tr>
+              <th className="align-middle border-b border-r border-border/50 px-3 py-2 font-semibold">
+                Style
+              </th>
+              {showExampleColumn ? (
+                <th className="align-middle border-b border-r border-border/50 px-3 py-2 font-semibold">
+                  Example
+                </th>
+              ) : null}
+              <th className="align-middle border-b border-r border-border/40 px-3 py-2 font-semibold">
+                Param
+              </th>
+              <th className="align-middle border-b border-border px-3 py-2 font-semibold">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {plans.map((plan) => {
+              const bandClass = bandSurfaceClass(plan.typeBand);
+
+              return (
+                <tr key={plan.row.path}>
+                  {plan.showStyleCell ? (
+                    <td
+                      id={formatStyleFragmentId(plan.parts.type, plan.parts.style)}
+                      rowSpan={plan.styleRowSpan}
+                      className={[
+                        "align-middle min-w-0 scroll-mt-2 px-3 py-2 font-medium",
+                        bandClass,
+                        formatSplitCellBorderClass("style"),
+                      ].join(" ")}
+                    >
+                      {renderSplitStyleCellContent(plan)}
+                    </td>
+                  ) : null}
+                  {renderSplitExampleColumn(plan, bandClass)}
+                  <td
+                    className={[
+                      "align-middle min-w-0 px-3 py-2 font-medium text-muted",
+                      bandClass,
+                      formatSplitCellBorderClass("param"),
+                    ].join(" ")}
+                  >
+                    {renderSplitSegment(plan.parts.param, "param")}
+                  </td>
+                  {renderValueColumn(
+                    plan.row,
+                    ["align-middle min-w-0 px-3 py-2", bandClass].join(" "),
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  if (splitPath) {
+    return (
+      <div className="space-y-5">
+        {splitSectionKeys.map((typeKey) => {
+          const sectionRows = splitRowsByType[typeKey] || [];
+          const sectionPlans = buildFormatSplitRowPlans(sectionRows);
+          return (
+            <section key={typeKey} className="space-y-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-sm font-semibold text-text">{typeKey}</h3>
+                <span className="text-xs text-muted">
+                  {sectionRows.length} {sectionRows.length === 1 ? "param" : "params"}
+                </span>
+              </div>
+              {renderSplitTable(sectionPlans)}
+            </section>
+          );
+        })}
+      </div>
     );
   }
 

@@ -2,3 +2,497 @@ description: Dutch (The Netherlands)
 
 inheritFormatsFrom: nl
 inheritTranslationsFrom: nl
+
+# These examples evaluate the inherited format reference suite for nl-NL.
+# nl inherits the broad format presets from en and overrides the default money
+# presets to EUR, so this locale shows the same copy/paste patterns with Dutch
+# punctuation, dates, time, and currency output.
+# Keep rawMessage on one line: folded YAML can change ICU parsing.
+
+examples:
+  - description: "Basis / simple text"
+    rawMessage: "Hallo wereld!"
+
+  - description: "Basis / interpolation"
+    rawMessage: "Hallo, {name}!"
+    values:
+      name: John
+
+  - description: "Number / decimal max 2"
+    rawMessage: "Decimaal max 2: {value, number, decimal}"
+    values:
+      value: 1234.567
+
+  - description: "Number / fixed 2 decimals"
+    rawMessage: "Vast 2 decimalen: {value, number, decimalFixed}"
+    values:
+      value: 1234.5
+
+  - description: "Number / padded integer"
+    rawMessage: "Aangevuld geheel getal: {value, number, integerPadded}"
+    values:
+      value: 12
+
+  - description: "Number / 3 significant digits"
+    rawMessage: "3 significante cijfers: {value, number, significant3}"
+    values:
+      value: 12345.678
+
+  - description: "Number / significant digit range"
+    rawMessage: "Bereik significante cijfers: {value, number, significantRange}"
+    values:
+      value: 12345.678
+
+  - description: "Number / grouping auto"
+    rawMessage: "Groepering auto: {value, number, groupingAuto}"
+    values:
+      value: 1234567
+
+  - description: "Number / grouping always"
+    rawMessage: "Groepering altijd: {value, number, groupingAlways}"
+    values:
+      value: 1234567
+
+  - description: "Number / grouping min2"
+    rawMessage: "Groepering min2: {value, number, groupingMin2}"
+    values:
+      value: 1234
+
+  - description: "Number / grouping off"
+    rawMessage: "Groepering uit: {value, number, groupingOff}"
+    values:
+      value: 1234567
+
+  - description: "Number / compact short"
+    rawMessage: "Compact kort: {value, number, compactShort}"
+    values:
+      value: 1234567
+
+  - description: "Number / compact long"
+    rawMessage: "Compact lang: {value, number, compactLong}"
+    values:
+      value: 1234567
+
+  - description: "Number / scientific notation"
+    rawMessage: "Wetenschappelijke notatie: {value, number, scientific}"
+    values:
+      value: 1234567
+
+  - description: "Number / engineering notation"
+    rawMessage: "Engineeringnotatie: {value, number, engineering}"
+    values:
+      value: 1234567
+
+  - description: "Number / sign auto"
+    rawMessage: "Teken auto: {value, number, signAuto}"
+    values:
+      value: -1234.5
+
+  - description: "Number / sign never"
+    rawMessage: "Teken nooit: {value, number, signNever}"
+    values:
+      value: -1234.5
+
+  - description: "Number / sign always"
+    rawMessage: "Teken altijd: {value, number, signAlways}"
+    values:
+      value: 1234.5
+
+  - description: "Number / sign except zero"
+    rawMessage: "Teken behalve nul: {value, number, signExceptZero}"
+    values:
+      value: 0
+
+  - description: "Number / sign negative"
+    rawMessage: "Teken negatief: {value, number, signNegative}"
+    values:
+      value: -1234.5
+
+  - description: "Number / rounding increment 5"
+    rawMessage: "Afronden op stap 5: {value, number, roundingFive}"
+    values:
+      value: 1.234
+
+  - description: "Number / rounding ceil"
+    rawMessage: "Afronden naar boven: {value, number, roundingCeil}"
+    values:
+      value: 1.234
+
+  - description: "Number / rounding floor"
+    rawMessage: "Afronden naar beneden: {value, number, roundingFloor}"
+    values:
+      value: 1.987
+
+  - description: "Number / rounding expand"
+    rawMessage: "Afronden van nul af: {value, number, roundingExpand}"
+    values:
+      value: -1.234
+
+  - description: "Number / rounding trunc"
+    rawMessage: "Afronden naar nul: {value, number, roundingTrunc}"
+    values:
+      value: -1.987
+
+  - description: "Number / rounding half ceil"
+    rawMessage: "Half naar boven: {value, number, roundingHalfCeil}"
+    values:
+      value: 1.5
+
+  - description: "Number / rounding half floor"
+    rawMessage: "Half naar beneden: {value, number, roundingHalfFloor}"
+    values:
+      value: 1.5
+
+  - description: "Number / rounding half expand"
+    rawMessage: "Half van nul af: {value, number, roundingHalfExpand}"
+    values:
+      value: 1.5
+
+  - description: "Number / rounding half trunc"
+    rawMessage: "Half naar nul: {value, number, roundingHalfTrunc}"
+    values:
+      value: 1.5
+
+  - description: "Number / rounding half even"
+    rawMessage: "Half even: {value, number, roundingHalfEven}"
+    values:
+      value: 2.5
+
+  - description: "Number / rounding priority more precision"
+    rawMessage: "Meer precisie: {value, number, roundingPriorityMore}"
+    values:
+      value: 1.234
+
+  - description: "Number / rounding priority less precision"
+    rawMessage: "Minder precisie: {value, number, roundingPriorityLess}"
+    values:
+      value: 1.234
+
+  - description: "Number / strip zeros if integer"
+    rawMessage: "Nullen verwijderen bij geheel getal: {value, number, stripIfInteger}"
+    values:
+      value: 12
+
+  - description: "Number / Arabic digits"
+    rawMessage: "Arabische cijfers: {value, number, arabicDigits}"
+    values:
+      value: 2026
+
+  - description: "Currency / default money"
+    rawMessage: "Standaard valuta: {amount, number, money}"
+    values:
+      amount: 1234.5
+
+  - description: "Currency / symbol display"
+    rawMessage: "Valutasymbool: {amount, number, moneySymbol}"
+    values:
+      amount: 1234.5
+
+  - description: "Currency / code display"
+    rawMessage: "Valutacode: {amount, number, moneyCode}"
+    values:
+      amount: 1234.5
+
+  - description: "Currency / narrow symbol display"
+    rawMessage: "Smal valutasymbool: {amount, number, moneyNarrow}"
+    values:
+      amount: 1234.5
+
+  - description: "Currency / name display"
+    rawMessage: "Valutanaam: {amount, number, moneyName}"
+    values:
+      amount: 1234.5
+
+  - description: "Currency / accounting sign"
+    rawMessage: "Boekhoudkundig teken: {amount, number, moneyAccounting}"
+    values:
+      amount: -1234.5
+
+  - description: "Currency / runtime currency"
+    rawMessage: "Runtime valuta: {amount, number, moneyRuntimeCurrency}"
+    currency: CHF
+    values:
+      amount: 1234.5
+
+  - description: "Currency / GBP"
+    rawMessage: "GBP: {amount, number, moneyGbp}"
+    values:
+      amount: 1234.5
+
+  - description: "Currency / JPY"
+    rawMessage: "JPY: {amount, number, moneyJpy}"
+    values:
+      amount: 1234.5
+
+  - description: "Currency / EUR"
+    rawMessage: "EUR: {amount, number, moneyEur}"
+    values:
+      amount: 1234.5
+
+  - description: "Unit and percent / percent"
+    rawMessage: "Percentage: {value, number, percent}"
+    values:
+      value: 0.125
+
+  - description: "Unit and percent / percent fixed"
+    rawMessage: "Vast percentage: {value, number, percentFixed}"
+    values:
+      value: 0.125
+
+  - description: "Unit and percent / kilometer short"
+    rawMessage: "Kilometer kort: {value, number, unitKilometerShort}"
+    values:
+      value: 42
+
+  - description: "Unit and percent / kilometer narrow"
+    rawMessage: "Kilometer smal: {value, number, unitKilometerNarrow}"
+    values:
+      value: 42
+
+  - description: "Unit and percent / kilometer long"
+    rawMessage: "Kilometer lang: {value, number, unitKilometerLong}"
+    values:
+      value: 42
+
+  - description: "Unit and percent / meter long"
+    rawMessage: "Meter lang: {value, number, unitMeterLong}"
+    values:
+      value: 42
+
+  - description: "Date / full style"
+    rawMessage: "Volledige datum: {when, date, fullStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / long style"
+    rawMessage: "Lange datum: {when, date, longStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / medium style"
+    rawMessage: "Middellange datum: {when, date, mediumStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / short style"
+    rawMessage: "Korte datumstijl: {when, date, shortStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / explicit short fields"
+    rawMessage: "Expliciete korte velden: {when, date, short}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / numeric fields"
+    rawMessage: "Numerieke velden: {when, date, numeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / weekday long"
+    rawMessage: "Weekdag lang: {when, date, weekdayLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / weekday short"
+    rawMessage: "Weekdag kort: {when, date, weekdayShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / weekday narrow"
+    rawMessage: "Weekdag smal: {when, date, weekdayNarrow}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / month long"
+    rawMessage: "Maand lang: {when, date, monthLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / month short"
+    rawMessage: "Maand kort: {when, date, monthShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / month narrow"
+    rawMessage: "Maand smal: {when, date, monthNarrow}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / era long"
+    rawMessage: "Jaartelling lang: {when, date, eraLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / era short"
+    rawMessage: "Jaartelling kort: {when, date, eraShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / era narrow"
+    rawMessage: "Jaartelling smal: {when, date, eraNarrow}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / Arabic digits"
+    rawMessage: "Datum met Arabische cijfers: {when, date, arabicNumeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / Buddhist calendar"
+    rawMessage: "Boeddhistische kalender: {when, date, buddhistLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / Japanese era calendar"
+    rawMessage: "Japanse kalender met era: {when, date, japaneseEra}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / format matcher basic"
+    rawMessage: "Format matcher basic: {when, date, matcherBasic}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Date / format matcher best fit"
+    rawMessage: "Format matcher best fit: {when, date, matcherBestFit}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / full style"
+    rawMessage: "Volledige tijd: {when, time, fullStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / long style"
+    rawMessage: "Lange tijd: {when, time, longStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / medium style"
+    rawMessage: "Middellange tijd: {when, time, mediumStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / short style"
+    rawMessage: "Korte tijdstijl: {when, time, shortStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / hour and minute"
+    rawMessage: "Uur en minuut: {when, time, short}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / seconds"
+    rawMessage: "Met seconden: {when, time, seconds}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / fractional seconds 1 digit"
+    rawMessage: "Fractieseconden 1 cijfer: {when, time, fractional1}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / fractional seconds 2 digits"
+    rawMessage: "Fractieseconden 2 cijfers: {when, time, fractional2}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / fractional seconds 3 digits"
+    rawMessage: "Fractieseconden 3 cijfers: {when, time, fractional}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / day period long"
+    rawMessage: "Dagperiode lang: {when, time, dayPeriodLong}"
+    values:
+      when: "2026-05-12T12:00:00Z"
+
+  - description: "Time / day period short"
+    rawMessage: "Dagperiode kort: {when, time, dayPeriodShort}"
+    values:
+      when: "2026-05-12T12:00:00Z"
+
+  - description: "Time / day period narrow"
+    rawMessage: "Dagperiode smal: {when, time, dayPeriodNarrow}"
+    values:
+      when: "2026-05-12T12:00:00Z"
+
+  - description: "Time / hour12 true"
+    rawMessage: "Hour12 true: {when, time, hour12}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / hour12 false"
+    rawMessage: "Hour12 false: {when, time, hour24}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / hour cycle h11"
+    rawMessage: "Uurcyclus h11: {when, time, hourCycle11}"
+    values:
+      when: "2026-05-12T00:30:45.678Z"
+
+  - description: "Time / hour cycle h12"
+    rawMessage: "Uurcyclus h12: {when, time, hourCycle12}"
+    values:
+      when: "2026-05-12T00:30:45.678Z"
+
+  - description: "Time / hour cycle h23"
+    rawMessage: "Uurcyclus h23: {when, time, hourCycle23}"
+    values:
+      when: "2026-05-12T00:30:45.678Z"
+
+  - description: "Time / hour cycle h24"
+    rawMessage: "Uurcyclus h24: {when, time, hourCycle24}"
+    values:
+      when: "2026-05-12T00:30:45.678Z"
+
+  - description: "Time / time zone short"
+    rawMessage: "Tijdzone kort: {when, time, zoneShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / time zone long"
+    rawMessage: "Tijdzone lang: {when, time, zoneLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / time zone short offset"
+    rawMessage: "Tijdzone korte offset: {when, time, zoneShortOffset}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / time zone long offset"
+    rawMessage: "Tijdzone lange offset: {when, time, zoneLongOffset}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / time zone short generic"
+    rawMessage: "Tijdzone kort algemeen: {when, time, zoneShortGeneric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / time zone long generic"
+    rawMessage: "Tijdzone lang algemeen: {when, time, zoneLongGeneric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / format matcher basic"
+    rawMessage: "Format matcher basic: {when, time, matcherBasic}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Time / format matcher best fit"
+    rawMessage: "Format matcher best fit: {when, time, matcherBestFit}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+
+  - description: "Basis / reference a message"
+    message: auth.installApp
+
+  - description: "Basis / reference a message with context"
+    message: auth.installApp
+    context:
+      platform: ios

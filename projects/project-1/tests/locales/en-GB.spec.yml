@@ -5,7 +5,7 @@ assertions:
     expectedFormats:
       number:
         money:
-          currency: USD
+          currency: GBP
       date:
         long:
           month: long
@@ -13,11 +13,11 @@ assertions:
         short:
           minute: 2-digit
 
-  - description: en-GB default money keeps USD as US dollars
+  - description: en-GB default money uses pounds sterling
     rawMessage: "{v, number, money}"
     values:
       v: 1284.5
-    expectedTranslation: US$1,284.50
+    expectedTranslation: £1,284.50
 
   - description: en-GB target preview overrides the money preset
     target: preview
@@ -48,11 +48,11 @@ assertions:
     values:
       items: 3
       total: 48.1
-    expectedTranslation: 3 items in basket — US$48.10
+    expectedTranslation: 3 items in basket — £48.10
 
   - description: en-GB select invoice branch uses accounting
     rawMessage: "{kind, select, invoice {Balance owed: {amt, number, moneyAccounting}} credit {Credit} other {Other}}"
     values:
       kind: invoice
       amt: -75
-    expectedTranslation: "Balance owed: (US$75.00)"
+    expectedTranslation: "Balance owed: (£75.00)"

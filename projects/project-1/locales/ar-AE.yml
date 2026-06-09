@@ -1,4 +1,4 @@
-description: Bengali
+description: Arabic (United Arab Emirates)
 
 inheritFormatsFrom: en
 inheritTranslationsFrom: en
@@ -7,31 +7,31 @@ formats:
   number:
     money:
       style: currency
-      currency: BDT
+      currency: AED
     moneySymbol:
       style: currency
-      currency: BDT
+      currency: AED
       currencyDisplay: symbol
     moneyCode:
       style: currency
-      currency: BDT
+      currency: AED
       currencyDisplay: code
     moneyNarrow:
       style: currency
-      currency: BDT
+      currency: AED
       currencyDisplay: narrowSymbol
     moneyName:
       style: currency
-      currency: BDT
+      currency: AED
       currencyDisplay: name
     moneyAccounting:
       style: currency
-      currency: BDT
+      currency: AED
       currencySign: accounting
 
-# These examples evaluate the format reference suite for bn.
-# bn keeps the same preset names as en, but overrides the default money
-# presets to BDT so Bengali currency output is visible by default.
+# These examples evaluate the format reference suite for ar-AE.
+# ar-AE keeps the same preset names as en, but overrides the default money
+# presets to AED so country-specific currency output is visible by default.
 # Keep rawMessage on one line: folded YAML can change ICU parsing.
 
 examples:

@@ -1,4 +1,4 @@
-description: Bengali
+description: Arabic (Saudi Arabia)
 
 inheritFormatsFrom: en
 inheritTranslationsFrom: en
@@ -7,31 +7,31 @@ formats:
   number:
     money:
       style: currency
-      currency: BDT
+      currency: SAR
     moneySymbol:
       style: currency
-      currency: BDT
+      currency: SAR
       currencyDisplay: symbol
     moneyCode:
       style: currency
-      currency: BDT
+      currency: SAR
       currencyDisplay: code
     moneyNarrow:
       style: currency
-      currency: BDT
+      currency: SAR
       currencyDisplay: narrowSymbol
     moneyName:
       style: currency
-      currency: BDT
+      currency: SAR
       currencyDisplay: name
     moneyAccounting:
       style: currency
-      currency: BDT
+      currency: SAR
       currencySign: accounting
 
-# These examples evaluate the format reference suite for bn.
-# bn keeps the same preset names as en, but overrides the default money
-# presets to BDT so Bengali currency output is visible by default.
+# These examples evaluate the format reference suite for ar-SA.
+# ar-SA keeps the same preset names as en, but overrides the default money
+# presets to SAR so country-specific currency output is visible by default.
 # Keep rawMessage on one line: folded YAML can change ICU parsing.
 
 examples:

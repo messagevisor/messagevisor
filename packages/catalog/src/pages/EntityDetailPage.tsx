@@ -792,9 +792,7 @@ function FormatRowsTable(props: {
     }
 
     if (row.source === "target") {
-      return (
-        <div className="text-[10px] font-normal leading-snug text-faint">Target override</div>
-      );
+      return <div className="text-[10px] font-normal leading-snug text-faint">Target override</div>;
     }
 
     return null;
@@ -870,9 +868,7 @@ function FormatRowsTable(props: {
             {highlight ? <SearchHighlight text={valueText} query={highlightNeedle} /> : valueText}
           </div>
           {badge && (
-            <div className="flex shrink-0 flex-col items-end justify-center gap-1">
-              {badge}
-            </div>
+            <div className="flex shrink-0 flex-col items-end justify-center gap-1">{badge}</div>
           )}
         </div>
       </td>

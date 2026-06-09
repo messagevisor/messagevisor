@@ -756,6 +756,26 @@ function FormatRowsTable(props: {
     );
   }
 
+  function renderFormatSourceBadge(row: FormatRow) {
+    if (row.source === "inherited" && row.from) {
+      return (
+        <LabelValueBadge
+          label="inherited from"
+          value={row.from}
+          to={getEntityRoute("locale", row.from, setKey)}
+          tone="inheritance"
+          compact
+        />
+      );
+    }
+
+    if (row.source === "target") {
+      return <LabelValueBadge label="from" value="target" tone="neutral" compact />;
+    }
+
+    return null;
+  }
+
   /** Plain text in the cell. Param stays monospace for paths. */
   function renderSplitSegment(segment: string, role: "type" | "style" | "param") {
     const body = segmentBody(segment);
@@ -772,6 +792,17 @@ function FormatRowsTable(props: {
     return (
       <div className="whitespace-pre-wrap leading-snug text-text [overflow-wrap:anywhere]">
         {body}
+      </div>
+    );
+  }
+
+  function renderSplitStyleCellContent(plan: FormatSplitRowPlan) {
+    const badge = renderFormatSourceBadge(plan.row);
+
+    return (
+      <div className="flex min-w-0 flex-col items-start gap-1">
+        <div className="w-full min-w-0">{renderSplitSegment(plan.parts.style, "style")}</div>
+        {badge ? <div className="max-w-full overflow-hidden">{badge}</div> : null}
       </div>
     );
   }
@@ -801,8 +832,7 @@ function FormatRowsTable(props: {
 
   function renderValueColumn(row: FormatRow, bandAndPaddingClass: string) {
     const valueText = formatValue(row.value);
-    const showInheritedBadge = row.source === "inherited" && Boolean(row.from);
-    const showTargetBadge = row.source === "target";
+    const badge = splitPath ? null : renderFormatSourceBadge(row);
 
     return (
       <td className={[bandAndPaddingClass, formatSplitCellBorderClass("value")].join(" ")}>
@@ -815,20 +845,9 @@ function FormatRowsTable(props: {
           >
             {highlight ? <SearchHighlight text={valueText} query={highlightNeedle} /> : valueText}
           </div>
-          {(showInheritedBadge || showTargetBadge) && (
+          {badge && (
             <div className="flex shrink-0 flex-col items-end justify-center gap-1">
-              {showInheritedBadge && row.from ? (
-                <LabelValueBadge
-                  label="inherited from"
-                  value={row.from}
-                  to={getEntityRoute("locale", row.from, setKey)}
-                  tone="inheritance"
-                  compact
-                />
-              ) : null}
-              {showTargetBadge ? (
-                <LabelValueBadge label="from" value="target" tone="neutral" compact />
-              ) : null}
+              {badge}
             </div>
           )}
         </div>
@@ -1003,7 +1022,7 @@ function FormatRowsTable(props: {
                           formatSplitCellBorderClass("style"),
                         ].join(" ")}
                       >
-                        {renderSplitSegment(plan.parts.style, "style")}
+                        {renderSplitStyleCellContent(plan)}
                       </td>
                     ) : null}
                     {renderSplitExampleColumn(plan, bandClass)}

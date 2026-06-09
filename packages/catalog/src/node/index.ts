@@ -648,7 +648,7 @@ function getLocaleFormatSource(
   locales: Record<string, Locale>,
   formatPath: string,
 ): Pick<CatalogFormatRow, "source" | "from"> {
-  const pathSegments = formatPath.split(".");
+  const pathSegments = getFormatStylePathSegments(formatPath);
 
   if (typeof getPathValue(locales[localeKey]?.formats, pathSegments) !== "undefined") {
     return { source: "direct" };
@@ -668,6 +668,11 @@ function getLocaleFormatSource(
   return { source: "missing" };
 }
 
+function getFormatStylePathSegments(formatPath: string): string[] {
+  const pathSegments = formatPath.split(".").filter(Boolean);
+  return pathSegments.length > 2 ? pathSegments.slice(0, 2) : pathSegments;
+}
+
 function getFormatRows(
   runtime: CatalogRuntime,
   localeKey: string,
@@ -679,7 +684,8 @@ function getFormatRows(
   const rows = flattenObjectRows(computedFormats).map((row) => {
     if (
       target &&
-      typeof getPathValue(target.formats?.[localeKey], row.path.split(".")) !== "undefined"
+      typeof getPathValue(target.formats?.[localeKey], getFormatStylePathSegments(row.path)) !==
+        "undefined"
     ) {
       return { ...row, source: "target" as const, from: "target" };
     }

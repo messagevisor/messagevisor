@@ -756,6 +756,48 @@ function FormatRowsTable(props: {
     );
   }
 
+  function renderFormatSourceBadge(row: FormatRow) {
+    if (row.source === "inherited" && row.from) {
+      return (
+        <LabelValueBadge
+          label="inherited from"
+          value={row.from}
+          to={getEntityRoute("locale", row.from, setKey)}
+          tone="inheritance"
+          compact
+        />
+      );
+    }
+
+    if (row.source === "target") {
+      return <LabelValueBadge label="from" value="target" tone="neutral" compact />;
+    }
+
+    return null;
+  }
+
+  function renderFormatSourceMeta(row: FormatRow) {
+    if (row.source === "inherited" && row.from) {
+      return (
+        <div className="text-[10px] font-normal leading-snug text-faint">
+          Inherited from{" "}
+          <Link
+            to={getEntityRoute("locale", row.from, setKey)}
+            className="font-medium text-muted hover:text-primary hover:underline"
+          >
+            {row.from}
+          </Link>
+        </div>
+      );
+    }
+
+    if (row.source === "target") {
+      return <div className="text-[10px] font-normal leading-snug text-faint">Target override</div>;
+    }
+
+    return null;
+  }
+
   /** Plain text in the cell. Param stays monospace for paths. */
   function renderSplitSegment(segment: string, role: "type" | "style" | "param") {
     const body = segmentBody(segment);
@@ -772,6 +814,17 @@ function FormatRowsTable(props: {
     return (
       <div className="whitespace-pre-wrap leading-snug text-text [overflow-wrap:anywhere]">
         {body}
+      </div>
+    );
+  }
+
+  function renderSplitStyleCellContent(plan: FormatSplitRowPlan) {
+    const sourceMeta = renderFormatSourceMeta(plan.row);
+
+    return (
+      <div className="flex min-w-0 flex-col items-start gap-1.5">
+        <div className="w-full min-w-0">{renderSplitSegment(plan.parts.style, "style")}</div>
+        {sourceMeta}
       </div>
     );
   }
@@ -801,8 +854,7 @@ function FormatRowsTable(props: {
 
   function renderValueColumn(row: FormatRow, bandAndPaddingClass: string) {
     const valueText = formatValue(row.value);
-    const showInheritedBadge = row.source === "inherited" && Boolean(row.from);
-    const showTargetBadge = row.source === "target";
+    const badge = splitPath ? null : renderFormatSourceBadge(row);
 
     return (
       <td className={[bandAndPaddingClass, formatSplitCellBorderClass("value")].join(" ")}>
@@ -815,21 +867,8 @@ function FormatRowsTable(props: {
           >
             {highlight ? <SearchHighlight text={valueText} query={highlightNeedle} /> : valueText}
           </div>
-          {(showInheritedBadge || showTargetBadge) && (
-            <div className="flex shrink-0 flex-col items-end justify-center gap-1">
-              {showInheritedBadge && row.from ? (
-                <LabelValueBadge
-                  label="inherited from"
-                  value={row.from}
-                  to={getEntityRoute("locale", row.from, setKey)}
-                  tone="inheritance"
-                  compact
-                />
-              ) : null}
-              {showTargetBadge ? (
-                <LabelValueBadge label="from" value="target" tone="neutral" compact />
-              ) : null}
-            </div>
+          {badge && (
+            <div className="flex shrink-0 flex-col items-end justify-center gap-1">{badge}</div>
           )}
         </div>
       </td>
@@ -896,9 +935,9 @@ function FormatRowsTable(props: {
                 </>
               ) : (
                 <>
-                  <col className="min-w-0 w-[22%]" />
-                  <col className="min-w-0 w-[36%]" />
-                  <col className="min-w-0 w-[42%]" />
+                  <col className="min-w-0 w-[28%]" />
+                  <col className="min-w-0 w-[32%]" />
+                  <col className="min-w-0 w-[40%]" />
                 </>
               )
             ) : showExampleColumn ? (
@@ -912,9 +951,9 @@ function FormatRowsTable(props: {
             ) : (
               <>
                 <col className="min-w-0 w-[12%]" />
-                <col className="min-w-0 w-[18%]" />
-                <col className="min-w-0 w-[32%]" />
-                <col className="min-w-0 w-[38%]" />
+                <col className="min-w-0 w-[24%]" />
+                <col className="min-w-0 w-[28%]" />
+                <col className="min-w-0 w-[36%]" />
               </>
             )}
           </colgroup>
@@ -1003,7 +1042,7 @@ function FormatRowsTable(props: {
                           formatSplitCellBorderClass("style"),
                         ].join(" ")}
                       >
-                        {renderSplitSegment(plan.parts.style, "style")}
+                        {renderSplitStyleCellContent(plan)}
                       </td>
                     ) : null}
                     {renderSplitExampleColumn(plan, bandClass)}

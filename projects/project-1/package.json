@@ -1,7 +1,7 @@
 {
   "name": "@messagevisor/project-1",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Example Messagevisor project using YAML",
   "scripts": {
     "lint": "messagevisor lint",

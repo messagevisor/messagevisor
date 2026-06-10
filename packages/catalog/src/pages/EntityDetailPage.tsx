@@ -50,6 +50,7 @@ import {
   type DuplicateValuesSort,
   type SortDirection,
 } from "../utils/duplicateSorting";
+import { getRelevantIcuFormats } from "../utils/relevantIcuFormats";
 import type { ParsedQuery } from "../utils/searchQuery";
 import { parseQuery } from "../utils/searchQuery";
 
@@ -2539,12 +2540,18 @@ function LocaleExampleDetails(props: {
   example: EvaluatedLocaleExample;
   setKey?: string;
   localeDirection?: string;
+  computedFormats?: unknown;
   showLocale?: boolean;
   highlightQuery?: string;
 }) {
   const { example, setKey, localeDirection } = props;
   const q = props.highlightQuery?.trim() ?? "";
   const highlight = Boolean(q);
+  const relevantFormats = getRelevantIcuFormats(
+    example.rawMessage || example.originalTranslation,
+    props.computedFormats,
+    example.formats,
+  );
 
   function localeLink(localeKey: string) {
     return highlight ? (
@@ -2696,6 +2703,18 @@ function LocaleExampleDetails(props: {
           )}
         </InputField>
       )}
+
+      {typeof relevantFormats !== "undefined" && (
+        <InputField label="Relevant formats">
+          {highlight ? (
+            <pre className="max-w-full whitespace-pre-wrap rounded border border-border bg-elevated p-4 text-xs text-text [overflow-wrap:anywhere]">
+              <SearchHighlight text={JSON.stringify(relevantFormats, null, 2)} query={q} />
+            </pre>
+          ) : (
+            <JsonValueBlock value={relevantFormats} />
+          )}
+        </InputField>
+      )}
     </div>
   );
 }
@@ -2704,6 +2723,7 @@ function LocaleExamplesExpandedView(props: {
   examples: EvaluatedLocaleExample[];
   setKey?: string;
   localeDirection?: string;
+  computedFormats?: unknown;
   searchQuery: string;
 }) {
   return (
@@ -2729,6 +2749,7 @@ function LocaleExamplesExpandedView(props: {
                   example={example}
                   setKey={props.setKey}
                   localeDirection={props.localeDirection}
+                  computedFormats={props.computedFormats}
                   showLocale={false}
                   highlightQuery={props.searchQuery}
                 />
@@ -2748,6 +2769,7 @@ function LocaleExamplesCompactView(props: {
   examples: EvaluatedLocaleExample[];
   setKey?: string;
   localeDirection?: string;
+  computedFormats?: unknown;
   searchQuery: string;
 }) {
   const [expandedExampleIds, setExpandedExampleIds] = React.useState<string[]>([]);
@@ -2887,6 +2909,7 @@ function LocaleExamplesCompactView(props: {
                           example={example}
                           setKey={props.setKey}
                           localeDirection={props.localeDirection}
+                          computedFormats={props.computedFormats}
                           showLocale={false}
                           highlightQuery={props.searchQuery}
                         />
@@ -3022,6 +3045,7 @@ export function LocaleExamplesTab() {
           examples={filteredExamples}
           setKey={setKey}
           localeDirection={localeDirection}
+          computedFormats={detail.computedFormats}
           searchQuery={searchQuery}
         />
       ) : (
@@ -3029,6 +3053,7 @@ export function LocaleExamplesTab() {
           examples={filteredExamples}
           setKey={setKey}
           localeDirection={localeDirection}
+          computedFormats={detail.computedFormats}
           searchQuery={searchQuery}
         />
       )}

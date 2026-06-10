@@ -119,6 +119,6 @@ export interface TargetTest {
 }
 
 /**
- * Combined types
+ * Combined
  */
 export type Test = MessageTest | SegmentTest | LocaleTest | TargetTest;

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+// exports
 import IntlMessageFormat from "intl-messageformat";
 
 import type { MessagevisorFormatPayload, MessagevisorModule } from "@messagevisor/sdk";

@@ -1,3 +1,4 @@
+// exports
 import type { MessagevisorFormatPayload, MessagevisorModule } from "@messagevisor/sdk";
 
 export interface InterpolationModuleOptions {

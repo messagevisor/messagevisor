@@ -72,6 +72,8 @@ jobs:
           npx lerna version --conventional-commits --conventional-graduate --exact --yes --no-push
 
       - name: Publish
+        env:
+          NPM_CONFIG_PROVENANCE: "false"
         run: |
           unset NODE_AUTH_TOKEN
           rm -f .npmrc

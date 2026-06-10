@@ -50,6 +50,7 @@ import {
   type DuplicateValuesSort,
   type SortDirection,
 } from "../utils/duplicateSorting";
+import { getRelevantIcuFormats } from "../utils/relevantIcuFormats";
 import type { ParsedQuery } from "../utils/searchQuery";
 import { parseQuery } from "../utils/searchQuery";
 
@@ -340,6 +341,19 @@ function orderedFormatTypePillKeys(typesFromData: string[]): string[] {
   const primarySet = new Set(FORMAT_TYPE_PRIMARY_PILLS);
   const rest = typesFromData.filter((t) => !primarySet.has(t)).sort((a, b) => a.localeCompare(b));
   return [...FORMAT_TYPE_PRIMARY_PILLS, ...rest];
+}
+
+function orderedFormatSectionKeys(typesFromData: string[]): string[] {
+  const available = new Set(typesFromData);
+  const primary = FORMAT_TYPE_PRIMARY_PILLS.filter((type) => available.has(type));
+  const rest = typesFromData
+    .filter((type) => !FORMAT_TYPE_PRIMARY_PILLS.includes(type))
+    .sort((a, b) => a.localeCompare(b));
+  return [...primary, ...rest];
+}
+
+function formatStyleFragmentId(type: string, style: string): string {
+  return `format-${slugifyFragment(`${type}-${style || "default"}`)}`;
 }
 
 function setSearchParam(searchParams: URLSearchParams, key: string, value?: string) {
@@ -729,6 +743,8 @@ function FormatRowsTable(props: {
     );
   }
 
+  useScrollToHash([splitPath, q, props.selectedFormatType, rows.length, visibleRows.length]);
+
   if (rows.length === 0) {
     return <p className="text-sm text-muted">No formats found.</p>;
   }
@@ -743,6 +759,19 @@ function FormatRowsTable(props: {
   }
 
   const splitPlans = splitPath ? buildFormatSplitRowPlans(visibleRows) : null;
+  const splitSectionKeys = splitPath
+    ? orderedFormatSectionKeys(collectSortedFormatTypes(visibleRows))
+    : [];
+  const splitRowsByType = splitPath
+    ? visibleRows.reduce<Record<string, FormatRow[]>>((groups, row) => {
+        const type = splitFormatPath(row.path).type;
+        if (!groups[type]) {
+          groups[type] = [];
+        }
+        groups[type].push(row);
+        return groups;
+      }, {})
+    : {};
 
   function segmentBody(segment: string) {
     return segment ? (
@@ -820,10 +849,16 @@ function FormatRowsTable(props: {
 
   function renderSplitStyleCellContent(plan: FormatSplitRowPlan) {
     const sourceMeta = renderFormatSourceMeta(plan.row);
+    const fragmentId = formatStyleFragmentId(plan.parts.type, plan.parts.style);
 
     return (
       <div className="flex min-w-0 flex-col items-start gap-1.5">
-        <div className="w-full min-w-0">{renderSplitSegment(plan.parts.style, "style")}</div>
+        <a
+          href={`#${fragmentId}`}
+          className="w-full min-w-0 rounded-sm text-text hover:text-primary hover:underline"
+        >
+          {renderSplitSegment(plan.parts.style, "style")}
+        </a>
         {sourceMeta}
       </div>
     );
@@ -917,6 +952,109 @@ function FormatRowsTable(props: {
       >
         {renderExampleCellContent(row.examplePreview)}
       </td>
+    );
+  }
+
+  function renderSplitTable(plans: FormatSplitRowPlan[]) {
+    return (
+      <div className="min-w-0 overflow-x-auto rounded-lg border border-border">
+        <table className="w-full min-w-[34rem] table-fixed border-collapse bg-surface text-xs">
+          <colgroup>
+            {showExampleColumn ? (
+              <>
+                <col className="min-w-0 w-[24%]" />
+                <col className="min-w-0 w-[18%]" />
+                <col className="min-w-0 w-[28%]" />
+                <col className="min-w-0 w-[30%]" />
+              </>
+            ) : (
+              <>
+                <col className="min-w-0 w-[30%]" />
+                <col className="min-w-0 w-[30%]" />
+                <col className="min-w-0 w-[40%]" />
+              </>
+            )}
+          </colgroup>
+          <thead className="bg-elevated text-left text-[11px] uppercase tracking-wide text-muted">
+            <tr>
+              <th className="align-middle border-b border-r border-border/50 px-3 py-2 font-semibold">
+                Style
+              </th>
+              {showExampleColumn ? (
+                <th className="align-middle border-b border-r border-border/50 px-3 py-2 font-semibold">
+                  Example
+                </th>
+              ) : null}
+              <th className="align-middle border-b border-r border-border/40 px-3 py-2 font-semibold">
+                Param
+              </th>
+              <th className="align-middle border-b border-border px-3 py-2 font-semibold">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {plans.map((plan) => {
+              const bandClass = bandSurfaceClass(plan.typeBand);
+
+              return (
+                <tr key={plan.row.path}>
+                  {plan.showStyleCell ? (
+                    <td
+                      id={formatStyleFragmentId(plan.parts.type, plan.parts.style)}
+                      rowSpan={plan.styleRowSpan}
+                      className={[
+                        "align-middle min-w-0 scroll-mt-2 px-3 py-2 font-medium",
+                        bandClass,
+                        formatSplitCellBorderClass("style"),
+                      ].join(" ")}
+                    >
+                      {renderSplitStyleCellContent(plan)}
+                    </td>
+                  ) : null}
+                  {renderSplitExampleColumn(plan, bandClass)}
+                  <td
+                    className={[
+                      "align-middle min-w-0 px-3 py-2 font-medium text-muted",
+                      bandClass,
+                      formatSplitCellBorderClass("param"),
+                    ].join(" ")}
+                  >
+                    {renderSplitSegment(plan.parts.param, "param")}
+                  </td>
+                  {renderValueColumn(
+                    plan.row,
+                    ["align-middle min-w-0 px-3 py-2", bandClass].join(" "),
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  if (splitPath) {
+    return (
+      <div className="space-y-5">
+        {splitSectionKeys.map((typeKey) => {
+          const sectionRows = splitRowsByType[typeKey] || [];
+          const sectionPlans = buildFormatSplitRowPlans(sectionRows);
+          const styleCount = new Set(
+            sectionRows.map((row) => splitFormatPath(row.path).style).filter(Boolean),
+          ).size;
+          return (
+            <section key={typeKey} className="space-y-2">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-sm font-semibold text-text">{typeKey}</h3>
+                <span className="text-xs text-muted">
+                  {styleCount} {styleCount === 1 ? "style" : "styles"}
+                </span>
+              </div>
+              {renderSplitTable(sectionPlans)}
+            </section>
+          );
+        })}
+      </div>
     );
   }
 
@@ -2405,12 +2543,18 @@ function LocaleExampleDetails(props: {
   example: EvaluatedLocaleExample;
   setKey?: string;
   localeDirection?: string;
+  computedFormats?: unknown;
   showLocale?: boolean;
   highlightQuery?: string;
 }) {
   const { example, setKey, localeDirection } = props;
   const q = props.highlightQuery?.trim() ?? "";
   const highlight = Boolean(q);
+  const relevantFormats = getRelevantIcuFormats(
+    example.rawMessage || example.originalTranslation,
+    props.computedFormats,
+    example.formats,
+  );
 
   function localeLink(localeKey: string) {
     return highlight ? (
@@ -2562,6 +2706,18 @@ function LocaleExampleDetails(props: {
           )}
         </InputField>
       )}
+
+      {typeof relevantFormats !== "undefined" && (
+        <InputField label="Relevant formats">
+          {highlight ? (
+            <pre className="max-w-full whitespace-pre-wrap rounded border border-border bg-elevated p-4 text-xs text-text [overflow-wrap:anywhere]">
+              <SearchHighlight text={JSON.stringify(relevantFormats, null, 2)} query={q} />
+            </pre>
+          ) : (
+            <JsonValueBlock value={relevantFormats} />
+          )}
+        </InputField>
+      )}
     </div>
   );
 }
@@ -2570,6 +2726,7 @@ function LocaleExamplesExpandedView(props: {
   examples: EvaluatedLocaleExample[];
   setKey?: string;
   localeDirection?: string;
+  computedFormats?: unknown;
   searchQuery: string;
 }) {
   return (
@@ -2595,6 +2752,7 @@ function LocaleExamplesExpandedView(props: {
                   example={example}
                   setKey={props.setKey}
                   localeDirection={props.localeDirection}
+                  computedFormats={props.computedFormats}
                   showLocale={false}
                   highlightQuery={props.searchQuery}
                 />
@@ -2614,6 +2772,7 @@ function LocaleExamplesCompactView(props: {
   examples: EvaluatedLocaleExample[];
   setKey?: string;
   localeDirection?: string;
+  computedFormats?: unknown;
   searchQuery: string;
 }) {
   const [expandedExampleIds, setExpandedExampleIds] = React.useState<string[]>([]);
@@ -2753,6 +2912,7 @@ function LocaleExamplesCompactView(props: {
                           example={example}
                           setKey={props.setKey}
                           localeDirection={props.localeDirection}
+                          computedFormats={props.computedFormats}
                           showLocale={false}
                           highlightQuery={props.searchQuery}
                         />
@@ -2888,6 +3048,7 @@ export function LocaleExamplesTab() {
           examples={filteredExamples}
           setKey={setKey}
           localeDirection={localeDirection}
+          computedFormats={detail.computedFormats}
           searchQuery={searchQuery}
         />
       ) : (
@@ -2895,6 +3056,7 @@ export function LocaleExamplesTab() {
           examples={filteredExamples}
           setKey={setKey}
           localeDirection={localeDirection}
+          computedFormats={detail.computedFormats}
           searchQuery={searchQuery}
         />
       )}

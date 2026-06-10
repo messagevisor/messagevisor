@@ -1039,12 +1039,15 @@ function FormatRowsTable(props: {
         {splitSectionKeys.map((typeKey) => {
           const sectionRows = splitRowsByType[typeKey] || [];
           const sectionPlans = buildFormatSplitRowPlans(sectionRows);
+          const styleCount = new Set(
+            sectionRows.map((row) => splitFormatPath(row.path).style).filter(Boolean),
+          ).size;
           return (
             <section key={typeKey} className="space-y-2">
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="text-sm font-semibold text-text">{typeKey}</h3>
                 <span className="text-xs text-muted">
-                  {sectionRows.length} {sectionRows.length === 1 ? "param" : "params"}
+                  {styleCount} {styleCount === 1 ? "style" : "styles"}
                 </span>
               </div>
               {renderSplitTable(sectionPlans)}

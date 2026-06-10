@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.15.0](https://github.com/messagevisor/messagevisor/compare/v0.12.0...v0.15.0) (2026-06-10)
+
+
+### Features
+
+* trigger publish ([043954f](https://github.com/messagevisor/messagevisor/commit/043954f90601bddc6d277c5e3e8850a15202c847))
+* trigger publish ([c8a9285](https://github.com/messagevisor/messagevisor/commit/c8a9285e43f6fd227205bbc0ec743510911a535f))
+
+
+
+
+
 # [0.9.0](https://github.com/messagevisor/messagevisor/compare/v0.8.1...v0.9.0) (2026-06-09)
 
 

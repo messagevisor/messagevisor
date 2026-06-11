@@ -196,13 +196,13 @@ import { createMessagevisor } from "@messagevisor/sdk";
 import { createIcuModule } from "@messagevisor/module-icu";
 import datafile from "./datafiles/messagevisor-web-en-US.json";
 
-const messagevisor = createMessagevisor({
+const m = createMessagevisor({
   datafile,
   modules: [createIcuModule()],
 });
 
-messagevisor.translate("auth.signin");
-messagevisor.translate("dashboard.welcome", { name: "Ada" });
+m.translate("auth.signin");
+m.translate("dashboard.welcome", { name: "Ada" });
 ```
 
 See the [SDK docs](https://messagevisor.com/docs/sdks) for JavaScript, React, Vue, browser, Node.js, React Native, and react-intl compatibility usage.

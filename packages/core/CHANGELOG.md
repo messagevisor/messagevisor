@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.16.0](https://github.com/messagevisor/messagevisor/compare/v0.15.0...v0.16.0) (2026-06-11)
+
+
+### Features
+
+* allow changing rootDirectoryPath in CLI ([#17](https://github.com/messagevisor/messagevisor/issues/17)) ([67c4ded](https://github.com/messagevisor/messagevisor/commit/67c4ded0387873a83b297c7d916426efe49b21e9))
+
+
+
+
+
 # [0.15.0](https://github.com/messagevisor/messagevisor/compare/v0.12.0...v0.15.0) (2026-06-10)
 
 

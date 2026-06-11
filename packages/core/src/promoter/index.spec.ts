@@ -489,7 +489,7 @@ describe("promoteProjectSets", function () {
       );
 
       const audit = await fs.promises.readFile(
-        path.resolve(process.cwd(), first.auditFilePath),
+        path.resolve(root, first.auditFilePath),
         "utf8",
       );
       expect(audit).toContain("# Messagevisor Promotion");
@@ -516,7 +516,7 @@ describe("promoteProjectSets", function () {
     expect(result.auditFilePath).toContain(".json");
 
     const audit = JSON.parse(
-      await fs.promises.readFile(path.resolve(process.cwd(), result.auditFilePath!), "utf8"),
+      await fs.promises.readFile(path.resolve(root, result.auditFilePath!), "utf8"),
     );
 
     expect(audit.apply).toEqual(true);

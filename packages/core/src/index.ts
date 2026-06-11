@@ -15,5 +15,6 @@ export * from "./info";
 export * from "./importer";
 export * from "./init";
 export * from "./linter";
+export * from "./path";
 export * from "./promoter";
 export * from "./tester";

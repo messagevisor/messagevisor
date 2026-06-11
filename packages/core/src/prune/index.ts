@@ -13,6 +13,7 @@ import type {
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { mergeFormatPresets } from "../formats";
+import { formatProjectPath } from "../path";
 import { getProjectSetExecutions } from "../sets";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 
@@ -100,8 +101,8 @@ function getEntityFilePath(
 ) {
   const parser = projectConfig.parser as CustomParser;
 
-  return path.relative(
-    process.cwd(),
+  return formatProjectPath(
+    projectConfig,
     path.join(directoryPath, ...key.split(projectConfig.namespaceCharacter)) +
       `${suffix}.${parser.extension}`,
   );

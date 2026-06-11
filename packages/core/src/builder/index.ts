@@ -20,6 +20,7 @@ import { SCHEMA_VERSION, ProjectConfig, formatDatafilePath } from "../config";
 import { Datasource } from "../datasource";
 import { evaluateCondition } from "../evaluate";
 import { mergeFormatPresets } from "../formats";
+import { formatProjectPath } from "../path";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
@@ -801,7 +802,7 @@ function printBuildProgress(projectConfig: ProjectConfig, event: BuildProgressEv
 
   if (event.type === "localeBuilt") {
     const relativeFilePath = event.filePath
-      ? path.relative(process.cwd(), event.filePath)
+      ? formatProjectPath(projectConfig, event.filePath)
       : formatDatafilePath(projectConfig, event.target, event.locale);
     const messageCount = Object.keys(event.datafile.translations).length;
     const metadataCount = Object.keys(event.datafile.messages).length;
@@ -818,7 +819,7 @@ function printBuildProgress(projectConfig: ProjectConfig, event: BuildProgressEv
   console.log("");
   console.log(
     CLI_FORMAT_GREEN,
-    `Built ${event.datafiles.length} datafile(s) in ${path.relative(process.cwd(), projectConfig.datafilesDirectoryPath) || projectConfig.datafilesDirectoryPath}`,
+    `Built ${event.datafiles.length} datafile(s) in ${formatProjectPath(projectConfig, projectConfig.datafilesDirectoryPath)}`,
   );
   console.log(CLI_FORMAT_BOLD, `Revision: ${event.revision}`);
   console.log(CLI_FORMAT_BOLD, `Time:  ${prettyDuration(event.duration)}`);
@@ -846,7 +847,7 @@ function printProjectSetsBuildProgress(
     console.log("");
     console.log(
       CLI_FORMAT_GREEN,
-      `Built ${event.datafiles.length} datafile(s) across ${event.sets.length} set(s) in ${path.relative(process.cwd(), projectConfig.datafilesDirectoryPath) || projectConfig.datafilesDirectoryPath}`,
+      `Built ${event.datafiles.length} datafile(s) across ${event.sets.length} set(s) in ${formatProjectPath(projectConfig, projectConfig.datafilesDirectoryPath)}`,
     );
     console.log(CLI_FORMAT_BOLD, `Project revision: ${event.revision}`);
     console.log(CLI_FORMAT_BOLD, `Time:  ${prettyDuration(event.duration)}`);

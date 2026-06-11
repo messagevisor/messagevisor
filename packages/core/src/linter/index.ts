@@ -21,6 +21,7 @@ import {
   getProjectSetExecutions,
   getProjectSetRelativeFilePath,
 } from "../sets";
+import { formatProjectPath, getProjectRootDirectoryPath } from "../path";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN, CLI_FORMAT_RED, colorize } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
 
@@ -102,7 +103,7 @@ function getFullPathFromKey(projectConfig: ProjectConfig, entityType: LintEntity
       : path.join(projectConfig.testsDirectoryPath, fileName);
   }
 
-  return path.join(process.cwd(), "messagevisor.config.js");
+  return path.join(getProjectRootDirectoryPath(projectConfig), "messagevisor.config.js");
 }
 
 async function readAll<T>(
@@ -147,7 +148,7 @@ export async function lintProject(
   ) {
     for (const issue of getLintIssuesFromZodError(error)) {
       recordError({
-        filePath: path.relative(process.cwd(), fullPath),
+        filePath: formatProjectPath(projectConfig, fullPath),
         entityType,
         entityKey: key,
         message: issue.message,
@@ -168,7 +169,7 @@ export async function lintProject(
 
     if (!isValidEntityKey(projectConfig, key)) {
       recordError({
-        filePath: path.relative(process.cwd(), fullPath),
+        filePath: formatProjectPath(projectConfig, fullPath),
         entityType,
         entityKey: key,
         message: `Invalid name: "${key}". ${ENTITY_NAME_REGEX_ERROR}`,
@@ -186,7 +187,7 @@ export async function lintProject(
       }
     } catch (error) {
       recordError({
-        filePath: path.relative(process.cwd(), fullPath),
+        filePath: formatProjectPath(projectConfig, fullPath),
         entityType,
         entityKey: key,
         message: error instanceof Error ? error.message : String(error),
@@ -252,7 +253,7 @@ export async function lintProject(
       const fullPath = getFullPathFromKey(projectConfig, "locale", key);
 
       recordError({
-        filePath: path.relative(process.cwd(), fullPath),
+        filePath: formatProjectPath(projectConfig, fullPath),
         entityType: "locale",
         entityKey: key,
         message: `Circular locale dependency detected for ${field}: ${circularDependency.cycle.join(" -> ")}`,
@@ -289,7 +290,8 @@ export async function lintProject(
       ...lintMessageIcuFormatStyles(
         Object.fromEntries(Object.entries(messagesByKey).filter(([key]) => shouldLintKey(key))),
         localesByKey,
-        (key) => path.relative(process.cwd(), getFullPathFromKey(projectConfig, "message", key)),
+        (key) =>
+          formatProjectPath(projectConfig, getFullPathFromKey(projectConfig, "message", key)),
         { icuSkeleton: projectConfig.icuSkeleton },
       ),
     );

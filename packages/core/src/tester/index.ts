@@ -7,6 +7,7 @@ import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { buildDatafile, resolveFormats } from "../builder";
 import { evaluateSegment } from "../evaluate";
+import { formatProjectPath } from "../path";
 import {
   assertProjectSetJsonSelection,
   getProjectSetExecutions,
@@ -200,7 +201,7 @@ function getTestFilePath(projectConfig: ProjectConfig, testKey: string) {
   const specPath = `${basePath}.spec.${extension}`;
   const legacyPath = `${basePath}.${extension}`;
 
-  return path.relative(process.cwd(), fs.existsSync(specPath) ? specPath : legacyPath);
+  return formatProjectPath(projectConfig, fs.existsSync(specPath) ? specPath : legacyPath);
 }
 
 async function runTest(

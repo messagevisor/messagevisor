@@ -7,6 +7,7 @@ import type { Locale, Message, Override, Translation } from "@messagevisor/types
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
+import { formatProjectPath } from "../path";
 import { getProjectSetExecutions } from "../sets";
 import {
   CLI_FORMAT_BOLD,
@@ -1091,12 +1092,12 @@ export async function importProjectSets(
   );
 }
 
-function printImportResult(result: ImportProjectResult) {
+function printImportResult(projectConfig: ProjectConfig, result: ImportProjectResult) {
   console.log("");
   console.log(CLI_FORMAT_BOLD, "Importing Messagevisor translations");
   const inputLabel = isHttpUrl(result.inputFilePath)
     ? result.inputFilePath
-    : path.relative(process.cwd(), result.inputFilePath);
+    : formatProjectPath(projectConfig, result.inputFilePath);
   console.log(`  Input: ${colorize(inputLabel, 36)}`);
   console.log(`  Mode: ${result.apply ? "apply" : "preview"}`);
   if (result.summary.sets.length > 0) {
@@ -1152,7 +1153,7 @@ export const importPlugin = {
         parsed,
       );
 
-      printImportResult(result);
+      printImportResult(projectConfig, result);
     } catch (error) {
       if (printMessagevisorCLIError(error)) {
         return false;

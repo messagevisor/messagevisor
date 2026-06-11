@@ -181,9 +181,7 @@ describe("createPlugin", function () {
     expect(summary.requestedKeys).toEqual(["auth.signin", "auth.signout"]);
     expect(summary.createdKeys).toEqual(["auth.signout"]);
     expect(summary.skippedKeys).toEqual(["auth.signin"]);
-    expect(summary.createdFilePaths).toEqual([
-      path.relative(process.cwd(), path.join(root, "messages/auth/signout.yml")),
-    ]);
+    expect(summary.createdFilePaths).toEqual([path.join("messages", "auth", "signout.yml")]);
     logSpy.mockRestore();
   });
 

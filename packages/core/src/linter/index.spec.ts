@@ -52,6 +52,7 @@ describe("lintProject", function () {
       result.errors.some(
         (error) =>
           error.entityType === "locale" &&
+          error.filePath === path.join("locales", "en.yml") &&
           error.code === "unrecognized_keys" &&
           error.message.includes("unknown"),
       ),

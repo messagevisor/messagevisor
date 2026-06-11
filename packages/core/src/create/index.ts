@@ -4,6 +4,7 @@ import type { Attribute, Locale, Message, Target, Segment } from "@messagevisor/
 
 import type { Plugin } from "../cli";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
+import { formatProjectPath } from "../path";
 import { getProjectSetExecutions } from "../sets";
 
 type CreateEntityType = "messages" | "locales" | "targets" | "attributes" | "segments";
@@ -224,7 +225,7 @@ async function createDefinitions(
     await writeEntity(datasource, entityType, key);
     createdKeys.push(key);
     createdFilePaths.push(
-      path.relative(process.cwd(), getEntityFilePath(projectConfig, entityType, key)),
+      formatProjectPath(projectConfig, getEntityFilePath(projectConfig, entityType, key)),
     );
     existingKeys.add(key);
   }

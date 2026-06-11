@@ -3,6 +3,7 @@ import * as path from "path";
 import type { ProjectConfig } from "./config";
 import type { Datasource } from "./datasource";
 import { MessagevisorCLIError } from "./error";
+import { formatProjectPath } from "./path";
 
 export interface ProjectSetExecution {
   set: string;
@@ -61,8 +62,8 @@ export function getProjectSetRelativeFilePath(
   set: string,
   filePath: string,
 ) {
-  const setDirectoryPath = path.relative(
-    process.cwd(),
+  const setDirectoryPath = formatProjectPath(
+    projectConfig,
     path.join(projectConfig.setsDirectoryPath, set),
   );
 

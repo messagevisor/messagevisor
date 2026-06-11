@@ -16,6 +16,7 @@ import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import { lintProject, type LintError } from "../linter";
+import { formatProjectPath } from "../path";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN, colorize } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
 
@@ -1008,7 +1009,7 @@ async function writePromotionAudit(
 
   await fs.promises.writeFile(filePath, content);
 
-  return path.relative(process.cwd(), filePath);
+  return formatProjectPath(projectConfig, filePath);
 }
 
 export async function promoteProjectSets(
@@ -1075,24 +1076,24 @@ export async function promoteProjectSets(
   const created = plans
     .filter((plan) => !plan.destination)
     .map((plan) =>
-      path.relative(
-        process.cwd(),
+      formatProjectPath(
+        projectConfig,
         getEntityFilePath(destinationDatasource.getConfig(), plan.type, plan.key),
       ),
     );
   const updated = plans
     .filter((plan) => plan.destination && !deepEqual(plan.destination, plan.merged))
     .map((plan) =>
-      path.relative(
-        process.cwd(),
+      formatProjectPath(
+        projectConfig,
         getEntityFilePath(destinationDatasource.getConfig(), plan.type, plan.key),
       ),
     );
   const unchanged = plans
     .filter((plan) => plan.destination && deepEqual(plan.destination, plan.merged))
     .map((plan) =>
-      path.relative(
-        process.cwd(),
+      formatProjectPath(
+        projectConfig,
         getEntityFilePath(destinationDatasource.getConfig(), plan.type, plan.key),
       ),
     );

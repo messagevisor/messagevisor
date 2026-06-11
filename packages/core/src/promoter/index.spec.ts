@@ -488,10 +488,7 @@ describe("promoteProjectSets", function () {
         ".messagevisor/promotions/20260419T102030-dev-to-staging-1.md",
       );
 
-      const audit = await fs.promises.readFile(
-        path.resolve(process.cwd(), first.auditFilePath),
-        "utf8",
-      );
+      const audit = await fs.promises.readFile(path.resolve(root, first.auditFilePath), "utf8");
       expect(audit).toContain("# Messagevisor Promotion");
       expect(audit).toContain("- Mode: apply");
       expect(audit).toContain("messages/product/price.yml");
@@ -516,7 +513,7 @@ describe("promoteProjectSets", function () {
     expect(result.auditFilePath).toContain(".json");
 
     const audit = JSON.parse(
-      await fs.promises.readFile(path.resolve(process.cwd(), result.auditFilePath!), "utf8"),
+      await fs.promises.readFile(path.resolve(root, result.auditFilePath!), "utf8"),
     );
 
     expect(audit.apply).toEqual(true);

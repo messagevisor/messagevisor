@@ -67,6 +67,7 @@ Messagevisor lets teams manage application copy, translations, and locale behavi
 ```bash
 npx messagevisor init
 npm install
+
 npx messagevisor lint
 npx messagevisor build
 npx messagevisor catalog
@@ -161,7 +162,9 @@ This monorepo includes focused projects under [`projects/`](./projects):
 Try one:
 
 ```bash
-cd projects/project-1
+npx @messagevisor/cli init --project=environments
+npm install
+
 npx messagevisor info
 npx messagevisor test
 npx messagevisor catalog

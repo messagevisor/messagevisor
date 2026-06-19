@@ -496,7 +496,7 @@ examples:
     context:
       platform: ios
 
-# Granular format conformance examples
+  # Granular format conformance examples
   - description: Number / decimal negative
     rawMessage: "{value, number, decimal}"
     values:

@@ -57,7 +57,7 @@ assertions:
     rawMessage: "{when, time, zoneShortOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-    expectedTranslation: "٨:٣٠ ص غرينتش"
+    expectedTranslation: "٢:١٥ م غرينتش+٥:٤٥"
     expectedByRuntime:
       java: ٨:٣٠ ص غرينتش+٠
   - description: "Time / time zone short generic"

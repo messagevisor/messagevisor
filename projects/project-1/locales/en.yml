@@ -441,15 +441,16 @@ formats:
       minute: 2-digit
       timeZone: UTC
       timeZoneName: long
+    # A non-zero offset avoids ICU-dependent UTC rendering as either GMT or GMT+0.
     zoneShortOffset:
       hour: numeric
       minute: 2-digit
-      timeZone: UTC
+      timeZone: Asia/Kathmandu
       timeZoneName: shortOffset
     zoneLongOffset:
       hour: numeric
       minute: 2-digit
-      timeZone: UTC
+      timeZone: Asia/Kathmandu
       timeZoneName: longOffset
     zoneShortGeneric:
       hour: numeric

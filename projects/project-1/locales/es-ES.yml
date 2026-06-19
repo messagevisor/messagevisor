@@ -28,6 +28,19 @@ formats:
       style: currency
       currency: EUR
       currencySign: accounting
+  time:
+    hour12:
+      hour: numeric
+      minute: 2-digit
+      dayPeriod: short
+      hour12: true
+      timeZone: UTC
+    hourCycle11:
+      hour: 2-digit
+      minute: 2-digit
+      dayPeriod: short
+      hourCycle: h11
+      timeZone: UTC
 
 # These examples evaluate the format reference suite for es-ES.
 # es-ES keeps the same preset names as en, but overrides the default money

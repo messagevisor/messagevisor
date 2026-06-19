@@ -9,6 +9,7 @@ assertions:
     expectedTranslation: "Local time: 12:00 PM"
     expectedByRuntime:
       go: "Local time: 12:00 pm"
+      java: "Local time: 12:00 PM"
   - locale: en-US
     target: web
     timeZone: America/New_York
@@ -17,6 +18,7 @@ assertions:
     expectedTranslation: "Local time: 7:00 AM"
     expectedByRuntime:
       go: "Local time: 7:00 am"
+      java: "Local time: 7:00 AM"
   - locale: nl-NL
     target: web
     timeZone: Europe/Amsterdam
@@ -24,4 +26,4 @@ assertions:
       date: "2025-01-01T12:00:00Z"
     expectedTranslation: "Lokale tijd: 13:00"
     expectedByRuntime:
-      java: "Lokale tijd: 1:00 p.m."
+      java: "Lokale tijd: 13:00"

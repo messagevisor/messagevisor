@@ -9,6 +9,7 @@ assertions:
     expectedTranslation: "Starts at 12:00 PM"
     expectedByRuntime:
       go: "Starts at 12:00 pm"
+      java: Starts at 12:00 PM
   - locale: en-US
     target: web
     timeZone: America/New_York
@@ -17,3 +18,4 @@ assertions:
     expectedTranslation: "Starts at 7:00 AM"
     expectedByRuntime:
       go: "Starts at 7:00 am"
+      java: Starts at 7:00 AM

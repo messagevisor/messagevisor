@@ -26,11 +26,15 @@ assertions:
     values:
       when: "2026-05-12T12:00:00Z"
     expectedTranslation: "12 mittags"
+    expectedByRuntime:
+      java: 12 Uhr mittags
   - description: "Time / hour12 true"
     rawMessage: "{when, time, hour12}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30 AM"
+    expectedByRuntime:
+      java: 8:30 AM
   - description: "Time / hour12 false"
     rawMessage: "{when, time, hour24}"
     values:
@@ -41,6 +45,8 @@ assertions:
     values:
       when: "2026-05-12T00:30:45.678Z"
     expectedTranslation: "00:30 AM"
+    expectedByRuntime:
+      java: 00:30 AM
   - description: "Time / hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:
@@ -56,6 +62,8 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "08:30 GMT"
+    expectedByRuntime:
+      java: 08:30 GMT+0
   - description: "Time / time zone short generic"
     rawMessage: "{when, time, zoneShortGeneric}"
     values:

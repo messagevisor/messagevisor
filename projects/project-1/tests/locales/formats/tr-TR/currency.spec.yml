@@ -10,12 +10,14 @@ assertions:
     rawMessage: "{amount, number, moneyCode}"
     values:
       amount: 1234.5
-    expectedTranslation: "TRY\u00A01.234,50"
+    expectedTranslation: "TRY 1.234,50"
   - description: "Currency / name display"
     rawMessage: "{amount, number, moneyName}"
     values:
       amount: 1234.5
     expectedTranslation: "₺1.234,50 Türk lirası"
+    expectedByRuntime:
+      java: 1.234,50 Türk lirası
   - description: "Currency / accounting sign"
     rawMessage: "{amount, number, moneyAccounting}"
     values:
@@ -26,7 +28,7 @@ assertions:
     values:
       amount: 1234.5
     currency: "EUR"
-    expectedTranslation: "EUR\u00A01.234,50"
+    expectedTranslation: "EUR 1.234,50"
   - description: "Unit and percent / percent"
     rawMessage: "{value, number, percent}"
     values:

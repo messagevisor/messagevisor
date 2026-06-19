@@ -1,0 +1,23 @@
+description: Java SDK conformance
+pretty: true
+
+includeMessages:
+  - "*"
+
+locales:
+  - ar-AE
+  - ar-SA
+  - bn
+  - ca-ES
+  - de-DE
+  - en
+  - en-GB
+  - en-NL
+  - en-US
+  - es-ES
+  - fr-FR
+  - it-IT
+  - nl
+  - nl-BE
+  - nl-NL
+  - tr-TR

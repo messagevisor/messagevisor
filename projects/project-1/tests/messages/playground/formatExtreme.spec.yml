@@ -15,10 +15,19 @@ assertions:
       yen: 1999.99
       rate: 0.0575
       when: "2026-05-12T08:30:45.678Z"
-    expectedTranslation: "Plain 1,234,567.891; fixed 12.00; significant 12,300; signed +5; compact 13K/13 thousand; unit 42 kilometers; money £99.50; yen ¥2,000; percent 5.8%; date 05/12/2026; long May 12, 2026; zone 8:30 AM UTC; generic 4:30 AM ET."
+    expectedTranslation: "Plain 1,234,567.891; fixed 12.00; significant 12,300;
+      signed +5; compact 13K/13 thousand; unit 42 kilometers; money £99.50; yen
+      ¥2,000; percent 5.8%; date 05/12/2026; long May 12, 2026; zone 8:30 AM
+      UTC; generic 4:30 AM ET."
     expectedByRuntime:
-      java: "Plain 1,234,567.891; fixed 12.00; significant 12,300; signed +5; compact 12K/12 thousand; unit 42 kilometers; money £99.50; yen ¥2,000; percent 5.8%; date 05/12/2026; long May 12, 2026; zone 8:30 AM UTC; generic 4:30 AM ET."
-      swift: "Plain 1,234,567.891; fixed 12.00; significant 12,300; signed +5; compact 12K/12K; unit 42 kilometers; money £99.50; yen ¥2,000; percent 5.8%; date 05/12/2026; long May 12, 2026; zone 8:30 AM GMT; generic 4:30 AM ET."
+      java: "Plain 1,234,567.891; fixed 12.00; significant 12,300; signed +5; compact
+        13K/13 thousand; unit 42 kilometers; money £99.50; yen ¥2,000; percent
+        5.8%; date 05/12/2026; long May 12, 2026; zone 8:30 AM UTC; generic
+        4:30 AM ET."
+      swift: "Plain 1,234,567.891; fixed 12.00; significant 12,300; signed +5; compact
+        12K/12K; unit 42 kilometers; money £99.50; yen ¥2,000; percent 5.8%;
+        date 05/12/2026; long May 12, 2026; zone 8:30 AM GMT; generic 4:30 AM
+        ET."
 
   - description: nl-NL extreme portable formatter mix
     locale: nl-NL
@@ -34,10 +43,19 @@ assertions:
       yen: 1999.99
       rate: 0.0575
       when: "2026-05-12T08:30:45.678Z"
-    expectedTranslation: "Gewoon 1.234.567,891; vast 12,00; significant 12.300; teken +5; compact 13K/13 duizend; eenheid 42 kilometer; geld £ 99,50; yen JP¥ 2.000; percentage 5,8%; datum 12-05-2026; lang 12 mei 2026; zone 08:30 UTC; generiek 04:30 ET."
+    expectedTranslation: "Gewoon 1.234.567,891; vast 12,00; significant 12.300;
+      teken +5; compact 13K/13 duizend; eenheid 42 kilometer; geld £ 99,50; yen
+      JP¥ 2.000; percentage 5,8%; datum 12-05-2026; lang 12 mei 2026; zone 08:30
+      UTC; generiek 04:30 ET."
     expectedByRuntime:
-      java: "Gewoon 1.234.567,891; vast 12,00; significant 12.300; teken +5; compact 12K/12 duizend; eenheid 42 kilometer; geld £ 99,50; yen JP¥ 2.000; percentage 5,8%; datum 05/12/2026; lang mei 12, 2026; zone 8:30 a.m. UTC; generiek 4:30 a.m. ET."
-      swift: "Gewoon 1.234.567,891; vast 12,00; significant 12.300; teken +5; compact 12K/12K; eenheid 42 kilometer; geld £ 99,50; yen JP¥ 2.000; percentage 5,8%; datum 12-05-2026; lang 12 mei 2026; zone 08:30 GMT; generiek 04:30 ET."
+      java: "Gewoon 1.234.567,891; vast 12,00; significant 12.300; teken +5; compact
+        13K/13 duizend; eenheid 42 kilometer; geld £ 99,50; yen JP¥ 2.000;
+        percentage 5,8%; datum 12-05-2026; lang 12 mei 2026; zone 08:30 UTC;
+        generiek 04:30 ET."
+      swift: "Gewoon 1.234.567,891; vast 12,00; significant 12.300; teken +5; compact
+        12K/12K; eenheid 42 kilometer; geld £ 99,50; yen JP¥ 2.000; percentage
+        5,8%; datum 12-05-2026; lang 12 mei 2026; zone 08:30 GMT; generiek 04:30
+        ET."
 
   - description: bn extreme formatter mix with non-Latin digits
     locale: bn
@@ -53,7 +71,16 @@ assertions:
       yen: 1999.99
       rate: 0.0575
       when: "2026-05-12T08:30:45.678Z"
-    expectedTranslation: "Plain ১২,৩৪,৫৬৭.৮৯১; fixed ১২.০০; significant ১২,৩০০; signed +৫; compact ১৩ হা/১৩ হাজার; unit ৪২ কিলোমিটার; money ৯৯.৫০£; yen ২,০০০ JP¥; percent ৫.৮%; date ১২/০৫/২০২৬; long ১২ মে, ২০২৬; zone ৮:৩০ AM UTC; generic ৪:৩০ AM নিউইয়র্ক সময়."
+    expectedTranslation: "Plain ১২,৩৪,৫৬৭.৮৯১; fixed ১২.০০; significant ১২,৩০০;
+      signed +৫; compact ১৩ হা/১৩ হাজার; unit ৪২ কিলোমিটার; money ৯৯.৫০£; yen
+      ২,০০০ JP¥; percent ৫.৮%; date ১২/০৫/২০২৬; long ১২ মে, ২০২৬; zone ৮:৩০ AM
+      UTC; generic ৪:৩০ AM নিউইয়র্ক সময়."
     expectedByRuntime:
-      java: "Plain ১২,৩৪,৫৬৭.৮৯১; fixed ১২.০০; significant ১২,৩০০; signed +৫; compact ১২ হা/১২ হাজার; unit ৪২ কিলোমিটার; money ৯৯.৫০£; yen ২,০০০ JP¥; percent ৫.৮%; date ০৫/১২/২০২৬; long মে ১২, ২০২৬; zone ৮:৩০ AM UTC; generic ৪:৩০ AM নিউইয়র্ক সময়."
-      swift: "Plain 12,34,567.891; fixed 12.00; significant 12,300; signed +5; compact 12 হা/12 হা; unit 42 কিলোমিটার; money 99.50£; yen 2,000 JP¥; percent 5.8%; date 12/05/2026; long 12 মে, 2026; zone 8:30 AM GMT +0; generic 4:30 AM নিউইয়র্ক সময়."
+      java: "Plain ১২,৩৪,৫৬৭.৮৯১; fixed ১২.০০; significant ১২,৩০০; signed +৫; compact
+        ১৩ হা/১৩ হাজার; unit ৪২ কিলোমিটার; money ৯৯.৫০£; yen ২,০০০ JP¥; percent
+        ৫.৮%; date ১২/০৫/২০২৬; long ১২ মে, ২০২৬; zone ৮:৩০ AM UTC; generic ৪:৩০
+        AM নিউইয়র্ক সময়."
+      swift: "Plain 12,34,567.891; fixed 12.00; significant 12,300; signed +5; compact
+        12 হা/12 হা; unit 42 কিলোমিটার; money 99.50£; yen 2,000 JP¥; percent
+        5.8%; date 12/05/2026; long 12 মে, 2026; zone 8:30 AM GMT +0; generic
+        4:30 AM নিউইয়র্ক সময়."

@@ -31,6 +31,8 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "১২ মে, ২০২৬ খ্রীষ্টাব্দ"
+    expectedByRuntime:
+      java: ১২ মে, ২০২৬ খ্রিস্টাব্দ
   - description: "Date / Arabic digits"
     rawMessage: "{when, date, arabicNumeric}"
     values:

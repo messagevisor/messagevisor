@@ -11,6 +11,7 @@ assertions:
     expectedTranslation: "Webinar: 01/01/2025 at 12:00 PM sharp"
     expectedByRuntime:
       go: "Webinar: 1/1/25 at 12:00 pm sharp"
+      java: "Webinar: 01/01/2025 at 12:00 PM sharp"
   - locale: nl-NL
     target: web
     timeZone: Europe/Amsterdam
@@ -20,4 +21,4 @@ assertions:
       date: "2025-01-01T12:00:00Z"
     expectedTranslation: "Webinar: 01-01-2025 om 13:00 precies"
     expectedByRuntime:
-      java: "Webinar: 01/01/2025 om 1:00 p.m. precies"
+      java: "Webinar: 01-01-2025 om 13:00 precies"

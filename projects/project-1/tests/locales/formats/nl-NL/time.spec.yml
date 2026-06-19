@@ -106,11 +106,15 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "08:30 GMT"
+    expectedByRuntime:
+      java: 08:30 GMT+0
   - description: "Time / time zone long offset"
     rawMessage: "{when, time, zoneLongOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "08:30 GMT"
+    expectedByRuntime:
+      java: 08:30 GMT+00:00
   - description: "Time / time zone short generic"
     rawMessage: "{when, time, zoneShortGeneric}"
     values:

@@ -226,6 +226,7 @@ assertions:
     expectedTranslation: 11:00:00 PM
     expectedByRuntime:
       go: 11:00:00 pm
+      java: 11:00:00 PM
 
   - description: en-US ad hoc formats are honored
     rawMessage: "{value, number, signed}"
@@ -239,47 +240,57 @@ assertions:
     expectedTranslation: "+7"
 
   - description: en-US plural with explicit =0 branch
-    rawMessage: "{items, plural, =0 {No items in cart — {total, number, money}} one {# item in cart — {total, number, money}} other {# items in cart — {total, number, money}}}"
+    rawMessage: "{items, plural, =0 {No items in cart — {total, number, money}} one
+      {# item in cart — {total, number, money}} other {# items in cart — {total,
+      number, money}}}"
     values:
       items: 0
       total: 0
     expectedTranslation: No items in cart — $0.00
 
   - description: en-US select branch with nested money format
-    rawMessage: "{kind, select, invoice {Invoice} credit {Store credit: {amt, number, moneySymbol}} other {Other}}"
+    rawMessage: "{kind, select, invoice {Invoice} credit {Store credit: {amt,
+      number, moneySymbol}} other {Other}}"
     values:
       kind: credit
       amt: 75
     expectedTranslation: "Store credit: $75.00"
 
   - description: en-US selectordinal first
-    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd
+      place} other {#th place}}"
     values:
       place: 1
     expectedTranslation: 1st place
 
   - description: en-US selectordinal second
-    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd
+      place} other {#th place}}"
     values:
       place: 2
     expectedTranslation: 2nd place
 
   - description: en-US selectordinal third
-    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd
+      place} other {#th place}}"
     values:
       place: 3
     expectedTranslation: 3rd place
 
   - description: en-US selectordinal other
-    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd place} other {#th place}}"
+    rawMessage: "{place, selectordinal, one {#st place} two {#nd place} few {#rd
+      place} other {#th place}}"
     values:
       place: 11
     expectedTranslation: 11th place
 
   - description: en-US composition with multiple presets
-    rawMessage: "Due today: {amount, number, moneySymbol} · as code {amount, number, moneyCode} · accounting style {amount, number, moneyAccounting}."
+    rawMessage: "Due today: {amount, number, moneySymbol} · as code {amount, number,
+      moneyCode} · accounting style {amount, number, moneyAccounting}."
     values:
       amount: -1284.5
-    expectedTranslation: "Due today: -$1,284.50 · as code -USD 1,284.50 · accounting style ($1,284.50)."
+    expectedTranslation: "Due today: -$1,284.50 · as code -USD 1,284.50 · accounting
+      style ($1,284.50)."
     expectedByRuntime:
-      go: "Due today: -$1,284.50 · as code -USD1,284.50 · accounting style ($1,284.50)."
+      go: "Due today: -$1,284.50 · as code -USD1,284.50 · accounting style
+        ($1,284.50)."

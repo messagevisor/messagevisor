@@ -1,0 +1,109 @@
+# JavaScript reference output: Node 24 / Intl. One raw ICU format per assertion.
+locale: "ar-SA"
+assertions:
+  - description: "Time / full style"
+    rawMessage: "{when, time, fullStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٨:٣٠:٤٥ ص التوقيت العالمي المنسق"
+  - description: "Time / short style"
+    rawMessage: "{when, time, shortStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٨:٣٠ ص"
+  - description: "Time / seconds"
+    rawMessage: "{when, time, seconds}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٨:٣٠:٤٥ ص"
+  - description: "Time / fractional seconds 3 digits"
+    rawMessage: "{when, time, fractional}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٨:٣٠:٤٥٫٦٧٨ ص"
+  - description: "Time / day period long"
+    rawMessage: "{when, time, dayPeriodLong}"
+    values:
+      when: "2026-05-12T12:00:00Z"
+    expectedTranslation: "١٢ ظهرًا"
+  - description: "Time / hour12 true"
+    rawMessage: "{when, time, hour12}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٨:٣٠ ص"
+  - description: "Time / hour12 false"
+    rawMessage: "{when, time, hour24}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٠٨:٣٠"
+  - description: "Time / hour cycle h11"
+    rawMessage: "{when, time, hourCycle11}"
+    values:
+      when: "2026-05-12T00:30:45.678Z"
+    expectedTranslation: "٠٠:٣٠ ص"
+  - description: "Time / hour cycle h23"
+    rawMessage: "{when, time, hourCycle23}"
+    values:
+      when: "2026-05-12T00:30:45.678Z"
+    expectedTranslation: "٠٠:٣٠"
+  - description: "Time / time zone short"
+    rawMessage: "{when, time, zoneShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٨:٣٠ ص UTC"
+  - description: "Time / time zone short offset"
+    rawMessage: "{when, time, zoneShortOffset}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٨:٣٠ ص غرينتش"
+  - description: "Time / time zone short generic"
+    rawMessage: "{when, time, zoneShortGeneric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٤:٣٠ ص توقيت نيويورك"
+  - description: "Time / time zone long generic"
+    rawMessage: "{when, time, zoneLongGeneric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٤:٣٠ ص التوقيت الشرقي لأمريكا الشمالية"
+  - description: "Time / Amsterdam winter"
+    rawMessage: "{when, time, amsterdamShort}"
+    values:
+      when: "2026-01-15T12:00:00Z"
+    expectedTranslation: "١:٠٠ م"
+  - description: "Time / Amsterdam summer"
+    rawMessage: "{when, time, amsterdamShort}"
+    values:
+      when: "2026-07-15T12:00:00Z"
+    expectedTranslation: "٢:٠٠ م"
+  - description: "Time / New York winter"
+    rawMessage: "{when, time, newYorkShort}"
+    values:
+      when: "2026-01-15T12:00:00Z"
+    expectedTranslation: "٧:٠٠ ص"
+  - description: "Time / New York summer"
+    rawMessage: "{when, time, newYorkShort}"
+    values:
+      when: "2026-07-15T12:00:00Z"
+    expectedTranslation: "٨:٠٠ ص"
+  - description: "Time / Riyadh"
+    rawMessage: "{when, time, riyadhShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١١:٣٠ ص"
+  - description: "Time / Tokyo"
+    rawMessage: "{when, time, tokyoShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٥:٣٠ م"
+  - description: "Time / per-call Tokyo override"
+    rawMessage: "{when, time, seconds}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    timeZone: "Asia/Tokyo"
+    expectedTranslation: "٥:٣٠:٤٥ م"
+  - description: "Time / Latin digits"
+    rawMessage: "{when, time, latinTime}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30 ص"

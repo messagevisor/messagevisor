@@ -8,6 +8,12 @@ formats:
       style: decimal
       minimumFractionDigits: 2
       maximumFractionDigits: 2
+    fractionMin2:
+      style: decimal
+      minimumFractionDigits: 2
+    fractionMax4:
+      style: decimal
+      maximumFractionDigits: 4
     integerPadded:
       minimumIntegerDigits: 4
       maximumFractionDigits: 0
@@ -35,6 +41,8 @@ formats:
       notation: scientific
     engineering:
       notation: engineering
+    standard:
+      notation: standard
     signAuto:
       signDisplay: auto
       maximumFractionDigits: 0
@@ -94,12 +102,24 @@ formats:
       minimumSignificantDigits: 3
       maximumSignificantDigits: 4
       roundingPriority: lessPrecision
+    roundingPriorityAuto:
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2
+      minimumSignificantDigits: 3
+      maximumSignificantDigits: 4
+      roundingPriority: auto
     stripIfInteger:
       minimumFractionDigits: 2
       maximumFractionDigits: 2
       trailingZeroDisplay: stripIfInteger
+    trailingZeroAuto:
+      minimumFractionDigits: 2
+      maximumFractionDigits: 2
+      trailingZeroDisplay: auto
     arabicDigits:
       numberingSystem: arab
+    latinDigits:
+      numberingSystem: latn
     money:
       style: currency
       currency: USD
@@ -159,6 +179,24 @@ formats:
       unit: meter
       unitDisplay: long
   date:
+    yearNumeric:
+      year: numeric
+      timeZone: UTC
+    yearTwoDigit:
+      year: 2-digit
+      timeZone: UTC
+    monthNumericOnly:
+      month: numeric
+      timeZone: UTC
+    monthTwoDigitOnly:
+      month: 2-digit
+      timeZone: UTC
+    dayNumericOnly:
+      day: numeric
+      timeZone: UTC
+    dayTwoDigitOnly:
+      day: 2-digit
+      timeZone: UTC
     fullStyle:
       dateStyle: full
       timeZone: UTC
@@ -262,6 +300,24 @@ formats:
       day: numeric
       calendar: japanese
       timeZone: UTC
+    gregorianLong:
+      year: numeric
+      month: long
+      day: numeric
+      calendar: gregory
+      timeZone: UTC
+    islamicLong:
+      year: numeric
+      month: long
+      day: numeric
+      calendar: islamic
+      timeZone: UTC
+    latinNumeric:
+      year: numeric
+      month: 2-digit
+      day: 2-digit
+      numberingSystem: latn
+      timeZone: UTC
     matcherBasic:
       year: numeric
       month: short
@@ -275,6 +331,18 @@ formats:
       formatMatcher: best fit
       timeZone: UTC
   time:
+    hourNumericOnly:
+      hour: numeric
+      timeZone: UTC
+    hourTwoDigitOnly:
+      hour: 2-digit
+      timeZone: UTC
+    minuteNumericOnly:
+      minute: numeric
+      timeZone: UTC
+    secondNumericOnly:
+      second: numeric
+      timeZone: UTC
     fullStyle:
       timeStyle: full
       timeZone: UTC
@@ -393,6 +461,27 @@ formats:
       minute: 2-digit
       timeZone: America/New_York
       timeZoneName: longGeneric
+    amsterdamShort:
+      hour: numeric
+      minute: 2-digit
+      timeZone: Europe/Amsterdam
+    newYorkShort:
+      hour: numeric
+      minute: 2-digit
+      timeZone: America/New_York
+    riyadhShort:
+      hour: numeric
+      minute: 2-digit
+      timeZone: Asia/Riyadh
+    tokyoShort:
+      hour: numeric
+      minute: 2-digit
+      timeZone: Asia/Tokyo
+    latinTime:
+      hour: numeric
+      minute: 2-digit
+      numberingSystem: latn
+      timeZone: UTC
     matcherBasic:
       hour: numeric
       minute: 2-digit
@@ -922,3 +1011,300 @@ examples:
     message: auth.installApp
     context:
       platform: ios
+
+# Granular format conformance examples
+  - description: Number / decimal negative
+    rawMessage: "{value, number, decimal}"
+    values:
+      value: -1234.567
+  - description: Number / decimal zero
+    rawMessage: "{value, number, decimal}"
+    values:
+      value: 0
+  - description: Number / decimal sub-unit
+    rawMessage: "{value, number, decimal}"
+    values:
+      value: 0.01234
+  - description: Number / minimum 2 fraction digits integer
+    rawMessage: "{value, number, fractionMin2}"
+    values:
+      value: 12
+  - description: Number / minimum 2 fraction digits fraction
+    rawMessage: "{value, number, fractionMin2}"
+    values:
+      value: 12.3
+  - description: Number / maximum 4 fraction digits
+    rawMessage: "{value, number, fractionMax4}"
+    values:
+      value: 1.234567
+  - description: Number / standard notation
+    rawMessage: "{value, number, standard}"
+    values:
+      value: 1234567
+  - description: Number / grouping below threshold
+    rawMessage: "{value, number, groupingAuto}"
+    values:
+      value: 999
+  - description: Number / grouping at four digits
+    rawMessage: "{value, number, groupingAuto}"
+    values:
+      value: 1000
+  - description: Number / compact short thousands
+    rawMessage: "{value, number, compactShort}"
+    values:
+      value: 12500
+  - description: Number / compact short negative
+    rawMessage: "{value, number, compactShort}"
+    values:
+      value: -1250000
+  - description: Number / compact long thousands
+    rawMessage: "{value, number, compactLong}"
+    values:
+      value: 12500
+  - description: Number / scientific sub-unit
+    rawMessage: "{value, number, scientific}"
+    values:
+      value: 0.001234
+  - description: Number / engineering sub-unit
+    rawMessage: "{value, number, engineering}"
+    values:
+      value: 0.001234
+  - description: Number / sign always zero
+    rawMessage: "{value, number, signAlways}"
+    values:
+      value: 0
+  - description: Number / sign except zero positive
+    rawMessage: "{value, number, signExceptZero}"
+    values:
+      value: 12
+  - description: Number / sign except zero negative
+    rawMessage: "{value, number, signExceptZero}"
+    values:
+      value: -12
+  - description: Number / sign negative positive
+    rawMessage: "{value, number, signNegative}"
+    values:
+      value: 12
+  - description: Number / rounding increment below midpoint
+    rawMessage: "{value, number, roundingFive}"
+    values:
+      value: 1.224
+  - description: Number / rounding increment at midpoint
+    rawMessage: "{value, number, roundingFive}"
+    values:
+      value: 1.225
+  - description: Number / rounding ceil negative
+    rawMessage: "{value, number, roundingCeil}"
+    values:
+      value: -1.9
+  - description: Number / rounding floor negative
+    rawMessage: "{value, number, roundingFloor}"
+    values:
+      value: -1.1
+  - description: Number / rounding expand positive
+    rawMessage: "{value, number, roundingExpand}"
+    values:
+      value: 1.1
+  - description: Number / rounding trunc positive
+    rawMessage: "{value, number, roundingTrunc}"
+    values:
+      value: 1.9
+  - description: Number / rounding half ceil negative tie
+    rawMessage: "{value, number, roundingHalfCeil}"
+    values:
+      value: -1.5
+  - description: Number / rounding half floor negative tie
+    rawMessage: "{value, number, roundingHalfFloor}"
+    values:
+      value: -1.5
+  - description: Number / rounding half expand negative tie
+    rawMessage: "{value, number, roundingHalfExpand}"
+    values:
+      value: -1.5
+  - description: Number / rounding half trunc negative tie
+    rawMessage: "{value, number, roundingHalfTrunc}"
+    values:
+      value: -1.5
+  - description: Number / rounding half even odd tie
+    rawMessage: "{value, number, roundingHalfEven}"
+    values:
+      value: 3.5
+  - description: Number / rounding priority auto
+    rawMessage: "{value, number, roundingPriorityAuto}"
+    values:
+      value: 1.234
+  - description: Number / trailing zero auto integer
+    rawMessage: "{value, number, trailingZeroAuto}"
+    values:
+      value: 12
+  - description: Number / strip zeros fraction
+    rawMessage: "{value, number, stripIfInteger}"
+    values:
+      value: 12.3
+  - description: Number / Latin digits
+    rawMessage: "{value, number, latinDigits}"
+    values:
+      value: 2026
+  - description: Currency / default zero
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: 0
+  - description: Currency / default negative
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: -1234.5
+  - description: Currency / accounting positive
+    rawMessage: "{amount, number, moneyAccounting}"
+    values:
+      amount: 1234.5
+  - description: Currency / runtime GBP
+    rawMessage: "{amount, number, moneyRuntimeCurrency}"
+    currency: GBP
+    values:
+      amount: 1234.5
+  - description: Currency / JPY zero decimals
+    rawMessage: "{amount, number, moneyJpy}"
+    values:
+      amount: 1234.5
+  - description: Unit and percent / percent zero
+    rawMessage: "{value, number, percent}"
+    values:
+      value: 0
+  - description: Unit and percent / percent negative
+    rawMessage: "{value, number, percent}"
+    values:
+      value: -0.125
+  - description: Unit and percent / kilometer singular long
+    rawMessage: "{value, number, unitKilometerLong}"
+    values:
+      value: 1
+  - description: Unit and percent / kilometer plural long
+    rawMessage: "{value, number, unitKilometerLong}"
+    values:
+      value: 2
+  - description: Date / year numeric only
+    rawMessage: "{when, date, yearNumeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Date / year 2-digit only
+    rawMessage: "{when, date, yearTwoDigit}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Date / month numeric only
+    rawMessage: "{when, date, monthNumericOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Date / month 2-digit only
+    rawMessage: "{when, date, monthTwoDigitOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Date / day numeric only
+    rawMessage: "{when, date, dayNumericOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Date / day 2-digit only
+    rawMessage: "{when, date, dayTwoDigitOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Date / Gregorian calendar
+    rawMessage: "{when, date, gregorianLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Date / Islamic calendar
+    rawMessage: "{when, date, islamicLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Date / Latin digits
+    rawMessage: "{when, date, latinNumeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Date / leap day
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2028-02-29T12:00:00Z"
+  - description: Date / year boundary UTC
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-01-01T00:30:00Z"
+  - description: Date / year boundary New York
+    rawMessage: "{when, date, numeric}"
+    timeZone: America/New_York
+    values:
+      when: "2026-01-01T00:30:00Z"
+  - description: Time / hour numeric only
+    rawMessage: "{when, time, hourNumericOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Time / hour 2-digit only
+    rawMessage: "{when, time, hourTwoDigitOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Time / minute numeric only
+    rawMessage: "{when, time, minuteNumericOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Time / second numeric only
+    rawMessage: "{when, time, secondNumericOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Time / morning day period
+    rawMessage: "{when, time, dayPeriodLong}"
+    values:
+      when: "2026-05-12T08:00:00Z"
+  - description: Time / noon day period
+    rawMessage: "{when, time, dayPeriodLong}"
+    values:
+      when: "2026-05-12T12:00:00Z"
+  - description: Time / evening day period
+    rawMessage: "{when, time, dayPeriodLong}"
+    values:
+      when: "2026-05-12T19:00:00Z"
+  - description: Time / midnight hour cycle h11
+    rawMessage: "{when, time, hourCycle11}"
+    values:
+      when: "2026-05-12T00:00:00Z"
+  - description: Time / midnight hour cycle h12
+    rawMessage: "{when, time, hourCycle12}"
+    values:
+      when: "2026-05-12T00:00:00Z"
+  - description: Time / midnight hour cycle h23
+    rawMessage: "{when, time, hourCycle23}"
+    values:
+      when: "2026-05-12T00:00:00Z"
+  - description: Time / midnight hour cycle h24
+    rawMessage: "{when, time, hourCycle24}"
+    values:
+      when: "2026-05-12T00:00:00Z"
+  - description: Time / Amsterdam winter
+    rawMessage: "{when, time, amsterdamShort}"
+    values:
+      when: "2026-01-15T12:00:00Z"
+  - description: Time / Amsterdam summer
+    rawMessage: "{when, time, amsterdamShort}"
+    values:
+      when: "2026-07-15T12:00:00Z"
+  - description: Time / New York winter
+    rawMessage: "{when, time, newYorkShort}"
+    values:
+      when: "2026-01-15T12:00:00Z"
+  - description: Time / New York summer
+    rawMessage: "{when, time, newYorkShort}"
+    values:
+      when: "2026-07-15T12:00:00Z"
+  - description: Time / Riyadh
+    rawMessage: "{when, time, riyadhShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Time / Tokyo
+    rawMessage: "{when, time, tokyoShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Time / per-call Tokyo override
+    rawMessage: "{when, time, seconds}"
+    timeZone: Asia/Tokyo
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+  - description: Time / Latin digits
+    rawMessage: "{when, time, latinTime}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"

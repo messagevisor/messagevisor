@@ -1,0 +1,79 @@
+# JavaScript reference output: Node 24 / Intl. One raw ICU format per assertion.
+locale: "ar-SA"
+assertions:
+  - description: "Date / full style"
+    rawMessage: "{when, date, fullStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "الثلاثاء، ١٢ مايو ٢٠٢٦"
+  - description: "Date / short style"
+    rawMessage: "{when, date, shortStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١٢\u200F/٥\u200F/٢٠٢٦"
+  - description: "Date / numeric fields"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١٢\u200F/٠٥\u200F/٢٠٢٦"
+  - description: "Date / weekday long"
+    rawMessage: "{when, date, weekdayLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "الثلاثاء، ١٢ مايو ٢٠٢٦"
+  - description: "Date / month long"
+    rawMessage: "{when, date, monthLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١٢ مايو ٢٠٢٦"
+  - description: "Date / era long"
+    rawMessage: "{when, date, eraLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١٢ مايو ٢٠٢٦ ميلادي"
+  - description: "Date / Arabic digits"
+    rawMessage: "{when, date, arabicNumeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١٢\u200F/٠٥\u200F/٢٠٢٦"
+  - description: "Date / Buddhist calendar"
+    rawMessage: "{when, date, buddhistLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١٢ مايو ٢٥٦٩ BE"
+  - description: "Date / Japanese era calendar"
+    rawMessage: "{when, date, japaneseEra}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١٢ مايو ٨ ريوا"
+  - description: "Date / Gregorian calendar"
+    rawMessage: "{when, date, gregorianLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١٢ مايو ٢٠٢٦"
+  - description: "Date / Islamic calendar"
+    rawMessage: "{when, date, islamicLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "٢٥ ذو القعدة ١٤٤٧ هـ"
+  - description: "Date / Latin digits"
+    rawMessage: "{when, date, latinNumeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12\u200F/05\u200F/2026"
+  - description: "Date / leap day"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2028-02-29T12:00:00Z"
+    expectedTranslation: "٢٩\u200F/٠٢\u200F/٢٠٢٨"
+  - description: "Date / year boundary UTC"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-01-01T00:30:00Z"
+    expectedTranslation: "٠١\u200F/٠١\u200F/٢٠٢٦"
+  - description: "Date / year boundary New York"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-01-01T00:30:00Z"
+    timeZone: "America/New_York"
+    expectedTranslation: "٣١\u200F/١٢\u200F/٢٠٢٥"

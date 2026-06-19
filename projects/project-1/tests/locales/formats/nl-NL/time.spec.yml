@@ -1,0 +1,229 @@
+# JavaScript reference output: Node 24 / Intl. One raw ICU format per assertion.
+locale: "nl-NL"
+assertions:
+  - description: "Time / full style"
+    rawMessage: "{when, time, fullStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "08:30:45 gecoördineerde wereldtijd"
+  - description: "Time / long style"
+    rawMessage: "{when, time, longStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "08:30:45 UTC"
+  - description: "Time / medium style"
+    rawMessage: "{when, time, mediumStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "08:30:45"
+  - description: "Time / short style"
+    rawMessage: "{when, time, shortStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "08:30"
+  - description: "Time / hour and minute"
+    rawMessage: "{when, time, short}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30"
+  - description: "Time / seconds"
+    rawMessage: "{when, time, seconds}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30:45"
+  - description: "Time / fractional seconds 1 digit"
+    rawMessage: "{when, time, fractional1}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30:45,6"
+  - description: "Time / fractional seconds 2 digits"
+    rawMessage: "{when, time, fractional2}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30:45,67"
+  - description: "Time / fractional seconds 3 digits"
+    rawMessage: "{when, time, fractional}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30:45,678"
+  - description: "Time / day period long"
+    rawMessage: "{when, time, dayPeriodLong}"
+    values:
+      when: "2026-05-12T12:00:00Z"
+    expectedTranslation: "12 ’s middags"
+  - description: "Time / day period short"
+    rawMessage: "{when, time, dayPeriodShort}"
+    values:
+      when: "2026-05-12T12:00:00Z"
+    expectedTranslation: "12 ’s middags"
+  - description: "Time / day period narrow"
+    rawMessage: "{when, time, dayPeriodNarrow}"
+    values:
+      when: "2026-05-12T12:00:00Z"
+    expectedTranslation: "12 ’s middags"
+  - description: "Time / hour12 true"
+    rawMessage: "{when, time, hour12}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30 a.m."
+  - description: "Time / hour12 false"
+    rawMessage: "{when, time, hour24}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30"
+  - description: "Time / hour cycle h11"
+    rawMessage: "{when, time, hourCycle11}"
+    values:
+      when: "2026-05-12T00:30:45.678Z"
+    expectedTranslation: "00:30 a.m."
+  - description: "Time / hour cycle h12"
+    rawMessage: "{when, time, hourCycle12}"
+    values:
+      when: "2026-05-12T00:30:45.678Z"
+    expectedTranslation: "12:30 a.m."
+  - description: "Time / hour cycle h23"
+    rawMessage: "{when, time, hourCycle23}"
+    values:
+      when: "2026-05-12T00:30:45.678Z"
+    expectedTranslation: "00:30"
+  - description: "Time / hour cycle h24"
+    rawMessage: "{when, time, hourCycle24}"
+    values:
+      when: "2026-05-12T00:30:45.678Z"
+    expectedTranslation: "24:30"
+  - description: "Time / time zone short"
+    rawMessage: "{when, time, zoneShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "08:30 UTC"
+  - description: "Time / time zone long"
+    rawMessage: "{when, time, zoneLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "08:30 gecoördineerde wereldtijd"
+  - description: "Time / time zone short offset"
+    rawMessage: "{when, time, zoneShortOffset}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "08:30 GMT"
+  - description: "Time / time zone long offset"
+    rawMessage: "{when, time, zoneLongOffset}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "08:30 GMT"
+  - description: "Time / time zone short generic"
+    rawMessage: "{when, time, zoneShortGeneric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "04:30 ET"
+  - description: "Time / time zone long generic"
+    rawMessage: "{when, time, zoneLongGeneric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "04:30 Eastern-tijd"
+  - description: "Time / format matcher basic"
+    rawMessage: "{when, time, matcherBasic}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30:45"
+  - description: "Time / format matcher best fit"
+    rawMessage: "{when, time, matcherBestFit}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30:45"
+  - description: "Time / hour numeric only"
+    rawMessage: "{when, time, hourNumericOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "08"
+  - description: "Time / hour 2-digit only"
+    rawMessage: "{when, time, hourTwoDigitOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "08"
+  - description: "Time / minute numeric only"
+    rawMessage: "{when, time, minuteNumericOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "30"
+  - description: "Time / second numeric only"
+    rawMessage: "{when, time, secondNumericOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "45"
+  - description: "Time / morning day period"
+    rawMessage: "{when, time, dayPeriodLong}"
+    values:
+      when: "2026-05-12T08:00:00Z"
+    expectedTranslation: "8 ’s ochtends"
+  - description: "Time / noon day period"
+    rawMessage: "{when, time, dayPeriodLong}"
+    values:
+      when: "2026-05-12T12:00:00Z"
+    expectedTranslation: "12 ’s middags"
+  - description: "Time / evening day period"
+    rawMessage: "{when, time, dayPeriodLong}"
+    values:
+      when: "2026-05-12T19:00:00Z"
+    expectedTranslation: "7 ’s avonds"
+  - description: "Time / midnight hour cycle h11"
+    rawMessage: "{when, time, hourCycle11}"
+    values:
+      when: "2026-05-12T00:00:00Z"
+    expectedTranslation: "00:00 a.m."
+  - description: "Time / midnight hour cycle h12"
+    rawMessage: "{when, time, hourCycle12}"
+    values:
+      when: "2026-05-12T00:00:00Z"
+    expectedTranslation: "12:00 a.m."
+  - description: "Time / midnight hour cycle h23"
+    rawMessage: "{when, time, hourCycle23}"
+    values:
+      when: "2026-05-12T00:00:00Z"
+    expectedTranslation: "00:00"
+  - description: "Time / midnight hour cycle h24"
+    rawMessage: "{when, time, hourCycle24}"
+    values:
+      when: "2026-05-12T00:00:00Z"
+    expectedTranslation: "24:00"
+  - description: "Time / Amsterdam winter"
+    rawMessage: "{when, time, amsterdamShort}"
+    values:
+      when: "2026-01-15T12:00:00Z"
+    expectedTranslation: "13:00"
+  - description: "Time / Amsterdam summer"
+    rawMessage: "{when, time, amsterdamShort}"
+    values:
+      when: "2026-07-15T12:00:00Z"
+    expectedTranslation: "14:00"
+  - description: "Time / New York winter"
+    rawMessage: "{when, time, newYorkShort}"
+    values:
+      when: "2026-01-15T12:00:00Z"
+    expectedTranslation: "7:00"
+  - description: "Time / New York summer"
+    rawMessage: "{when, time, newYorkShort}"
+    values:
+      when: "2026-07-15T12:00:00Z"
+    expectedTranslation: "8:00"
+  - description: "Time / Riyadh"
+    rawMessage: "{when, time, riyadhShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "11:30"
+  - description: "Time / Tokyo"
+    rawMessage: "{when, time, tokyoShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "17:30"
+  - description: "Time / per-call Tokyo override"
+    rawMessage: "{when, time, seconds}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    timeZone: "Asia/Tokyo"
+    expectedTranslation: "17:30:45"
+  - description: "Time / Latin digits"
+    rawMessage: "{when, time, latinTime}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "8:30"

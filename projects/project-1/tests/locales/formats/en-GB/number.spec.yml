@@ -1,0 +1,328 @@
+# JavaScript reference output: Node 24 / Intl. One raw ICU format per assertion.
+locale: "en-GB"
+assertions:
+  - description: "Number / decimal max 2"
+    rawMessage: "{value, number, decimal}"
+    values:
+      value: 1234.567
+    expectedTranslation: "1,234.57"
+  - description: "Number / fixed 2 decimals"
+    rawMessage: "{value, number, decimalFixed}"
+    values:
+      value: 1234.5
+    expectedTranslation: "1,234.50"
+  - description: "Number / padded integer"
+    rawMessage: "{value, number, integerPadded}"
+    values:
+      value: 12
+    expectedTranslation: "0,012"
+  - description: "Number / 3 significant digits"
+    rawMessage: "{value, number, significant3}"
+    values:
+      value: 12345.678
+    expectedTranslation: "12,300"
+  - description: "Number / significant digit range"
+    rawMessage: "{value, number, significantRange}"
+    values:
+      value: 12345.678
+    expectedTranslation: "12,346"
+  - description: "Number / grouping auto"
+    rawMessage: "{value, number, groupingAuto}"
+    values:
+      value: 1234567
+    expectedTranslation: "1,234,567"
+  - description: "Number / grouping always"
+    rawMessage: "{value, number, groupingAlways}"
+    values:
+      value: 1234567
+    expectedTranslation: "1,234,567"
+  - description: "Number / grouping min2"
+    rawMessage: "{value, number, groupingMin2}"
+    values:
+      value: 1234
+    expectedTranslation: "1234"
+  - description: "Number / grouping off"
+    rawMessage: "{value, number, groupingOff}"
+    values:
+      value: 1234567
+    expectedTranslation: "1234567"
+  - description: "Number / compact short"
+    rawMessage: "{value, number, compactShort}"
+    values:
+      value: 1234567
+    expectedTranslation: "1.2M"
+  - description: "Number / compact long"
+    rawMessage: "{value, number, compactLong}"
+    values:
+      value: 1234567
+    expectedTranslation: "1.2 million"
+  - description: "Number / scientific notation"
+    rawMessage: "{value, number, scientific}"
+    values:
+      value: 1234567
+    expectedTranslation: "1.235E6"
+  - description: "Number / engineering notation"
+    rawMessage: "{value, number, engineering}"
+    values:
+      value: 1234567
+    expectedTranslation: "1.235E6"
+  - description: "Number / sign auto"
+    rawMessage: "{value, number, signAuto}"
+    values:
+      value: -1234.5
+    expectedTranslation: "-1,235"
+  - description: "Number / sign never"
+    rawMessage: "{value, number, signNever}"
+    values:
+      value: -1234.5
+    expectedTranslation: "1,235"
+  - description: "Number / sign always"
+    rawMessage: "{value, number, signAlways}"
+    values:
+      value: 1234.5
+    expectedTranslation: "+1,235"
+  - description: "Number / sign except zero"
+    rawMessage: "{value, number, signExceptZero}"
+    values:
+      value: 0
+    expectedTranslation: "0"
+  - description: "Number / sign negative"
+    rawMessage: "{value, number, signNegative}"
+    values:
+      value: -1234.5
+    expectedTranslation: "-1,235"
+  - description: "Number / rounding increment 5"
+    rawMessage: "{value, number, roundingFive}"
+    values:
+      value: 1.234
+    expectedTranslation: "1.25"
+  - description: "Number / rounding ceil"
+    rawMessage: "{value, number, roundingCeil}"
+    values:
+      value: 1.234
+    expectedTranslation: "2"
+  - description: "Number / rounding floor"
+    rawMessage: "{value, number, roundingFloor}"
+    values:
+      value: 1.987
+    expectedTranslation: "1"
+  - description: "Number / rounding expand"
+    rawMessage: "{value, number, roundingExpand}"
+    values:
+      value: -1.234
+    expectedTranslation: "-2"
+  - description: "Number / rounding trunc"
+    rawMessage: "{value, number, roundingTrunc}"
+    values:
+      value: -1.987
+    expectedTranslation: "-1"
+  - description: "Number / rounding half ceil"
+    rawMessage: "{value, number, roundingHalfCeil}"
+    values:
+      value: 1.5
+    expectedTranslation: "2"
+  - description: "Number / rounding half floor"
+    rawMessage: "{value, number, roundingHalfFloor}"
+    values:
+      value: 1.5
+    expectedTranslation: "1"
+  - description: "Number / rounding half expand"
+    rawMessage: "{value, number, roundingHalfExpand}"
+    values:
+      value: 1.5
+    expectedTranslation: "2"
+  - description: "Number / rounding half trunc"
+    rawMessage: "{value, number, roundingHalfTrunc}"
+    values:
+      value: 1.5
+    expectedTranslation: "1"
+  - description: "Number / rounding half even"
+    rawMessage: "{value, number, roundingHalfEven}"
+    values:
+      value: 2.5
+    expectedTranslation: "2"
+  - description: "Number / rounding priority more precision"
+    rawMessage: "{value, number, roundingPriorityMore}"
+    values:
+      value: 1.234
+    expectedTranslation: "1.234"
+  - description: "Number / rounding priority less precision"
+    rawMessage: "{value, number, roundingPriorityLess}"
+    values:
+      value: 1.234
+    expectedTranslation: "1.23"
+  - description: "Number / strip zeros if integer"
+    rawMessage: "{value, number, stripIfInteger}"
+    values:
+      value: 12
+    expectedTranslation: "12"
+  - description: "Number / Arabic digits"
+    rawMessage: "{value, number, arabicDigits}"
+    values:
+      value: 2026
+    expectedTranslation: "٢٬٠٢٦"
+  - description: "Number / decimal negative"
+    rawMessage: "{value, number, decimal}"
+    values:
+      value: -1234.567
+    expectedTranslation: "-1,234.57"
+  - description: "Number / decimal zero"
+    rawMessage: "{value, number, decimal}"
+    values:
+      value: 0
+    expectedTranslation: "0"
+  - description: "Number / decimal sub-unit"
+    rawMessage: "{value, number, decimal}"
+    values:
+      value: 0.01234
+    expectedTranslation: "0.01"
+  - description: "Number / minimum 2 fraction digits integer"
+    rawMessage: "{value, number, fractionMin2}"
+    values:
+      value: 12
+    expectedTranslation: "12.00"
+  - description: "Number / minimum 2 fraction digits fraction"
+    rawMessage: "{value, number, fractionMin2}"
+    values:
+      value: 12.3
+    expectedTranslation: "12.30"
+  - description: "Number / maximum 4 fraction digits"
+    rawMessage: "{value, number, fractionMax4}"
+    values:
+      value: 1.234567
+    expectedTranslation: "1.2346"
+  - description: "Number / standard notation"
+    rawMessage: "{value, number, standard}"
+    values:
+      value: 1234567
+    expectedTranslation: "1,234,567"
+  - description: "Number / grouping below threshold"
+    rawMessage: "{value, number, groupingAuto}"
+    values:
+      value: 999
+    expectedTranslation: "999"
+  - description: "Number / grouping at four digits"
+    rawMessage: "{value, number, groupingAuto}"
+    values:
+      value: 1000
+    expectedTranslation: "1,000"
+  - description: "Number / compact short thousands"
+    rawMessage: "{value, number, compactShort}"
+    values:
+      value: 12500
+    expectedTranslation: "13K"
+  - description: "Number / compact short negative"
+    rawMessage: "{value, number, compactShort}"
+    values:
+      value: -1250000
+    expectedTranslation: "-1.3M"
+  - description: "Number / compact long thousands"
+    rawMessage: "{value, number, compactLong}"
+    values:
+      value: 12500
+    expectedTranslation: "13 thousand"
+  - description: "Number / scientific sub-unit"
+    rawMessage: "{value, number, scientific}"
+    values:
+      value: 0.001234
+    expectedTranslation: "1.234E-3"
+  - description: "Number / engineering sub-unit"
+    rawMessage: "{value, number, engineering}"
+    values:
+      value: 0.001234
+    expectedTranslation: "1.234E-3"
+  - description: "Number / sign always zero"
+    rawMessage: "{value, number, signAlways}"
+    values:
+      value: 0
+    expectedTranslation: "+0"
+  - description: "Number / sign except zero positive"
+    rawMessage: "{value, number, signExceptZero}"
+    values:
+      value: 12
+    expectedTranslation: "+12"
+  - description: "Number / sign except zero negative"
+    rawMessage: "{value, number, signExceptZero}"
+    values:
+      value: -12
+    expectedTranslation: "-12"
+  - description: "Number / sign negative positive"
+    rawMessage: "{value, number, signNegative}"
+    values:
+      value: 12
+    expectedTranslation: "12"
+  - description: "Number / rounding increment below midpoint"
+    rawMessage: "{value, number, roundingFive}"
+    values:
+      value: 1.224
+    expectedTranslation: "1.20"
+  - description: "Number / rounding increment at midpoint"
+    rawMessage: "{value, number, roundingFive}"
+    values:
+      value: 1.225
+    expectedTranslation: "1.25"
+  - description: "Number / rounding ceil negative"
+    rawMessage: "{value, number, roundingCeil}"
+    values:
+      value: -1.9
+    expectedTranslation: "-1"
+  - description: "Number / rounding floor negative"
+    rawMessage: "{value, number, roundingFloor}"
+    values:
+      value: -1.1
+    expectedTranslation: "-2"
+  - description: "Number / rounding expand positive"
+    rawMessage: "{value, number, roundingExpand}"
+    values:
+      value: 1.1
+    expectedTranslation: "2"
+  - description: "Number / rounding trunc positive"
+    rawMessage: "{value, number, roundingTrunc}"
+    values:
+      value: 1.9
+    expectedTranslation: "1"
+  - description: "Number / rounding half ceil negative tie"
+    rawMessage: "{value, number, roundingHalfCeil}"
+    values:
+      value: -1.5
+    expectedTranslation: "-1"
+  - description: "Number / rounding half floor negative tie"
+    rawMessage: "{value, number, roundingHalfFloor}"
+    values:
+      value: -1.5
+    expectedTranslation: "-2"
+  - description: "Number / rounding half expand negative tie"
+    rawMessage: "{value, number, roundingHalfExpand}"
+    values:
+      value: -1.5
+    expectedTranslation: "-2"
+  - description: "Number / rounding half trunc negative tie"
+    rawMessage: "{value, number, roundingHalfTrunc}"
+    values:
+      value: -1.5
+    expectedTranslation: "-1"
+  - description: "Number / rounding half even odd tie"
+    rawMessage: "{value, number, roundingHalfEven}"
+    values:
+      value: 3.5
+    expectedTranslation: "4"
+  - description: "Number / rounding priority auto"
+    rawMessage: "{value, number, roundingPriorityAuto}"
+    values:
+      value: 1.234
+    expectedTranslation: "1.234"
+  - description: "Number / trailing zero auto integer"
+    rawMessage: "{value, number, trailingZeroAuto}"
+    values:
+      value: 12
+    expectedTranslation: "12.00"
+  - description: "Number / strip zeros fraction"
+    rawMessage: "{value, number, stripIfInteger}"
+    values:
+      value: 12.3
+    expectedTranslation: "12.30"
+  - description: "Number / Latin digits"
+    rawMessage: "{value, number, latinDigits}"
+    values:
+      value: 2026
+    expectedTranslation: "2,026"

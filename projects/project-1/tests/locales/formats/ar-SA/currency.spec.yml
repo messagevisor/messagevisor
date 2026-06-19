@@ -1,0 +1,59 @@
+# JavaScript reference output: Node 24 / Intl. One raw ICU format per assertion.
+locale: "ar-SA"
+assertions:
+  - description: "Currency / default money"
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "\u200F١٬٢٣٤٫٥٠\u00A0ر.س.\u200F"
+  - description: "Currency / code display"
+    rawMessage: "{amount, number, moneyCode}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "\u200F١٬٢٣٤٫٥٠\u00A0SAR"
+  - description: "Currency / name display"
+    rawMessage: "{amount, number, moneyName}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "١٬٢٣٤٫٥٠ ريال سعودي"
+  - description: "Currency / accounting sign"
+    rawMessage: "{amount, number, moneyAccounting}"
+    values:
+      amount: -1234.5
+    expectedTranslation: "\u061C-\u200F١٬٢٣٤٫٥٠\u00A0ر.س.\u200F"
+  - description: "Currency / runtime currency"
+    rawMessage: "{amount, number, moneyRuntimeCurrency}"
+    values:
+      amount: 1234.5
+    currency: "EUR"
+    expectedTranslation: "\u200F١٬٢٣٤٫٥٠\u00A0EUR"
+  - description: "Unit and percent / percent"
+    rawMessage: "{value, number, percent}"
+    values:
+      value: 0.125
+    expectedTranslation: "١٢٫٥٪\u061C"
+  - description: "Currency / default negative"
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: -1234.5
+    expectedTranslation: "\u061C-\u200F١٬٢٣٤٫٥٠\u00A0ر.س.\u200F"
+  - description: "Currency / JPY zero decimals"
+    rawMessage: "{amount, number, moneyJpy}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "\u200F١٬٢٣٥\u00A0JP¥"
+  - description: "Unit and percent / percent negative"
+    rawMessage: "{value, number, percent}"
+    values:
+      value: -0.125
+    expectedTranslation: "\u061C-١٢٫٥٪\u061C"
+  - description: "Unit and percent / kilometer singular long"
+    rawMessage: "{value, number, unitKilometerLong}"
+    values:
+      value: 1
+    expectedTranslation: "١ كيلومتر"
+  - description: "Unit and percent / kilometer plural long"
+    rawMessage: "{value, number, unitKilometerLong}"
+    values:
+      value: 2
+    expectedTranslation: "كيلومتران"

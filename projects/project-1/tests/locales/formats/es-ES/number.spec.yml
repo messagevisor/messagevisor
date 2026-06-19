@@ -1,0 +1,88 @@
+# JavaScript reference output: Node 24 / Intl. One raw ICU format per assertion.
+locale: "es-ES"
+assertions:
+  - description: "Number / decimal max 2"
+    rawMessage: "{value, number, decimal}"
+    values:
+      value: 1234.567
+    expectedTranslation: "1234,57"
+  - description: "Number / fixed 2 decimals"
+    rawMessage: "{value, number, decimalFixed}"
+    values:
+      value: 1234.5
+    expectedTranslation: "1234,50"
+  - description: "Number / grouping auto"
+    rawMessage: "{value, number, groupingAuto}"
+    values:
+      value: 1234567
+    expectedTranslation: "1.234.567"
+  - description: "Number / grouping off"
+    rawMessage: "{value, number, groupingOff}"
+    values:
+      value: 1234567
+    expectedTranslation: "1234567"
+  - description: "Number / compact short"
+    rawMessage: "{value, number, compactShort}"
+    values:
+      value: 1234567
+    expectedTranslation: "1,2\u00A0M"
+  - description: "Number / scientific notation"
+    rawMessage: "{value, number, scientific}"
+    values:
+      value: 1234567
+    expectedTranslation: "1,235E6"
+  - description: "Number / sign always"
+    rawMessage: "{value, number, signAlways}"
+    values:
+      value: 1234.5
+    expectedTranslation: "+1235"
+  - description: "Number / rounding half even"
+    rawMessage: "{value, number, roundingHalfEven}"
+    values:
+      value: 2.5
+    expectedTranslation: "2"
+  - description: "Number / Arabic digits"
+    rawMessage: "{value, number, arabicDigits}"
+    values:
+      value: 2026
+    expectedTranslation: "٢٠٢٦"
+  - description: "Number / decimal negative"
+    rawMessage: "{value, number, decimal}"
+    values:
+      value: -1234.567
+    expectedTranslation: "-1234,57"
+  - description: "Number / decimal sub-unit"
+    rawMessage: "{value, number, decimal}"
+    values:
+      value: 0.01234
+    expectedTranslation: "0,01"
+  - description: "Number / compact short thousands"
+    rawMessage: "{value, number, compactShort}"
+    values:
+      value: 12500
+    expectedTranslation: "13\u00A0mil"
+  - description: "Number / compact short negative"
+    rawMessage: "{value, number, compactShort}"
+    values:
+      value: -1250000
+    expectedTranslation: "-1,3\u00A0M"
+  - description: "Number / sign always zero"
+    rawMessage: "{value, number, signAlways}"
+    values:
+      value: 0
+    expectedTranslation: "+0"
+  - description: "Number / rounding half expand negative tie"
+    rawMessage: "{value, number, roundingHalfExpand}"
+    values:
+      value: -1.5
+    expectedTranslation: "-2"
+  - description: "Number / rounding half even odd tie"
+    rawMessage: "{value, number, roundingHalfEven}"
+    values:
+      value: 3.5
+    expectedTranslation: "4"
+  - description: "Number / Latin digits"
+    rawMessage: "{value, number, latinDigits}"
+    values:
+      value: 2026
+    expectedTranslation: "2026"

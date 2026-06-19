@@ -1,528 +1,424 @@
-description: English (United Kingdom)
+# French evaluates the shared copy/paste format suite with French Intl behavior.
+# Each rawMessage isolates one named format style or one edge value.
 
+description: French (France)
 inheritFormatsFrom: en
 inheritTranslationsFrom: en
-
 formats:
   number:
     money:
       style: currency
-      currency: GBP
+      currency: EUR
     moneySymbol:
       style: currency
-      currency: GBP
+      currency: EUR
       currencyDisplay: symbol
     moneyCode:
       style: currency
-      currency: GBP
+      currency: EUR
       currencyDisplay: code
     moneyNarrow:
       style: currency
-      currency: GBP
+      currency: EUR
       currencyDisplay: narrowSymbol
     moneyName:
       style: currency
-      currency: GBP
+      currency: EUR
       currencyDisplay: name
     moneyAccounting:
       style: currency
-      currency: GBP
+      currency: EUR
       currencySign: accounting
-
-# These examples evaluate the format reference suite for en-GB.
-# en-GB keeps the same preset names as en, but overrides the default money
-# presets to GBP so country-specific currency output is visible by default.
-# Keep rawMessage on one line: folded YAML can change ICU parsing.
-
 examples:
-  - description: "Basics / simple text"
-    rawMessage: "Hello, world!"
-
-  - description: "Basics / interpolation"
-    rawMessage: "Hello, {name}!"
+  - description: Basics / simple text
+    rawMessage: Hello, world!
+  - description: Basics / interpolation
+    rawMessage: Hello, {name}!
     values:
       name: John
-
-  - description: "Number / decimal max 2"
+  - description: Number / decimal max 2
     rawMessage: "Decimal max 2: {value, number, decimal}"
     values:
       value: 1234.567
-
-  - description: "Number / fixed 2 decimals"
+  - description: Number / fixed 2 decimals
     rawMessage: "Fixed 2 decimals: {value, number, decimalFixed}"
     values:
       value: 1234.5
-
-  - description: "Number / padded integer"
+  - description: Number / padded integer
     rawMessage: "Padded integer: {value, number, integerPadded}"
     values:
       value: 12
-
-  - description: "Number / 3 significant digits"
+  - description: Number / 3 significant digits
     rawMessage: "3 significant digits: {value, number, significant3}"
     values:
       value: 12345.678
-
-  - description: "Number / significant digit range"
+  - description: Number / significant digit range
     rawMessage: "Significant digit range: {value, number, significantRange}"
     values:
       value: 12345.678
-
-  - description: "Number / grouping auto"
+  - description: Number / grouping auto
     rawMessage: "Grouping auto: {value, number, groupingAuto}"
     values:
       value: 1234567
-
-  - description: "Number / grouping always"
+  - description: Number / grouping always
     rawMessage: "Grouping always: {value, number, groupingAlways}"
     values:
       value: 1234567
-
-  - description: "Number / grouping min2"
+  - description: Number / grouping min2
     rawMessage: "Grouping min2: {value, number, groupingMin2}"
     values:
       value: 1234
-
-  - description: "Number / grouping off"
+  - description: Number / grouping off
     rawMessage: "Grouping off: {value, number, groupingOff}"
     values:
       value: 1234567
-
-  - description: "Number / compact short"
+  - description: Number / compact short
     rawMessage: "Compact short: {value, number, compactShort}"
     values:
       value: 1234567
-
-  - description: "Number / compact long"
+  - description: Number / compact long
     rawMessage: "Compact long: {value, number, compactLong}"
     values:
       value: 1234567
-
-  - description: "Number / scientific notation"
+  - description: Number / scientific notation
     rawMessage: "Scientific notation: {value, number, scientific}"
     values:
       value: 1234567
-
-  - description: "Number / engineering notation"
+  - description: Number / engineering notation
     rawMessage: "Engineering notation: {value, number, engineering}"
     values:
       value: 1234567
-
-  - description: "Number / sign auto"
+  - description: Number / sign auto
     rawMessage: "Sign auto: {value, number, signAuto}"
     values:
       value: -1234.5
-
-  - description: "Number / sign never"
+  - description: Number / sign never
     rawMessage: "Sign never: {value, number, signNever}"
     values:
       value: -1234.5
-
-  - description: "Number / sign always"
+  - description: Number / sign always
     rawMessage: "Sign always: {value, number, signAlways}"
     values:
       value: 1234.5
-
-  - description: "Number / sign except zero"
+  - description: Number / sign except zero
     rawMessage: "Sign except zero: {value, number, signExceptZero}"
     values:
       value: 0
-
-  - description: "Number / sign negative"
+  - description: Number / sign negative
     rawMessage: "Sign negative: {value, number, signNegative}"
     values:
       value: -1234.5
-
-  - description: "Number / rounding increment 5"
+  - description: Number / rounding increment 5
     rawMessage: "Rounding increment 5: {value, number, roundingFive}"
     values:
       value: 1.234
-
-  - description: "Number / rounding ceil"
+  - description: Number / rounding ceil
     rawMessage: "Rounding ceil: {value, number, roundingCeil}"
     values:
       value: 1.234
-
-  - description: "Number / rounding floor"
+  - description: Number / rounding floor
     rawMessage: "Rounding floor: {value, number, roundingFloor}"
     values:
       value: 1.987
-
-  - description: "Number / rounding expand"
+  - description: Number / rounding expand
     rawMessage: "Rounding expand: {value, number, roundingExpand}"
     values:
       value: -1.234
-
-  - description: "Number / rounding trunc"
+  - description: Number / rounding trunc
     rawMessage: "Rounding trunc: {value, number, roundingTrunc}"
     values:
       value: -1.987
-
-  - description: "Number / rounding half ceil"
+  - description: Number / rounding half ceil
     rawMessage: "Rounding half ceil: {value, number, roundingHalfCeil}"
     values:
       value: 1.5
-
-  - description: "Number / rounding half floor"
+  - description: Number / rounding half floor
     rawMessage: "Rounding half floor: {value, number, roundingHalfFloor}"
     values:
       value: 1.5
-
-  - description: "Number / rounding half expand"
+  - description: Number / rounding half expand
     rawMessage: "Rounding half expand: {value, number, roundingHalfExpand}"
     values:
       value: 1.5
-
-  - description: "Number / rounding half trunc"
+  - description: Number / rounding half trunc
     rawMessage: "Rounding half trunc: {value, number, roundingHalfTrunc}"
     values:
       value: 1.5
-
-  - description: "Number / rounding half even"
+  - description: Number / rounding half even
     rawMessage: "Rounding half even: {value, number, roundingHalfEven}"
     values:
       value: 2.5
-
-  - description: "Number / rounding priority more precision"
+  - description: Number / rounding priority more precision
     rawMessage: "Rounding priority more precision: {value, number, roundingPriorityMore}"
     values:
       value: 1.234
-
-  - description: "Number / rounding priority less precision"
+  - description: Number / rounding priority less precision
     rawMessage: "Rounding priority less precision: {value, number, roundingPriorityLess}"
     values:
       value: 1.234
-
-  - description: "Number / strip zeros if integer"
+  - description: Number / strip zeros if integer
     rawMessage: "Strip zeros if integer: {value, number, stripIfInteger}"
     values:
       value: 12
-
-  - description: "Number / Arabic digits"
+  - description: Number / Arabic digits
     rawMessage: "Arabic digits: {value, number, arabicDigits}"
     values:
       value: 2026
-
-  - description: "Currency / default money"
+  - description: Currency / default money
     rawMessage: "Default money: {amount, number, money}"
     values:
       amount: 1234.5
-
-  - description: "Currency / symbol display"
+  - description: Currency / symbol display
     rawMessage: "Currency symbol: {amount, number, moneySymbol}"
     values:
       amount: 1234.5
-
-  - description: "Currency / code display"
+  - description: Currency / code display
     rawMessage: "Currency code: {amount, number, moneyCode}"
     values:
       amount: 1234.5
-
-  - description: "Currency / narrow symbol display"
+  - description: Currency / narrow symbol display
     rawMessage: "Currency narrow symbol: {amount, number, moneyNarrow}"
     values:
       amount: 1234.5
-
-  - description: "Currency / name display"
+  - description: Currency / name display
     rawMessage: "Currency name: {amount, number, moneyName}"
     values:
       amount: 1234.5
-
-  - description: "Currency / accounting sign"
+  - description: Currency / accounting sign
     rawMessage: "Accounting sign: {amount, number, moneyAccounting}"
     values:
       amount: -1234.5
-
-  - description: "Currency / runtime currency"
+  - description: Currency / runtime currency
     rawMessage: "Runtime currency: {amount, number, moneyRuntimeCurrency}"
     currency: EUR
     values:
       amount: 1234.5
-
-  - description: "Currency / GBP"
+  - description: Currency / GBP
     rawMessage: "GBP: {amount, number, moneyGbp}"
     values:
       amount: 1234.5
-
-  - description: "Currency / JPY"
+  - description: Currency / JPY
     rawMessage: "JPY: {amount, number, moneyJpy}"
     values:
       amount: 1234.5
-
-  - description: "Currency / EUR"
+  - description: Currency / EUR
     rawMessage: "EUR: {amount, number, moneyEur}"
     values:
       amount: 1234.5
-
-  - description: "Unit and percent / percent"
+  - description: Unit and percent / percent
     rawMessage: "Percent: {value, number, percent}"
     values:
       value: 0.125
-
-  - description: "Unit and percent / percent fixed"
+  - description: Unit and percent / percent fixed
     rawMessage: "Percent fixed: {value, number, percentFixed}"
     values:
       value: 0.125
-
-  - description: "Unit and percent / kilometer short"
+  - description: Unit and percent / kilometer short
     rawMessage: "Kilometer short: {value, number, unitKilometerShort}"
     values:
       value: 42
-
-  - description: "Unit and percent / kilometer narrow"
+  - description: Unit and percent / kilometer narrow
     rawMessage: "Kilometer narrow: {value, number, unitKilometerNarrow}"
     values:
       value: 42
-
-  - description: "Unit and percent / kilometer long"
+  - description: Unit and percent / kilometer long
     rawMessage: "Kilometer long: {value, number, unitKilometerLong}"
     values:
       value: 42
-
-  - description: "Unit and percent / meter long"
+  - description: Unit and percent / meter long
     rawMessage: "Meter long: {value, number, unitMeterLong}"
     values:
       value: 42
-
-  - description: "Date / full style"
+  - description: Date / full style
     rawMessage: "Full date: {when, date, fullStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / long style"
+  - description: Date / long style
     rawMessage: "Long date: {when, date, longStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / medium style"
+  - description: Date / medium style
     rawMessage: "Medium date: {when, date, mediumStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / short style"
+  - description: Date / short style
     rawMessage: "Short date style: {when, date, shortStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / explicit short fields"
+  - description: Date / explicit short fields
     rawMessage: "Explicit short fields: {when, date, short}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / numeric fields"
+  - description: Date / numeric fields
     rawMessage: "Numeric fields: {when, date, numeric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / weekday long"
+  - description: Date / weekday long
     rawMessage: "Weekday long: {when, date, weekdayLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / weekday short"
+  - description: Date / weekday short
     rawMessage: "Weekday short: {when, date, weekdayShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / weekday narrow"
+  - description: Date / weekday narrow
     rawMessage: "Weekday narrow: {when, date, weekdayNarrow}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / month long"
+  - description: Date / month long
     rawMessage: "Month long: {when, date, monthLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / month short"
+  - description: Date / month short
     rawMessage: "Month short: {when, date, monthShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / month narrow"
+  - description: Date / month narrow
     rawMessage: "Month narrow: {when, date, monthNarrow}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / era long"
+  - description: Date / era long
     rawMessage: "Era long: {when, date, eraLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / era short"
+  - description: Date / era short
     rawMessage: "Era short: {when, date, eraShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / era narrow"
+  - description: Date / era narrow
     rawMessage: "Era narrow: {when, date, eraNarrow}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / Arabic digits"
+  - description: Date / Arabic digits
     rawMessage: "Arabic date digits: {when, date, arabicNumeric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / Buddhist calendar"
+  - description: Date / Buddhist calendar
     rawMessage: "Buddhist calendar: {when, date, buddhistLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / Japanese era calendar"
+  - description: Date / Japanese era calendar
     rawMessage: "Japanese era calendar: {when, date, japaneseEra}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / format matcher basic"
+  - description: Date / format matcher basic
     rawMessage: "Format matcher basic: {when, date, matcherBasic}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Date / format matcher best fit"
+  - description: Date / format matcher best fit
     rawMessage: "Format matcher best fit: {when, date, matcherBestFit}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / full style"
+  - description: Time / full style
     rawMessage: "Full time: {when, time, fullStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / long style"
+  - description: Time / long style
     rawMessage: "Long time: {when, time, longStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / medium style"
+  - description: Time / medium style
     rawMessage: "Medium time: {when, time, mediumStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / short style"
+  - description: Time / short style
     rawMessage: "Short time style: {when, time, shortStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / hour and minute"
+  - description: Time / hour and minute
     rawMessage: "Hour and minute: {when, time, short}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / seconds"
+  - description: Time / seconds
     rawMessage: "With seconds: {when, time, seconds}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / fractional seconds 1 digit"
+  - description: Time / fractional seconds 1 digit
     rawMessage: "Fractional seconds 1 digit: {when, time, fractional1}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / fractional seconds 2 digits"
+  - description: Time / fractional seconds 2 digits
     rawMessage: "Fractional seconds 2 digits: {when, time, fractional2}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / fractional seconds 3 digits"
+  - description: Time / fractional seconds 3 digits
     rawMessage: "Fractional seconds 3 digits: {when, time, fractional}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / day period long"
+  - description: Time / day period long
     rawMessage: "Day period long: {when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T12:00:00Z"
-
-  - description: "Time / day period short"
+  - description: Time / day period short
     rawMessage: "Day period short: {when, time, dayPeriodShort}"
     values:
       when: "2026-05-12T12:00:00Z"
-
-  - description: "Time / day period narrow"
+  - description: Time / day period narrow
     rawMessage: "Day period narrow: {when, time, dayPeriodNarrow}"
     values:
       when: "2026-05-12T12:00:00Z"
-
-  - description: "Time / hour12 true"
+  - description: Time / hour12 true
     rawMessage: "Hour12 true: {when, time, hour12}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / hour12 false"
+  - description: Time / hour12 false
     rawMessage: "Hour12 false: {when, time, hour24}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / hour cycle h11"
+  - description: Time / hour cycle h11
     rawMessage: "Hour cycle h11: {when, time, hourCycle11}"
     values:
       when: "2026-05-12T00:30:45.678Z"
-
-  - description: "Time / hour cycle h12"
+  - description: Time / hour cycle h12
     rawMessage: "Hour cycle h12: {when, time, hourCycle12}"
     values:
       when: "2026-05-12T00:30:45.678Z"
-
-  - description: "Time / hour cycle h23"
+  - description: Time / hour cycle h23
     rawMessage: "Hour cycle h23: {when, time, hourCycle23}"
     values:
       when: "2026-05-12T00:30:45.678Z"
-
-  - description: "Time / hour cycle h24"
+  - description: Time / hour cycle h24
     rawMessage: "Hour cycle h24: {when, time, hourCycle24}"
     values:
       when: "2026-05-12T00:30:45.678Z"
-
-  - description: "Time / time zone short"
+  - description: Time / time zone short
     rawMessage: "Time zone short: {when, time, zoneShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / time zone long"
+  - description: Time / time zone long
     rawMessage: "Time zone long: {when, time, zoneLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / time zone short offset"
+  - description: Time / time zone short offset
     rawMessage: "Time zone short offset: {when, time, zoneShortOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / time zone long offset"
+  - description: Time / time zone long offset
     rawMessage: "Time zone long offset: {when, time, zoneLongOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / time zone short generic"
+  - description: Time / time zone short generic
     rawMessage: "Time zone short generic: {when, time, zoneShortGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / time zone long generic"
+  - description: Time / time zone long generic
     rawMessage: "Time zone long generic: {when, time, zoneLongGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / format matcher basic"
+  - description: Time / format matcher basic
     rawMessage: "Format matcher basic: {when, time, matcherBasic}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Time / format matcher best fit"
+  - description: Time / format matcher best fit
     rawMessage: "Format matcher best fit: {when, time, matcherBestFit}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-
-  - description: "Basics / reference a message"
+  - description: Basics / reference a message
     message: auth.installApp
-
-  - description: "Basics / reference a message with context"
+  - description: Basics / reference a message with context
     message: auth.installApp
     context:
       platform: ios
-
-# Granular format conformance examples
   - description: Number / decimal negative
     rawMessage: "{value, number, decimal}"
     values:

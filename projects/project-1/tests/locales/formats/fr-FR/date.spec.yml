@@ -1,0 +1,164 @@
+# JavaScript reference output: Node 24 / Intl. One raw ICU format per assertion.
+locale: "fr-FR"
+assertions:
+  - description: "Date / full style"
+    rawMessage: "{when, date, fullStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "mardi 12 mai 2026"
+  - description: "Date / long style"
+    rawMessage: "{when, date, longStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2026"
+  - description: "Date / medium style"
+    rawMessage: "{when, date, mediumStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2026"
+  - description: "Date / short style"
+    rawMessage: "{when, date, shortStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12/05/2026"
+  - description: "Date / explicit short fields"
+    rawMessage: "{when, date, short}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12/05/26"
+  - description: "Date / numeric fields"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12/05/2026"
+  - description: "Date / weekday long"
+    rawMessage: "{when, date, weekdayLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "mardi 12 mai 2026"
+  - description: "Date / weekday short"
+    rawMessage: "{when, date, weekdayShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "mar. 12 mai 2026"
+  - description: "Date / weekday narrow"
+    rawMessage: "{when, date, weekdayNarrow}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "M 12 M 2026"
+  - description: "Date / month long"
+    rawMessage: "{when, date, monthLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2026"
+  - description: "Date / month short"
+    rawMessage: "{when, date, monthShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2026"
+  - description: "Date / month narrow"
+    rawMessage: "{when, date, monthNarrow}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 M 2026"
+  - description: "Date / era long"
+    rawMessage: "{when, date, eraLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2026 après Jésus-Christ"
+  - description: "Date / era short"
+    rawMessage: "{when, date, eraShort}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2026 ap. J.-C."
+  - description: "Date / era narrow"
+    rawMessage: "{when, date, eraNarrow}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2026 ap. J.-C."
+  - description: "Date / Arabic digits"
+    rawMessage: "{when, date, arabicNumeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١٢/٠٥/٢٠٢٦"
+  - description: "Date / Buddhist calendar"
+    rawMessage: "{when, date, buddhistLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2569 E. B."
+  - description: "Date / Japanese era calendar"
+    rawMessage: "{when, date, japaneseEra}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 8 Reiwa"
+  - description: "Date / format matcher basic"
+    rawMessage: "{when, date, matcherBasic}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2026"
+  - description: "Date / format matcher best fit"
+    rawMessage: "{when, date, matcherBestFit}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2026"
+  - description: "Date / year numeric only"
+    rawMessage: "{when, date, yearNumeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "2026"
+  - description: "Date / year 2-digit only"
+    rawMessage: "{when, date, yearTwoDigit}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "26"
+  - description: "Date / month numeric only"
+    rawMessage: "{when, date, monthNumericOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "5"
+  - description: "Date / month 2-digit only"
+    rawMessage: "{when, date, monthTwoDigitOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "05"
+  - description: "Date / day numeric only"
+    rawMessage: "{when, date, dayNumericOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12"
+  - description: "Date / day 2-digit only"
+    rawMessage: "{when, date, dayTwoDigitOnly}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12"
+  - description: "Date / Gregorian calendar"
+    rawMessage: "{when, date, gregorianLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 mai 2026"
+  - description: "Date / Islamic calendar"
+    rawMessage: "{when, date, islamicLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "25 dhou al qi`da 1447 AH"
+  - description: "Date / Latin digits"
+    rawMessage: "{when, date, latinNumeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12/05/2026"
+  - description: "Date / leap day"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2028-02-29T12:00:00Z"
+    expectedTranslation: "29/02/2028"
+  - description: "Date / year boundary UTC"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-01-01T00:30:00Z"
+    expectedTranslation: "01/01/2026"
+  - description: "Date / year boundary New York"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-01-01T00:30:00Z"
+    timeZone: "America/New_York"
+    expectedTranslation: "31/12/2025"

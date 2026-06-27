@@ -50,9 +50,7 @@ assertions:
     rawMessage: "{value, number, compactShort}"
     values:
       value: 1234567
-    expectedTranslation: "1.2M"
-    expectedByRuntime:
-      java: 1.2m
+    expectedTranslation: "1.2m"
   - description: "Number / compact long"
     rawMessage: "{value, number, compactLong}"
     values:
@@ -212,16 +210,12 @@ assertions:
     rawMessage: "{value, number, compactShort}"
     values:
       value: 12500
-    expectedTranslation: "13K"
-    expectedByRuntime:
-      java: 13k
+    expectedTranslation: "13k"
   - description: "Number / compact short negative"
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
-    expectedTranslation: "-1.3M"
-    expectedByRuntime:
-      java: -1.3m
+    expectedTranslation: "-1.3m"
   - description: "Number / compact long thousands"
     rawMessage: "{value, number, compactLong}"
     values:

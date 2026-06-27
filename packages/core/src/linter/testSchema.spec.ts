@@ -29,7 +29,7 @@ describe("getTestZodSchema", function () {
             },
             expectedTranslation: "Hello ${{ name }}",
             expectedByRuntime: {
-              go: "Hello ${{ name }}",
+              go: "Hi ${{ name }}",
             },
           },
         ],
@@ -179,6 +179,62 @@ describe("getTestZodSchema", function () {
         (issue) =>
           issue.path.join(".") === "assertions.0.expectedByRuntime.go" &&
           issue.message.toLowerCase().includes("string"),
+      ),
+    ).toEqual(true);
+  });
+
+  it("rejects empty runtime-specific expected values", function () {
+    const result = schema.safeParse({
+      message: "auth.signin",
+      assertions: [
+        {
+          locale: "en",
+          target: "web",
+          expectedTranslation: "Sign in",
+          expectedByRuntime: {},
+        },
+      ],
+    });
+
+    expect(result.success).toEqual(false);
+    const nestedIssues =
+      result.error.issues[0]?.code === "invalid_union"
+        ? result.error.issues[0].errors.flat()
+        : result.error.issues;
+    expect(
+      nestedIssues.some(
+        (issue) =>
+          issue.path.join(".") === "assertions.0.expectedByRuntime" &&
+          issue.message.includes("at least one runtime"),
+      ),
+    ).toEqual(true);
+  });
+
+  it("rejects runtime-specific expected values that duplicate expectedTranslation", function () {
+    const result = schema.safeParse({
+      message: "auth.signin",
+      assertions: [
+        {
+          locale: "en",
+          target: "web",
+          expectedTranslation: "Sign in",
+          expectedByRuntime: {
+            java: "Sign in",
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toEqual(false);
+    const nestedIssues =
+      result.error.issues[0]?.code === "invalid_union"
+        ? result.error.issues[0].errors.flat()
+        : result.error.issues;
+    expect(
+      nestedIssues.some(
+        (issue) =>
+          issue.path.join(".") === "assertions.0.expectedByRuntime.java" &&
+          issue.message.includes("remove redundant runtime expectations"),
       ),
     ).toEqual(true);
   });

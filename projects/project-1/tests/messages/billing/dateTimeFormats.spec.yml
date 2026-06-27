@@ -32,6 +32,3 @@ assertions:
       date: "2025-01-01T12:00:00Z"
     expectedTranslation: "Datum numeriek: 01-01-2025; weekdag: woensdag 1 januari
       2025; tijd: 13:00; seconden: 13:00:00; utc: 13:00"
-    expectedByRuntime:
-      java: "Datum numeriek: 01-01-2025; weekdag: woensdag 1 januari 2025; tijd:
-        13:00; seconden: 13:00:00; utc: 13:00"

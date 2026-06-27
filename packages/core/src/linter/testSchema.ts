@@ -13,12 +13,38 @@ export function getTestZodSchema(
     z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])),
   );
   const formatPresets = z.record(z.string(), z.unknown());
-  const expectedByRuntime = z.record(z.string(), z.string());
+  const expectedByRuntime = z
+    .record(z.string(), z.string())
+    .refine((value) => Object.keys(value).length > 0, {
+      message: "`expectedByRuntime` must define at least one runtime.",
+    });
   const targetOrMatrixValue = refineWithMessage(
     z.string(),
     (value) => targetKeys.includes(value) || /^\$\{\{.+\}\}$/.test(value),
     (value) => `Unknown target "${value}"`,
   );
+  const validateExpectedByRuntime = (
+    data: {
+      expectedTranslation?: string;
+      expectedByRuntime?: Record<string, string>;
+    },
+    ctx: z.RefinementCtx,
+  ) => {
+    if (!data.expectedTranslation || !data.expectedByRuntime) {
+      return;
+    }
+
+    for (const [runtime, expectedTranslation] of Object.entries(data.expectedByRuntime)) {
+      if (expectedTranslation === data.expectedTranslation) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "`expectedByRuntime` entries must differ from `expectedTranslation`; remove redundant runtime expectations.",
+          path: ["expectedByRuntime", runtime],
+        });
+      }
+    }
+  };
 
   const messageAssertion = z
     .object({
@@ -40,7 +66,8 @@ export function getTestZodSchema(
       expectedTranslation: z.string(),
       expectedByRuntime: expectedByRuntime.optional(),
     })
-    .strict();
+    .strict()
+    .superRefine(validateExpectedByRuntime);
 
   const segmentAssertion = z
     .object({
@@ -73,6 +100,8 @@ export function getTestZodSchema(
     })
     .strict()
     .superRefine((data, ctx) => {
+      validateExpectedByRuntime(data, ctx);
+
       const hasExpectedFormats = typeof data.expectedFormats !== "undefined";
       const hasRawMessage = typeof data.rawMessage !== "undefined";
       const hasExpectedTranslation = typeof data.expectedTranslation !== "undefined";
@@ -139,6 +168,8 @@ export function getTestZodSchema(
     })
     .strict()
     .superRefine((data, ctx) => {
+      validateExpectedByRuntime(data, ctx);
+
       const hasRawMessage = typeof data.rawMessage !== "undefined";
       const hasMessage = typeof data.message !== "undefined";
       const hasExpectedTranslation = typeof data.expectedTranslation !== "undefined";

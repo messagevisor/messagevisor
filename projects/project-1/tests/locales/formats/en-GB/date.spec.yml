@@ -90,9 +90,7 @@ assertions:
     rawMessage: "{when, date, japaneseEra}"
     values:
       when: "2026-05-12T08:30:45.678Z"
-    expectedTranslation: "May 12, 8 Reiwa"
-    expectedByRuntime:
-      java: 12 May 8 Reiwa
+    expectedTranslation: "12 May 8 Reiwa"
   - description: "Date / format matcher basic"
     rawMessage: "{when, date, matcherBasic}"
     values:

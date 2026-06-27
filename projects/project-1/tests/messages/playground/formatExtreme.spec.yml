@@ -48,10 +48,6 @@ assertions:
       JP¥ 2.000; percentage 5,8%; datum 12-05-2026; lang 12 mei 2026; zone 08:30
       UTC; generiek 04:30 ET."
     expectedByRuntime:
-      java: "Gewoon 1.234.567,891; vast 12,00; significant 12.300; teken +5; compact
-        13K/13 duizend; eenheid 42 kilometer; geld £ 99,50; yen JP¥ 2.000;
-        percentage 5,8%; datum 12-05-2026; lang 12 mei 2026; zone 08:30 UTC;
-        generiek 04:30 ET."
       swift: "Gewoon 1.234.567,891; vast 12,00; significant 12.300; teken +5; compact
         12K/12K; eenheid 42 kilometer; geld £ 99,50; yen JP¥ 2.000; percentage
         5,8%; datum 12-05-2026; lang 12 mei 2026; zone 08:30 GMT; generiek 04:30
@@ -76,10 +72,6 @@ assertions:
       ২,০০০ JP¥; percent ৫.৮%; date ১২/০৫/২০২৬; long ১২ মে, ২০২৬; zone ৮:৩০ AM
       UTC; generic ৪:৩০ AM নিউইয়র্ক সময়."
     expectedByRuntime:
-      java: "Plain ১২,৩৪,৫৬৭.৮৯১; fixed ১২.০০; significant ১২,৩০০; signed +৫; compact
-        ১৩ হা/১৩ হাজার; unit ৪২ কিলোমিটার; money ৯৯.৫০£; yen ২,০০০ JP¥; percent
-        ৫.৮%; date ১২/০৫/২০২৬; long ১২ মে, ২০২৬; zone ৮:৩০ AM UTC; generic ৪:৩০
-        AM নিউইয়র্ক সময়."
       swift: "Plain 12,34,567.891; fixed 12.00; significant 12,300; signed +5; compact
         12 হা/12 হা; unit 42 কিলোমিটার; money 99.50£; yen 2,000 JP¥; percent
         5.8%; date 12/05/2026; long 12 মে, 2026; zone 8:30 AM GMT +0; generic

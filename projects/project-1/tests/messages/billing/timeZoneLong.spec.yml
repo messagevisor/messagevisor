@@ -25,5 +25,3 @@ assertions:
     values:
       date: "2025-01-01T12:00:00Z"
     expectedTranslation: "Lokale tijd: 13:00"
-    expectedByRuntime:
-      java: "Lokale tijd: 13:00"

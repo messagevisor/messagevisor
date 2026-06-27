@@ -20,5 +20,3 @@ assertions:
       suffix: precies
       date: "2025-01-01T12:00:00Z"
     expectedTranslation: "Webinar: 01-01-2025 om 13:00 precies"
-    expectedByRuntime:
-      java: "Webinar: 01-01-2025 om 13:00 precies"

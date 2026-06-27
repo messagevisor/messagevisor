@@ -30,5 +30,4 @@ assertions:
       amount: -12
     expectedTranslation: "Symbool: US$ -12,00; code: USD -12,00; boekhouding: (US$ 12,00)"
     expectedByRuntime:
-      java: "Symbool: US$ -12,00; code: USD -12,00; boekhouding: (US$ 12,00)"
       go: "Symbool: -12,00 US$; code: -12,00 USD; boekhouding: -12,00 US$"

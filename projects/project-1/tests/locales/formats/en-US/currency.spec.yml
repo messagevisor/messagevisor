@@ -1,0 +1,130 @@
+# JavaScript reference output: Node 24 / Intl. One raw ICU format per assertion.
+locale: "en-US"
+assertions:
+  - description: "Currency / default money"
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "$1,234.50"
+  - description: "Currency / symbol display"
+    rawMessage: "{amount, number, moneySymbol}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "$1,234.50"
+  - description: "Currency / code display"
+    rawMessage: "{amount, number, moneyCode}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "USD\u00A01,234.50"
+  - description: "Currency / narrow symbol display"
+    rawMessage: "{amount, number, moneyNarrow}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "$1,234.50"
+  - description: "Currency / name display"
+    rawMessage: "{amount, number, moneyName}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "1,234.50 US dollars"
+  - description: "Currency / accounting sign"
+    rawMessage: "{amount, number, moneyAccounting}"
+    values:
+      amount: -1234.5
+    expectedTranslation: "($1,234.50)"
+  - description: "Currency / runtime currency"
+    rawMessage: "{amount, number, moneyRuntimeCurrency}"
+    values:
+      amount: 1234.5
+    currency: "EUR"
+    expectedTranslation: "EUR\u00A01,234.50"
+  - description: "Currency / GBP"
+    rawMessage: "{amount, number, moneyGbp}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "£1,234.50"
+  - description: "Currency / JPY"
+    rawMessage: "{amount, number, moneyJpy}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "¥1,235"
+  - description: "Currency / EUR"
+    rawMessage: "{amount, number, moneyEur}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "€1,234.50"
+  - description: "Unit and percent / percent"
+    rawMessage: "{value, number, percent}"
+    values:
+      value: 0.125
+    expectedTranslation: "12.5%"
+  - description: "Unit and percent / percent fixed"
+    rawMessage: "{value, number, percentFixed}"
+    values:
+      value: 0.125
+    expectedTranslation: "12.50%"
+  - description: "Unit and percent / kilometer short"
+    rawMessage: "{value, number, unitKilometerShort}"
+    values:
+      value: 42
+    expectedTranslation: "42 km"
+  - description: "Unit and percent / kilometer narrow"
+    rawMessage: "{value, number, unitKilometerNarrow}"
+    values:
+      value: 42
+    expectedTranslation: "42km"
+  - description: "Unit and percent / kilometer long"
+    rawMessage: "{value, number, unitKilometerLong}"
+    values:
+      value: 42
+    expectedTranslation: "42 kilometers"
+  - description: "Unit and percent / meter long"
+    rawMessage: "{value, number, unitMeterLong}"
+    values:
+      value: 42
+    expectedTranslation: "42 meters"
+  - description: "Currency / default zero"
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: 0
+    expectedTranslation: "$0.00"
+  - description: "Currency / default negative"
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: -1234.5
+    expectedTranslation: "-$1,234.50"
+  - description: "Currency / accounting positive"
+    rawMessage: "{amount, number, moneyAccounting}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "$1,234.50"
+  - description: "Currency / runtime GBP"
+    rawMessage: "{amount, number, moneyRuntimeCurrency}"
+    values:
+      amount: 1234.5
+    currency: "GBP"
+    expectedTranslation: "GBP\u00A01,234.50"
+  - description: "Currency / JPY zero decimals"
+    rawMessage: "{amount, number, moneyJpy}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "¥1,235"
+  - description: "Unit and percent / percent zero"
+    rawMessage: "{value, number, percent}"
+    values:
+      value: 0
+    expectedTranslation: "0%"
+  - description: "Unit and percent / percent negative"
+    rawMessage: "{value, number, percent}"
+    values:
+      value: -0.125
+    expectedTranslation: "-12.5%"
+  - description: "Unit and percent / kilometer singular long"
+    rawMessage: "{value, number, unitKilometerLong}"
+    values:
+      value: 1
+    expectedTranslation: "1 kilometer"
+  - description: "Unit and percent / kilometer plural long"
+    rawMessage: "{value, number, unitKilometerLong}"
+    values:
+      value: 2
+    expectedTranslation: "2 kilometers"

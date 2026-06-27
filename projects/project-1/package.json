@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "messagevisor lint",
     "build": "messagevisor build",
-    "test": "messagevisor test"
+    "test": "messagevisor test --onlyFailures"
   },
   "dependencies": {
     "@messagevisor/cli": "0.16.0",

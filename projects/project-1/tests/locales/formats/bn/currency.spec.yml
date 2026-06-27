@@ -1,0 +1,59 @@
+# JavaScript reference output: Node 24 / Intl. One raw ICU format per assertion.
+locale: "bn"
+assertions:
+  - description: "Currency / default money"
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "১,২৩৪.৫০৳"
+  - description: "Currency / code display"
+    rawMessage: "{amount, number, moneyCode}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "১,২৩৪.৫০\u00A0BDT"
+  - description: "Currency / name display"
+    rawMessage: "{amount, number, moneyName}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "১,২৩৪.৫০ বাংলাদেশী টাকা"
+  - description: "Currency / accounting sign"
+    rawMessage: "{amount, number, moneyAccounting}"
+    values:
+      amount: -1234.5
+    expectedTranslation: "(১,২৩৪.৫০৳)"
+  - description: "Currency / runtime currency"
+    rawMessage: "{amount, number, moneyRuntimeCurrency}"
+    values:
+      amount: 1234.5
+    currency: "EUR"
+    expectedTranslation: "১,২৩৪.৫০\u00A0EUR"
+  - description: "Unit and percent / percent"
+    rawMessage: "{value, number, percent}"
+    values:
+      value: 0.125
+    expectedTranslation: "১২.৫%"
+  - description: "Currency / default negative"
+    rawMessage: "{amount, number, money}"
+    values:
+      amount: -1234.5
+    expectedTranslation: "-১,২৩৪.৫০৳"
+  - description: "Currency / JPY zero decimals"
+    rawMessage: "{amount, number, moneyJpy}"
+    values:
+      amount: 1234.5
+    expectedTranslation: "১,২৩৫\u00A0JP¥"
+  - description: "Unit and percent / percent negative"
+    rawMessage: "{value, number, percent}"
+    values:
+      value: -0.125
+    expectedTranslation: "-১২.৫%"
+  - description: "Unit and percent / kilometer singular long"
+    rawMessage: "{value, number, unitKilometerLong}"
+    values:
+      value: 1
+    expectedTranslation: "১ কিলোমিটার"
+  - description: "Unit and percent / kilometer plural long"
+    rawMessage: "{value, number, unitKilometerLong}"
+    values:
+      value: 2
+    expectedTranslation: "২ কিলোমিটার"

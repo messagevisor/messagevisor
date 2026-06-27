@@ -1,0 +1,79 @@
+# JavaScript reference output: Node 24 / Intl. One raw ICU format per assertion.
+locale: "tr-TR"
+assertions:
+  - description: "Date / full style"
+    rawMessage: "{when, date, fullStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 Mayıs 2026 Salı"
+  - description: "Date / short style"
+    rawMessage: "{when, date, shortStyle}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12.05.2026"
+  - description: "Date / numeric fields"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12.05.2026"
+  - description: "Date / weekday long"
+    rawMessage: "{when, date, weekdayLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 Mayıs 2026 Salı"
+  - description: "Date / month long"
+    rawMessage: "{when, date, monthLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 Mayıs 2026"
+  - description: "Date / era long"
+    rawMessage: "{when, date, eraLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "Milattan Sonra 12 Mayıs 2026"
+  - description: "Date / Arabic digits"
+    rawMessage: "{when, date, arabicNumeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "١٢.٠٥.٢٠٢٦"
+  - description: "Date / Buddhist calendar"
+    rawMessage: "{when, date, buddhistLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "BE 12 Mayıs 2569"
+  - description: "Date / Japanese era calendar"
+    rawMessage: "{when, date, japaneseEra}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 Mayıs 8 Reiwa"
+  - description: "Date / Gregorian calendar"
+    rawMessage: "{when, date, gregorianLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12 Mayıs 2026"
+  - description: "Date / Islamic calendar"
+    rawMessage: "{when, date, islamicLong}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "Hicri 25 Zilkade 1447"
+  - description: "Date / Latin digits"
+    rawMessage: "{when, date, latinNumeric}"
+    values:
+      when: "2026-05-12T08:30:45.678Z"
+    expectedTranslation: "12.05.2026"
+  - description: "Date / leap day"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2028-02-29T12:00:00Z"
+    expectedTranslation: "29.02.2028"
+  - description: "Date / year boundary UTC"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-01-01T00:30:00Z"
+    expectedTranslation: "01.01.2026"
+  - description: "Date / year boundary New York"
+    rawMessage: "{when, date, numeric}"
+    values:
+      when: "2026-01-01T00:30:00Z"
+    timeZone: "America/New_York"
+    expectedTranslation: "31.12.2025"

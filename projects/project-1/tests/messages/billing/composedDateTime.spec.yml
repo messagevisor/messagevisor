@@ -11,7 +11,6 @@ assertions:
     expectedTranslation: "Webinar: 01/01/2025 at 12:00 PM sharp"
     expectedByRuntime:
       go: "Webinar: 1/1/25 at 12:00 pm sharp"
-      java: "Webinar: 01/01/2025 at 12:00 PM sharp"
   - locale: nl-NL
     target: web
     timeZone: Europe/Amsterdam

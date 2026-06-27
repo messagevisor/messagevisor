@@ -11,8 +11,6 @@ assertions:
     expectedByRuntime:
       go: "Date numeric: 1/1/25; weekday: Wednesday, January 1, 2025; time: 12:00 pm;
         seconds: 12:00:00 pm; utc: 12:00 pm"
-      java: "Date numeric: 01/01/2025; weekday: Wednesday, January 1, 2025; time:
-        12:00 PM; seconds: 12:00:00 PM; utc: 12:00 PM"
   - locale: en-US
     target: web
     timeZone: America/New_York
@@ -23,8 +21,6 @@ assertions:
     expectedByRuntime:
       go: "Date numeric: 1/1/25; weekday: Wednesday, January 1, 2025; time: 7:00 am;
         seconds: 7:00:00 am; utc: 7:00 am"
-      java: "Date numeric: 01/01/2025; weekday: Wednesday, January 1, 2025; time:
-        7:00 AM; seconds: 7:00:00 AM; utc: 7:00 AM"
   - locale: nl-NL
     target: web
     timeZone: Europe/Amsterdam

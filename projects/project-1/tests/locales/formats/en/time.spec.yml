@@ -6,64 +6,46 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45 AM Coordinated Universal Time"
-    expectedByRuntime:
-      java: 8:30:45 AM Coordinated Universal Time
   - description: "Time / long style"
     rawMessage: "{when, time, longStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45 AM UTC"
-    expectedByRuntime:
-      java: 8:30:45 AM UTC
   - description: "Time / medium style"
     rawMessage: "{when, time, mediumStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45 AM"
-    expectedByRuntime:
-      java: 8:30:45 AM
   - description: "Time / short style"
     rawMessage: "{when, time, shortStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30 AM"
-    expectedByRuntime:
-      java: 8:30 AM
   - description: "Time / hour and minute"
     rawMessage: "{when, time, short}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30 AM"
-    expectedByRuntime:
-      java: 8:30 AM
   - description: "Time / seconds"
     rawMessage: "{when, time, seconds}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45 AM"
-    expectedByRuntime:
-      java: 8:30:45 AM
   - description: "Time / fractional seconds 1 digit"
     rawMessage: "{when, time, fractional1}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45.6 AM"
-    expectedByRuntime:
-      java: 8:30:45.6 AM
   - description: "Time / fractional seconds 2 digits"
     rawMessage: "{when, time, fractional2}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45.67 AM"
-    expectedByRuntime:
-      java: 8:30:45.67 AM
   - description: "Time / fractional seconds 3 digits"
     rawMessage: "{when, time, fractional}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45.678 AM"
-    expectedByRuntime:
-      java: 8:30:45.678 AM
   - description: "Time / day period long"
     rawMessage: "{when, time, dayPeriodLong}"
     values:
@@ -84,8 +66,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30 AM"
-    expectedByRuntime:
-      java: 8:30 AM
   - description: "Time / hour12 false"
     rawMessage: "{when, time, hour24}"
     values:
@@ -98,15 +78,11 @@ assertions:
     values:
       when: "2026-05-12T00:30:45.678Z"
     expectedTranslation: "00:30 AM"
-    expectedByRuntime:
-      java: 00:30 AM
   - description: "Time / hour cycle h12"
     rawMessage: "{when, time, hourCycle12}"
     values:
       when: "2026-05-12T00:30:45.678Z"
     expectedTranslation: "12:30 AM"
-    expectedByRuntime:
-      java: 12:30 AM
   - description: "Time / hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:
@@ -122,15 +98,11 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30 AM UTC"
-    expectedByRuntime:
-      java: 8:30 AM UTC
   - description: "Time / time zone long"
     rawMessage: "{when, time, zoneLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30 AM Coordinated Universal Time"
-    expectedByRuntime:
-      java: 8:30 AM Coordinated Universal Time
   - description: "Time / time zone short offset"
     rawMessage: "{when, time, zoneShortOffset}"
     values:
@@ -150,43 +122,31 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "4:30 AM ET"
-    expectedByRuntime:
-      java: 4:30 AM ET
   - description: "Time / time zone long generic"
     rawMessage: "{when, time, zoneLongGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "4:30 AM Eastern Time"
-    expectedByRuntime:
-      java: 4:30 AM Eastern Time
   - description: "Time / format matcher basic"
     rawMessage: "{when, time, matcherBasic}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45 AM"
-    expectedByRuntime:
-      java: 8:30:45 AM
   - description: "Time / format matcher best fit"
     rawMessage: "{when, time, matcherBestFit}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45 AM"
-    expectedByRuntime:
-      java: 8:30:45 AM
   - description: "Time / hour numeric only"
     rawMessage: "{when, time, hourNumericOnly}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8 AM"
-    expectedByRuntime:
-      java: 8 AM
   - description: "Time / hour 2-digit only"
     rawMessage: "{when, time, hourTwoDigitOnly}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "08 AM"
-    expectedByRuntime:
-      java: 08 AM
   - description: "Time / minute numeric only"
     rawMessage: "{when, time, minuteNumericOnly}"
     values:
@@ -217,15 +177,11 @@ assertions:
     values:
       when: "2026-05-12T00:00:00Z"
     expectedTranslation: "00:00 AM"
-    expectedByRuntime:
-      java: 00:00 AM
   - description: "Time / midnight hour cycle h12"
     rawMessage: "{when, time, hourCycle12}"
     values:
       when: "2026-05-12T00:00:00Z"
     expectedTranslation: "12:00 AM"
-    expectedByRuntime:
-      java: 12:00 AM
   - description: "Time / midnight hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:
@@ -241,55 +197,39 @@ assertions:
     values:
       when: "2026-01-15T12:00:00Z"
     expectedTranslation: "1:00 PM"
-    expectedByRuntime:
-      java: 1:00 PM
   - description: "Time / Amsterdam summer"
     rawMessage: "{when, time, amsterdamShort}"
     values:
       when: "2026-07-15T12:00:00Z"
     expectedTranslation: "2:00 PM"
-    expectedByRuntime:
-      java: 2:00 PM
   - description: "Time / New York winter"
     rawMessage: "{when, time, newYorkShort}"
     values:
       when: "2026-01-15T12:00:00Z"
     expectedTranslation: "7:00 AM"
-    expectedByRuntime:
-      java: 7:00 AM
   - description: "Time / New York summer"
     rawMessage: "{when, time, newYorkShort}"
     values:
       when: "2026-07-15T12:00:00Z"
     expectedTranslation: "8:00 AM"
-    expectedByRuntime:
-      java: 8:00 AM
   - description: "Time / Riyadh"
     rawMessage: "{when, time, riyadhShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "11:30 AM"
-    expectedByRuntime:
-      java: 11:30 AM
   - description: "Time / Tokyo"
     rawMessage: "{when, time, tokyoShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "5:30 PM"
-    expectedByRuntime:
-      java: 5:30 PM
   - description: "Time / per-call Tokyo override"
     rawMessage: "{when, time, seconds}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     timeZone: "Asia/Tokyo"
     expectedTranslation: "5:30:45 PM"
-    expectedByRuntime:
-      java: 5:30:45 PM
   - description: "Time / Latin digits"
     rawMessage: "{when, time, latinTime}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30 AM"
-    expectedByRuntime:
-      java: 8:30 AM

@@ -20,10 +20,6 @@ assertions:
       ¥2,000; percent 5.8%; date 05/12/2026; long May 12, 2026; zone 8:30 AM
       UTC; generic 4:30 AM ET."
     expectedByRuntime:
-      java: "Plain 1,234,567.891; fixed 12.00; significant 12,300; signed +5; compact
-        13K/13 thousand; unit 42 kilometers; money £99.50; yen ¥2,000; percent
-        5.8%; date 05/12/2026; long May 12, 2026; zone 8:30 AM UTC; generic
-        4:30 AM ET."
       swift: "Plain 1,234,567.891; fixed 12.00; significant 12,300; signed +5; compact
         12K/12K; unit 42 kilometers; money £99.50; yen ¥2,000; percent 5.8%;
         date 05/12/2026; long May 12, 2026; zone 8:30 AM GMT; generic 4:30 AM

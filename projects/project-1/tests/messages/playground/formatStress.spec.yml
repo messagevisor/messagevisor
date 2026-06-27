@@ -21,9 +21,6 @@ assertions:
       compact 13K; distance 42 km; placed Thursday, November 26, 2026 at 3:05:00
       PM; local 3:05 PM UTC."
     expectedByRuntime:
-      java: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%; compact 13K; distance
-        42 km; placed Thursday, November 26, 2026 at 3:05:00 PM; local 3:05 PM
-        UTC."
       swift: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%; compact 12K;
         distance 42 km; placed Thursday, November 26, 2026 at 3:05:00 PM; local
         3:05 PM GMT."
@@ -42,10 +39,6 @@ assertions:
     expectedTranslation: "Receipt €42.00; ISO EUR 42.00; rate 125%; compact 1.8M;
       distance 3.5 km; placed Monday, June 1, 2026 at 11:00:00 PM; local 11:00
       PM Japan Time."
-    expectedByRuntime:
-      java: Receipt €42.00; ISO EUR 42.00; rate 125%; compact 1.8M; distance 3.5 km;
-        placed Monday, June 1, 2026 at 11:00:00 PM; local 11:00 PM Japan Time.
-
   - description: nl-NL mixed format stress with inherited EUR
     locale: nl-NL
     target: web

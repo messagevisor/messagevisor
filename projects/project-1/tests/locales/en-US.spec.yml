@@ -226,8 +226,6 @@ assertions:
     expectedTranslation: 11:00:00 PM
     expectedByRuntime:
       go: 11:00:00 pm
-      java: 11:00:00 PM
-
   - description: en-US ad hoc formats are honored
     rawMessage: "{value, number, signed}"
     values:

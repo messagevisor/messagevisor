@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.17.0](https://github.com/messagevisor/messagevisor/compare/v0.16.0...v0.17.0) (2026-06-27)
+
+
+### Features
+
+* lint test specs for redundant expectations ([#23](https://github.com/messagevisor/messagevisor/issues/23)) ([a758121](https://github.com/messagevisor/messagevisor/commit/a7581210b320926160298ff8b2703563ff7792a8))
+
+
+
+
+
 # [0.16.0](https://github.com/messagevisor/messagevisor/compare/v0.15.0...v0.16.0) (2026-06-11)
 
 **Note:** Version bump only for package @messagevisor/project-1

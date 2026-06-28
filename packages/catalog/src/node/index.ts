@@ -436,12 +436,12 @@ function encodeKey(key: string) {
   return encodeURIComponent(key);
 }
 
-function matchesPattern(key: string, patterns?: string[]) {
+function matchesPattern(key: string, patterns?: string | string[]) {
   if (!patterns || patterns.length === 0) {
     return false;
   }
 
-  return patterns.some((pattern) => {
+  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
     const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
     return new RegExp(`^${escaped}$`).test(key);
   });
@@ -544,7 +544,8 @@ function collectSegmentKeys(
 }
 
 function getTargetMessageKeys(target: Target, messageKeys: string[]) {
-  const includeMessages = target.includeMessages?.length ? target.includeMessages : ["*"];
+  const includeMessages =
+    typeof target.includeMessages === "undefined" ? ["*"] : target.includeMessages;
   const excludeMessages = target.excludeMessages || [];
 
   return messageKeys

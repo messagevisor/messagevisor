@@ -1,8 +1,7 @@
 description: Web storefront
 pretty: true
 
-includeMessages:
-  - "*"
+includeMessages: "*"
 
 locales:
   - en-US

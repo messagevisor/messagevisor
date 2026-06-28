@@ -261,12 +261,12 @@ function deepMergeWithPolicy(
   return policy === "destination" ? destination : source;
 }
 
-function matchesPattern(key: string, patterns: string[]) {
+function matchesPattern(key: string, patterns: string | string[]) {
   if (patterns.length === 0) {
     return false;
   }
 
-  return patterns.some((pattern) => {
+  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
     const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
     return new RegExp(`^${escaped}$`).test(key);
   });
@@ -613,7 +613,9 @@ async function getPromotionPlan(
       for (const messageKey of messageKeys) {
         const included = matchesPattern(
           messageKey,
-          targets[key].includeMessages?.length ? targets[key].includeMessages : ["*"],
+          typeof targets[key].includeMessages === "undefined"
+            ? ["*"]
+            : targets[key].includeMessages,
         );
         const excluded = matchesPattern(messageKey, targets[key].excludeMessages || []);
 

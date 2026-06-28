@@ -79,12 +79,12 @@ export function mergeFormats(
   return mergeFormatPresets(parent, child);
 }
 
-function matchesPattern(key: string, patterns?: string[]) {
+function matchesPattern(key: string, patterns?: string | string[]) {
   if (!patterns || patterns.length === 0) {
     return false;
   }
 
-  return patterns.some((pattern) => {
+  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
     const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
     return new RegExp(`^${escaped}$`).test(key);
   });
@@ -454,6 +454,10 @@ function createTargetSimplifier(segments: Record<string, Segment>, context?: Con
   };
 }
 
+function getTargetIncludedMessages(target: Target | undefined) {
+  return typeof target?.includeMessages === "undefined" ? ["*"] : target.includeMessages;
+}
+
 async function buildDatafileFromMessageKeys(
   projectConfig: ProjectConfig,
   datasource: Datasource,
@@ -471,7 +475,7 @@ async function buildDatafileFromMessageKeys(
 
   const target = targetKey ? await datasource.readTarget(targetKey) : undefined;
   const datafileOptions = resolveTargetDatafileOptions(target);
-  const includedMessages = target?.includeMessages?.length ? target.includeMessages : ["*"];
+  const includedMessages = getTargetIncludedMessages(target);
   const excludedMessages = target?.excludeMessages || [];
   const datafileMessages: DatafileContent["messages"] = {};
   const translations: DatafileContent["translations"] = {};

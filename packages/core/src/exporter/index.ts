@@ -59,12 +59,12 @@ function toArray(value?: string | string[]): string[] {
   return Array.isArray(value) ? value : [value];
 }
 
-function matchesPattern(key: string, patterns?: string[]) {
+function matchesPattern(key: string, patterns?: string | string[]) {
   if (!patterns || patterns.length === 0) {
     return false;
   }
 
-  return patterns.some((pattern) => {
+  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
     const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
     return new RegExp(`^${escaped}$`).test(key);
   });
@@ -300,7 +300,8 @@ async function collectRows(
   if (requestedTargets.length > 0) {
     for (const targetKey of requestedTargets) {
       const target = targets[targetKey];
-      const targetIncludeMessages = target.includeMessages?.length ? target.includeMessages : ["*"];
+      const targetIncludeMessages =
+        typeof target.includeMessages === "undefined" ? ["*"] : target.includeMessages;
       const targetExcludeMessages = target.excludeMessages || [];
       const targetLocales = target.locales?.length ? target.locales : localeKeys;
 

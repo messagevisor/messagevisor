@@ -1,8 +1,7 @@
 description: Java SDK conformance
 pretty: true
 
-includeMessages:
-  - "*"
+includeMessages: "*"
 
 locales:
   - ar-AE

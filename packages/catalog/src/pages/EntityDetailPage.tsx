@@ -1423,16 +1423,13 @@ export function EntityDetailPage() {
     <div>
       <PageHeader
         title={
-          <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="whitespace-nowrap">{entityLabels[type].singular}:</span>
-            <EntityKey
-              value={detail.key}
-              className="min-w-0 text-[1.45rem] font-extrabold leading-tight"
-            />
-          </span>
+          <EntityKey value={detail.key} className="min-w-0 font-black leading-tight" />
         }
         description={
           <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-faint">
+              {entityLabels[type].singular}
+            </span>
             {entity.archived && <Badge tone="danger">archived</Badge>}
             {entity.deprecated && <Badge tone="warning">deprecated</Badge>}
           </div>

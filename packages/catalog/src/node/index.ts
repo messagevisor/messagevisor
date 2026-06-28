@@ -2212,7 +2212,9 @@ function summarizeMessage(
 
   return getEntitySummary(message, "message", messageKey, historyIndex, set, {
     targets,
-    ...((message.overrides || []).length > 0 ? { overrideCount: (message.overrides || []).length } : {}),
+    ...((message.overrides || []).length > 0
+      ? { overrideCount: (message.overrides || []).length }
+      : {}),
     ...(directLocales.length > 0 ? { locales: sortStrings(directLocales) } : {}),
     ...(overrideLocales.length > 0 ? { overrideLocales } : {}),
   });

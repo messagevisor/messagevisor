@@ -249,6 +249,7 @@ export type GroupSegment = PlainGroupSegment | AndOrNotGroupSegment;
  */
 export interface Override {
   key: string;
+  promotable?: boolean;
   description?: string;
   summary?: string;
 

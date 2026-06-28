@@ -335,19 +335,36 @@ function mergeMessage(
   conflicts: PromotionConflict[],
 ): Message {
   if (!destination) {
-    return source;
+    const overrides = (source.overrides || []).filter((override) => isPromotable(override));
+
+    return {
+      ...source,
+      overrides: overrides.length > 0 ? overrides : undefined,
+    };
   }
 
+  validateMessageOverrideKeys(messageKey, source);
   validateMessageOverrideKeys(messageKey, destination);
 
   const sourceOverrides = source.overrides || [];
   const destinationOverrides = destination.overrides || [];
   const mergedOverrideKeys = new Set<string>();
-  const overrides = sourceOverrides.map((sourceOverride) => {
+  const overrides: Message["overrides"] = [];
+
+  for (const sourceOverride of sourceOverrides) {
+    if (!isPromotable(sourceOverride)) {
+      continue;
+    }
+
     const destinationOverride = destinationOverrides.find(
       (override) => override.key === sourceOverride.key,
     );
     mergedOverrideKeys.add(sourceOverride.key);
+
+    if (destinationOverride && !isPromotable(destinationOverride)) {
+      overrides.push(destinationOverride);
+      continue;
+    }
 
     const overrideConflicts: Array<Omit<PromotionConflict, "type" | "key">> = [];
     const merged = deepMergeWithPolicy(
@@ -366,8 +383,8 @@ function mergeMessage(
       })),
     );
 
-    return merged;
-  });
+    overrides.push(merged);
+  }
 
   for (const destinationOverride of destinationOverrides) {
     if (!mergedOverrideKeys.has(destinationOverride.key)) {
@@ -652,6 +669,10 @@ async function getPromotionPlan(
       );
       if (!options.excludeOverrides) {
         for (const override of message.overrides || []) {
+          if (!isPromotable(override)) {
+            continue;
+          }
+
           Object.keys(override.translations || {}).forEach((locale) =>
             explicitRuntimeLocales.add(locale),
           );
@@ -684,6 +705,10 @@ async function getPromotionPlan(
       validateMessageOverrideKeys(messageKey, message);
 
       for (const override of message.overrides || []) {
+        if (!isPromotable(override)) {
+          continue;
+        }
+
         collectConditionDependencies(
           override.conditions,
           promotedSegmentKeys,

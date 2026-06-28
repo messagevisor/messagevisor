@@ -76,6 +76,7 @@ export function getMessageZodSchema(
   const overrideZodSchema = z
     .object({
       key: z.string().min(1),
+      promotable: z.boolean().optional(),
       description: z.string().optional(),
       summary: z.string().optional(),
       conditions: conditionsZodSchema.optional(),

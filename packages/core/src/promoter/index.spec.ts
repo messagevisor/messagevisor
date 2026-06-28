@@ -145,6 +145,173 @@ describe("promoteProjectSets", function () {
     expect(message.overrides?.[1].translations.en).toEqual("Staging only");
   });
 
+  it("skips source overrides marked as non-promotable", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "sets/dev/messages/product/price.yml",
+      [
+        "description: Product price",
+        "translations:",
+        "  en: New price",
+        "overrides:",
+        "  - key: pro",
+        "    segments: pro",
+        "    translations:",
+        "      en: New pro price",
+        "  - key: staging-only",
+        "    promotable: false",
+        "    segments: pro",
+        "    translations:",
+        "      en: Dev staging-only price",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await promoteProjectSets(projectConfig, datasource, {
+      from: "dev",
+      to: "staging",
+      includeMessages: "product*",
+      apply: true,
+    });
+    const message = await datasource.forSet("staging").readMessage("product.price");
+
+    expect(message.translations.en).toEqual("New price");
+    expect(message.overrides?.map((override) => override.key)).toEqual(["pro", "staging-only"]);
+    expect(message.overrides?.[0].translations.en).toEqual("New pro price");
+    expect(message.overrides?.[1].translations.en).toEqual("Staging only");
+  });
+
+  it("preserves destination overrides marked as non-promotable", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "sets/staging/messages/product/price.yml",
+      [
+        "description: Product price",
+        "translations:",
+        "  en: Old price",
+        "overrides:",
+        "  - key: pro",
+        "    promotable: false",
+        "    segments: pro",
+        "    translations:",
+        "      en: Protected destination pro price",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await promoteProjectSets(projectConfig, datasource, {
+      from: "dev",
+      to: "staging",
+      includeMessages: "product*",
+      apply: true,
+    });
+    const message = await datasource.forSet("staging").readMessage("product.price");
+
+    expect(message.translations.en).toEqual("New price");
+    expect(message.overrides?.map((override) => override.key)).toEqual(["pro"]);
+    expect(message.overrides?.[0].translations.en).toEqual("Protected destination pro price");
+    expect(message.overrides?.[0].promotable).toEqual(false);
+  });
+
+  it("creates new destination messages with only promotable source overrides", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "sets/dev/messages/product/banner.yml",
+      [
+        "description: Product banner",
+        "translations:",
+        "  en: New banner",
+        "overrides:",
+        "  - key: pro",
+        "    segments: pro",
+        "    translations:",
+        "      en: New pro banner",
+        "  - key: dev-only",
+        "    promotable: false",
+        "    segments: pro",
+        "    translations:",
+        "      en: Dev-only banner",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await promoteProjectSets(projectConfig, datasource, {
+      from: "dev",
+      to: "staging",
+      includeMessages: "product.banner",
+      apply: true,
+    });
+    const message = await datasource.forSet("staging").readMessage("product.banner");
+
+    expect(message.translations.en).toEqual("New banner");
+    expect(message.overrides?.map((override) => override.key)).toEqual(["pro"]);
+    expect(message.overrides?.[0].translations.en).toEqual("New pro banner");
+  });
+
+  it("does not promote dependencies used only by non-promotable overrides", async function () {
+    const root = await createProject();
+    await writeFile(root, "sets/dev/locales/fr.yml", "description: French\n");
+    await writeFile(
+      root,
+      "sets/dev/attributes/channel.yml",
+      "description: Channel\ntype: string\n",
+    );
+    await writeFile(
+      root,
+      "sets/dev/segments/internal.yml",
+      "description: Internal\nconditions:\n  - attribute: channel\n    operator: equals\n    value: internal\n",
+    );
+    await writeFile(
+      root,
+      "sets/dev/messages/product/price.yml",
+      [
+        "description: Product price",
+        "translations:",
+        "  en: New price",
+        "overrides:",
+        "  - key: pro",
+        "    segments: pro",
+        "    translations:",
+        "      en: New pro price",
+        "  - key: internal",
+        "    promotable: false",
+        "    segments: internal",
+        "    translations:",
+        "      fr: Prix interne",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const result = await promoteProjectSets(projectConfig, datasource, {
+      from: "dev",
+      to: "staging",
+      includeMessages: "product*",
+      apply: true,
+    });
+
+    expect(result.dependencies.locales).toEqual(1);
+    expect(result.dependencies.attributes).toEqual(1);
+    expect(result.dependencies.segments).toEqual(1);
+    expect(await datasource.forSet("staging").listLocales()).not.toContain("fr");
+    expect(await datasource.forSet("staging").listAttributes()).not.toContain("channel");
+    expect(await datasource.forSet("staging").listSegments()).not.toContain("internal");
+  });
+
   it("fails fast for unknown requested locales", async function () {
     const root = await createProject();
     const projectConfig = getProjectConfig(root);

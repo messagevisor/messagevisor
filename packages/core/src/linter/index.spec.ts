@@ -584,6 +584,70 @@ describe("lintProject", function () {
     );
   });
 
+  it("accepts boolean promotable values on overrides", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "messages/dashboard/welcome.yml",
+      [
+        "description: Dashboard welcome",
+        "translations:",
+        "  en: Welcome",
+        "overrides:",
+        "  - key: pro",
+        "    promotable: false",
+        '    conditions: "*"',
+        "    translations:",
+        "      en: Welcome pro",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(result.hasError).toEqual(false);
+  });
+
+  it("rejects non-boolean promotable values on overrides", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "messages/dashboard/welcome.yml",
+      [
+        "description: Dashboard welcome",
+        "translations:",
+        "  en: Welcome",
+        "overrides:",
+        "  - key: pro",
+        "    promotable: nope",
+        '    conditions: "*"',
+        "    translations:",
+        "      en: Welcome pro",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(
+      result.errors.some(
+        (error) =>
+          error.path.join(".") === "overrides.0.promotable" &&
+          error.message.toLowerCase().includes("boolean"),
+      ),
+    ).toEqual(true);
+  });
+
   it("rejects override keys containing namespace or export separator characters", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
 

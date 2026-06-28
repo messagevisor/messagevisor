@@ -35,18 +35,13 @@ function HistoryEntryCard(props: { entry: HistoryEntry; setKey?: string; commitU
           {formatCatalogTimestamp(props.entry.timestamp)}
         </a>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-muted">
         {visibleEntities.map((entity) => (
-          <span
-            key={`${entity.type}-${entity.key}`}
-            className="inline-flex max-w-full items-center gap-1 rounded-full bg-pill px-2.5 py-0.5 text-xs text-muted"
-          >
-            <span className="shrink-0 text-faint">
-              {entity.type !== "test" ? entityLabels[entity.type].singular : "Test"}
-            </span>
+          <li key={`${entity.type}-${entity.key}`} className="[overflow-wrap:anywhere]">
+            {entity.type !== "test" ? entityLabels[entity.type].singular : "Test"}{" "}
             {entity.type !== "test" ? (
               <Link
-                className="min-w-0 font-medium text-primary hover:underline"
+                className="font-medium text-primary hover:underline"
                 to={getEntityRoute(entity.type, entity.key, entity.set || props.setKey)}
               >
                 <EntityKey value={entity.key} className="font-medium" />
@@ -54,9 +49,9 @@ function HistoryEntryCard(props: { entry: HistoryEntry; setKey?: string; commitU
             ) : (
               <EntityKey value={entity.key} className="font-medium" />
             )}
-          </span>
+          </li>
         ))}
-      </div>
+      </ul>
       {hasMore && (
         <button
           type="button"

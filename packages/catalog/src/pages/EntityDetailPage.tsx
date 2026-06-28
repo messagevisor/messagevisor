@@ -3564,7 +3564,7 @@ function UsageSections(props: {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="space-y-4">
       {visibleSections.map((section) => (
         <OverviewMetaPanel key={section.title}>
           <OverviewMetaRow label={section.title}>

@@ -10,11 +10,11 @@ export function UsageLinks(props: { type: EntityType; keys?: string[]; setKey?: 
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col items-start gap-2">
       {props.keys.map((key) => (
-        <span key={key} className="inline-flex">
+        <span key={key} className="flex max-w-full">
           <Link
-            className="inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs font-medium text-primary hover:underline"
+            className="inline-flex max-w-full items-center rounded-full bg-pill px-2.5 py-0.5 text-xs font-medium text-primary hover:underline"
             to={getEntityRoute(
               props.type,
               props.type === "attribute" ? key.split(".")[0] : key,

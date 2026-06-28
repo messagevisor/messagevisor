@@ -84,9 +84,6 @@ assertions:
     values:
       amount: 12
     expectedTranslation: € 12,00
-    expectedByRuntime:
-      go: 12,00 €
-
   - description: nl-NL target preview overrides the money preset
     target: preview
     expectedFormats:
@@ -97,9 +94,6 @@ assertions:
     values:
       amount: 12
     expectedTranslation: US$ 12,00
-    expectedByRuntime:
-      go: 12,00 US$
-
   - description: nl-NL long date is localized
     rawMessage: "{when, date, long}"
     values:

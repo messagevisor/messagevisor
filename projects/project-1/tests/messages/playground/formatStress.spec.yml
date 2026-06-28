@@ -20,11 +20,6 @@ assertions:
     expectedTranslation: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%;
       compact 13K; distance 42 km; placed Thursday, November 26, 2026 at 3:05:00
       PM; local 3:05 PM UTC."
-    expectedByRuntime:
-      swift: "Receipt ($1,284.50); ISO -USD 1,284.50; rate 12.3%; compact 12K;
-        distance 42 km; placed Thursday, November 26, 2026 at 3:05:00 PM; local
-        3:05 PM GMT."
-
   - description: en-US mixed format stress with EUR override and Tokyo per-call zone
     locale: en-US
     target: web
@@ -52,11 +47,6 @@ assertions:
     expectedTranslation: "Bon (€ 1.284,50); ISO EUR -1.284,50; percentage 12,3%;
       compact 13K; afstand 42 km; geplaatst donderdag 26 november 2026 om
       16:05:00; lokaal 16:05 CET."
-    expectedByRuntime:
-      swift: "Bon (€ 1.284,50); ISO EUR -1.284,50; percentage 12,3%; compact 12K;
-        afstand 42 km; geplaatst donderdag 26 november 2026 om 16:05:00; lokaal
-        16:05 CET."
-
   - description: bn mixed format stress with BDT and non-Latin digits
     locale: bn
     target: web
@@ -76,7 +66,3 @@ assertions:
     expectedTranslation: "Receipt (১,২৮৪.৫০৳); ISO -১,২৮৪.৫০ BDT; rate ১২.৩%;
       compact ১৩ হা; distance ৪২ কিমি; placed বৃহস্পতিবার, ২৬ নভেম্বর, ২০২৬ at
       ৩:০৫:০০ PM; local ৩:০৫ PM UTC."
-    expectedByRuntime:
-      swift: "Receipt (1,284.50 US$); ISO -1,284.50 USD; rate 12.3%; compact 12 হা;
-        distance 42 কিমি; placed বৃহস্পতিবার, 26 নভেম্বর, 2026 at 3:05:00 PM;
-        local 3:05 PM GMT +0."

@@ -76,5 +76,3 @@ assertions:
     values:
       amount: 12
     expectedTranslation: "Doel totaal: € 12,00"
-    expectedByRuntime:
-      go: "Doel totaal: 12,00 €"

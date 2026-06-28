@@ -1031,6 +1031,34 @@ describe("catalog", function () {
     ).rejects.toThrow("Catalog set not found: missing");
   });
 
+  it("orders dev sets first and prod sets last in the catalog manifest", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = { sets: true };\n");
+
+    for (const set of ["production", "staging", "dev-next", "qa", "prod-eu", "dev"]) {
+      await writeFile(root, `sets/${set}/locales/en.yml`, "description: English\n");
+      await writeFile(
+        root,
+        `sets/${set}/messages/common/welcome.yml`,
+        `description: Welcome\ntranslations:\n  en: ${set}\n`,
+      );
+    }
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+
+    const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
+
+    expect(manifest.setKeys).toEqual(["dev", "dev-next", "qa", "staging", "prod-eu", "production"]);
+  });
+
   it("prints set names while exporting set project catalogs", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
     roots.push(root);

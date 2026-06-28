@@ -2075,6 +2075,32 @@ function filterCatalogSetExecutions(
   return filtered;
 }
 
+function getCatalogSetSortRank(set: string) {
+  const normalizedSet = set.toLowerCase();
+
+  if (normalizedSet.startsWith("dev")) {
+    return 0;
+  }
+
+  if (normalizedSet.startsWith("prod")) {
+    return 2;
+  }
+
+  return 1;
+}
+
+function sortCatalogSetKeys(setKeys: string[]) {
+  return [...setKeys].sort((a, b) => {
+    const rankDiff = getCatalogSetSortRank(a) - getCatalogSetSortRank(b);
+
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+
+    return a.localeCompare(b);
+  });
+}
+
 function getDataOutputDirectoryPath(session: CatalogDevSession, projectConfig: any, set?: string) {
   return path.join(
     session.outputDirectoryPath,
@@ -2169,12 +2195,15 @@ async function writeCatalogManifest(
     executions: Array<{ set: string; projectConfig: any; datasource: any }>;
   },
 ) {
+  const setKeys = projectConfig.sets
+    ? sortCatalogSetKeys(options.executions.map((execution) => execution.set))
+    : [];
   const manifest = {
     schemaVersion: CATALOG_SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
     router: options.browserRouter === false ? "hash" : "browser",
     sets: projectConfig.sets,
-    setKeys: projectConfig.sets ? options.executions.map((execution) => execution.set) : [],
+    setKeys,
     dev: { editors: session.devEditors },
     features: {
       translationSearch: options.withTranslationSearch,
@@ -2635,12 +2664,15 @@ export async function exportCatalog(
   }
 
   stepStartedAt = progress.step("Writing manifest");
+  const setKeys = projectConfig.sets
+    ? sortCatalogSetKeys(executions.map((execution) => execution.set))
+    : [];
   const manifest = {
     schemaVersion: CATALOG_SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
     router: options.browserRouter === false ? "hash" : "browser",
     sets: projectConfig.sets,
-    setKeys: projectConfig.sets ? executions.map((execution) => execution.set) : [],
+    setKeys,
     dev: options.dev ? { editors: devEditors } : undefined,
     features: {
       translationSearch: withTranslationSearch,

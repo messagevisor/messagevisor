@@ -406,6 +406,58 @@ describe("catalog", function () {
     expect(history.entries).toEqual([]);
   });
 
+  it("resolves target message relationships from string includeMessages and excludeMessages", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "messages/auth/signin.yml",
+      "description: Sign in\ntranslations:\n  en: Sign in\n",
+    );
+    await writeFile(
+      root,
+      "messages/footer/copyright.yml",
+      "description: Copyright\ntranslations:\n  en: Copyright\n",
+    );
+    await writeFile(
+      root,
+      "targets/web.yml",
+      [
+        "description: Web",
+        'includeMessages: "*"',
+        "excludeMessages: footer*",
+        "locales:",
+        "  - en",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+
+    const index = await readJson<any>(root, "catalog-out/data/root/index.json");
+    const target = await readJson<any>(root, "catalog-out/data/root/entities/target/web.json");
+
+    expect(index.entities.target.find((entry: any) => entry.key === "web").messageCount).toBe(1);
+    expect(
+      index.entities.message.find((entry: any) => entry.key === "auth.signin").targets,
+    ).toEqual(["web"]);
+    expect(
+      index.entities.message.find((entry: any) => entry.key === "footer.copyright").targets,
+    ).toEqual([]);
+    expect(target.entity.includeMessages).toBe("*");
+    expect(target.entity.excludeMessages).toBe("footer*");
+    expect(target.messages).toEqual(["auth.signin"]);
+  });
+
   it("exports locale duplicate reports only when opted in", async function () {
     const root = await createProject();
     roots.push(root);

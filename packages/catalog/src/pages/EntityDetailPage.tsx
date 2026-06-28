@@ -132,6 +132,16 @@ function formatValue(value: unknown) {
   return String(value);
 }
 
+function formatOverviewValue(value: unknown) {
+  const formattedValue = formatValue(value);
+
+  if (formattedValue === "n/a" || formattedValue === "none") {
+    return <OverviewPlaceholder>{formattedValue}</OverviewPlaceholder>;
+  }
+
+  return formattedValue;
+}
+
 function rowMatchesFormatSearch(row: FormatRow, parsed: ParsedQuery): boolean {
   const parts = splitFormatPath(row.path);
   const valueStr = formatValue(row.value);
@@ -1276,6 +1286,10 @@ function OverviewChip(props: { children: React.ReactNode; className?: string }) 
   );
 }
 
+function OverviewPlaceholder(props: { children: React.ReactNode }) {
+  return <span className="text-xs italic text-faint">{props.children}</span>;
+}
+
 function OverviewChipLink(props: { to: string; children: React.ReactNode }) {
   return (
     <Link
@@ -1639,8 +1653,8 @@ function getOverviewMetaRows(
       value: hasEntityStatus(entity) ? <EntityStatusBadges entity={entity} /> : undefined,
     },
     promotableField,
-    { label: "Included message patterns", value: formatValue(entity.includeMessages) },
-    { label: "Excluded message patterns", value: formatValue(entity.excludeMessages) },
+    { label: "Included message patterns", value: formatOverviewValue(entity.includeMessages) },
+    { label: "Excluded message patterns", value: formatOverviewValue(entity.excludeMessages) },
     {
       label: "Locales",
       value: localeKeys?.length ? (

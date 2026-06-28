@@ -94,7 +94,10 @@ function formatTypeKeys(formats: FormatPresets | undefined) {
   return Object.keys(formats || {}) as Array<keyof FormatPresets>;
 }
 
-function filterFormats(formats: FormatPresets | undefined, target?: Target): FormatPresets | undefined {
+function filterFormats(
+  formats: FormatPresets | undefined,
+  target?: Target,
+): FormatPresets | undefined {
   if (!formats) {
     return undefined;
   }

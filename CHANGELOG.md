@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.22.0](https://github.com/messagevisor/messagevisor/compare/v0.21.0...v0.22.0) (2026-06-28)
+
+
+### Features
+
+* targeting messages ([#30](https://github.com/messagevisor/messagevisor/issues/30)) ([a5324e5](https://github.com/messagevisor/messagevisor/commit/a5324e51bed7570a090f188c8edc7a912e8eeeaf))
+
+
+
+
+
 # [0.21.0](https://github.com/messagevisor/messagevisor/compare/v0.20.0...v0.21.0) (2026-06-28)
 
 

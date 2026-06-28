@@ -3,6 +3,8 @@ import { z } from "zod";
 import { formatPresetsZodSchema } from "./formatSchema";
 import { refineWithMessage } from "./zodHelpers";
 
+const messagePatternsZodSchema = z.union([z.string(), z.array(z.string())]);
+
 export function getTargetZodSchema(localeKeys: string[]) {
   return z
     .object({
@@ -14,8 +16,8 @@ export function getTargetZodSchema(localeKeys: string[]) {
       description: z.string({
         error: (issue) => (issue.input === undefined ? "Required" : undefined),
       }),
-      includeMessages: z.array(z.string()).optional(),
-      excludeMessages: z.array(z.string()).optional(),
+      includeMessages: messagePatternsZodSchema.optional(),
+      excludeMessages: messagePatternsZodSchema.optional(),
       locales: z
         .array(
           refineWithMessage(
@@ -37,14 +39,5 @@ export function getTargetZodSchema(localeKeys: string[]) {
         )
         .optional(),
     })
-    .strict()
-    .superRefine((data, ctx) => {
-      if (!data.includeMessages || data.includeMessages.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Target must include at least one message pattern.",
-          path: ["includeMessages"],
-        });
-      }
-    });
+    .strict();
 }

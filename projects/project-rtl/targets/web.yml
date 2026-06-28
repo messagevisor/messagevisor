@@ -1,8 +1,7 @@
 description: Web target for the RTL showcase project
 pretty: true
 
-includeMessages:
-  - "*"
+includeMessages: "*"
 
 locales:
   - en-US

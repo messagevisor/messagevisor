@@ -72,12 +72,12 @@ function cloneWithoutKey<T extends Record<string, unknown>>(entity: T): T {
   return JSON.parse(JSON.stringify(withoutKey(entity)));
 }
 
-function matchesPattern(key: string, patterns?: string[]) {
+function matchesPattern(key: string, patterns?: string | string[]) {
   if (!patterns || patterns.length === 0) {
     return false;
   }
 
-  return patterns.some((pattern) => {
+  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
     const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
     return new RegExp(`^${escaped}$`).test(key);
   });
@@ -289,9 +289,10 @@ async function getSelectedMessageKeys(
   const selected = new Set<string>();
 
   for (const targetKey of requestedTargets) {
-    const includePatterns = targets[targetKey].includeMessages?.length
-      ? targets[targetKey].includeMessages
-      : ["*"];
+    const includePatterns =
+      typeof targets[targetKey].includeMessages === "undefined"
+        ? ["*"]
+        : targets[targetKey].includeMessages;
     const excludePatterns = targets[targetKey].excludeMessages || [];
 
     for (const messageKey of messageKeys) {

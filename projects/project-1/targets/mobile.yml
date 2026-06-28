@@ -6,8 +6,7 @@ includeMessages:
   - inbox*
   - cart*
 
-excludeMessages:
-  - footer*
+excludeMessages: footer*
 
 locales:
   - en-US

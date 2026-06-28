@@ -305,8 +305,8 @@ export interface Target {
   stringify?: boolean;
   pretty?: boolean;
   revisionFromHash?: boolean;
-  includeMessages?: string[];
-  excludeMessages?: string[];
+  includeMessages?: string | string[];
+  excludeMessages?: string | string[];
   locales?: LocaleKey[];
   context?: Context;
   formats?: { [locale: LocaleKey]: FormatPresets };

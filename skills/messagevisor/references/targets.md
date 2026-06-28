@@ -13,8 +13,7 @@ description: Web application
 includeMessages:
   - auth*
   - dashboard*
-excludeMessages:
-  - dashboard.internal*
+excludeMessages: dashboard.internal*
 locales:
   - en-US
   - nl-NL
@@ -33,7 +32,8 @@ revisionFromHash: false
 
 ## What targets control
 
-- `includeMessages` and `excludeMessages` choose message keys by glob pattern.
+- `includeMessages` and `excludeMessages` choose message keys by glob pattern. Use a string for one pattern, or an array for multiple patterns.
+- Omitted `includeMessages` means all messages. Explicit `includeMessages: []` means no messages.
 - `locales` lists which locale datafiles are produced.
 - `context` is compile-time known context. It can remove impossible override branches from output.
 - `formats.<locale>` applies target-level format overrides after locale format resolution.

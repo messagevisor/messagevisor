@@ -142,7 +142,7 @@ async function createEntityShell(
   if (entityType === "targets") {
     return {
       description: "",
-      includeMessages: ["*"],
+      includeMessages: "*",
     };
   }
 

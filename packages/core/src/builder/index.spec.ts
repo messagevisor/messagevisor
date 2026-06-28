@@ -158,6 +158,84 @@ describe("buildProject", function () {
     expect(written.translations["auth.signin"]).toEqual("Sign in now");
   });
 
+  it("builds no-message target datafiles when includeMessages is an empty array", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "targets/empty.yml",
+      ["description: Empty", "includeMessages: []", "locales:", "  - en-US", ""].join("\n"),
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const datafiles = await buildProject(projectConfig, datasource, { target: "empty" });
+
+    expect(datafiles).toHaveLength(1);
+    expect(datafiles[0].target).toEqual("empty");
+    expect(datafiles[0].locale).toEqual("en-US");
+    expect(datafiles[0].messages).toEqual({});
+    expect(datafiles[0].translations).toEqual({});
+    expect(datafiles[0].segments).toEqual({});
+
+    const written = JSON.parse(
+      await fs.promises.readFile(
+        path.join(root, "datafiles/messagevisor-empty-en-US.json"),
+        "utf8",
+      ),
+    );
+    expect(written.messages).toEqual({});
+    expect(written.translations).toEqual({});
+  });
+
+  it("builds all messages when a target omits includeMessages", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "targets/all.yml",
+      ["description: All", "locales:", "  - en-US", ""].join("\n"),
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const datafiles = await buildProject(projectConfig, datasource, { target: "all" });
+
+    expect(datafiles).toHaveLength(1);
+    expect(datafiles[0].target).toEqual("all");
+    expect(datafiles[0].messages["auth.signin"]).toBeDefined();
+    expect(datafiles[0].translations["auth.signin"]).toEqual("Sign in now");
+  });
+
+  it("builds target datafiles with string includeMessages and excludeMessages", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "messages/footer/copyright.yml",
+      "description: Copyright\ntranslations:\n  en-US: Copyright\n",
+    );
+    await writeFile(
+      root,
+      "targets/string-patterns.yml",
+      [
+        "description: String patterns",
+        'includeMessages: "*"',
+        "excludeMessages: footer*",
+        "locales:",
+        "  - en-US",
+        "",
+      ].join("\n"),
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const datafiles = await buildProject(projectConfig, datasource, { target: "string-patterns" });
+
+    expect(datafiles).toHaveLength(1);
+    expect(datafiles[0].messages["auth.signin"]).toBeDefined();
+    expect(datafiles[0].translations["auth.signin"]).toEqual("Sign in now");
+    expect(datafiles[0].messages["footer.copyright"]).toBeUndefined();
+    expect(datafiles[0].translations["footer.copyright"]).toBeUndefined();
+  });
+
   it("writes nested target datafiles under matching subdirectories", async function () {
     const root = await createProject();
     await writeFile(

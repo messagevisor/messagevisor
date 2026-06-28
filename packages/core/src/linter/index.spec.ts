@@ -374,6 +374,54 @@ describe("lintProject", function () {
     expect(paths).toContain("revisionFromHash");
   });
 
+  it("allows targets with empty or omitted includeMessages", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "targets/empty.yml",
+      ["description: Empty", "includeMessages: []", "locales:", "  - en", ""].join("\n"),
+    );
+    await writeFile(
+      root,
+      "targets/all.yml",
+      ["description: All", "locales:", "  - en", ""].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("allows string includeMessages and excludeMessages in targets", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "targets/web.yml",
+      [
+        "description: Web",
+        'includeMessages: "*"',
+        "excludeMessages: internal*",
+        "locales:",
+        "  - en",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(result.errors).toHaveLength(0);
+  });
+
   it("rejects invalid locale format option combinations and ICU-only pseudo-styles", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
 

@@ -51,18 +51,27 @@ describe("EntityList target metadata", function () {
 describe("EntityList relationship metadata", function () {
   it("formats compact relationship count labels by entity type", function () {
     expect(
-      getRelationshipSummaryLabels("message", { key: "welcome", href: "", usedInTargetCount: 2 }),
-    ).toEqual(["2 targets"]);
+      getRelationshipSummaryLabels("message", {
+        key: "welcome",
+        href: "",
+        targets: ["web", "mobile"],
+      }),
+    ).toEqual([{ label: "Targets", value: "2", tooltip: "Targets: mobile, web" }]);
     expect(
       getRelationshipSummaryLabels("attribute", {
         key: "plan",
         href: "",
+        targets: ["web"],
         usedInSegmentCount: 1,
         usedInMessageCount: 2,
       }),
-    ).toEqual(["1 segment", "2 messages"]);
+    ).toEqual([
+      { label: "Targets", value: "1", tooltip: "Targets: web" },
+      { label: "Used in", value: "1 segment" },
+      { label: "Used in", value: "2 messages" },
+    ]);
     expect(
       getRelationshipSummaryLabels("segment", { key: "pro", href: "", usedInMessageCount: 1 }),
-    ).toEqual(["1 message"]);
+    ).toEqual([{ label: "Used in", value: "1 message" }]);
   });
 });

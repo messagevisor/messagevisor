@@ -233,7 +233,6 @@ interface CatalogEntitySummary {
   messageCount?: number;
   usedInMessageCount?: number;
   usedInSegmentCount?: number;
-  usedInTargetCount?: number;
   locales?: string[];
   overrideLocales?: string[];
   lastModified?: CatalogLastModified;
@@ -1636,7 +1635,6 @@ async function buildSetCatalog(
     index.entities.locale.push(
       getEntitySummary(locale, "locale", localeKey, context.historyIndex, set || undefined, {
         targets: sortStrings(Array.from(localeTargets[localeKey] || [])),
-        usedInTargetCount: (localeTargets[localeKey] || new Set()).size,
       }),
     );
     await context.writer.write(
@@ -1744,7 +1742,6 @@ async function buildSetCatalog(
     index.entities.message.push(
       getEntitySummary(message, "message", messageKey, context.historyIndex, set || undefined, {
         targets: sortStrings(messageTargets[messageKey] || []),
-        usedInTargetCount: (messageTargets[messageKey] || []).length,
         ...(directLocales.length > 0 ? { locales: sortStrings(directLocales) } : {}),
         ...(overrideLocalesList.length > 0 ? { overrideLocales: overrideLocalesList } : {}),
       }),

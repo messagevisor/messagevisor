@@ -247,41 +247,6 @@ function HoverTooltip(props: { label: string; children: React.ReactNode; classNa
   );
 }
 
-function TargetIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-      <path
-        fillRule="evenodd"
-        d="M10 2.75a7.25 7.25 0 1 0 0 14.5 7.25 7.25 0 0 0 0-14.5ZM4.25 10a5.75 5.75 0 1 1 11.5 0 5.75 5.75 0 0 1-11.5 0ZM10 6.25a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5ZM7.75 10a2.25 2.25 0 1 1 4.5 0 2.25 2.25 0 0 1-4.5 0Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-const rowMetadataIconClassName =
-  "rounded-full bg-elevated p-1 text-faint hover:bg-pill hover:text-muted";
-
-function RowMetadataIcons(props: { entity: EntitySummary; type: EntityType }) {
-  if (props.type === "target") {
-    return null;
-  }
-
-  const targets = sortValues(props.entity.targets);
-
-  if (targets.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="flex shrink-0 items-center gap-1">
-      <HoverTooltip label={getTargetTooltipLabel(targets)} className={rowMetadataIconClassName}>
-        <TargetIcon />
-      </HoverTooltip>
-    </div>
-  );
-}
-
 function TargetMessageCountBadge(props: { entity: EntitySummary; type: EntityType }) {
   if (props.type !== "target") {
     return null;
@@ -295,37 +260,37 @@ function TargetMessageCountBadge(props: { entity: EntitySummary; type: EntityTyp
 }
 
 export function getRelationshipSummaryLabels(type: EntityType, entity: EntitySummary) {
-  const labels: string[] = [];
+  const labels: Array<{ label: string; value: string; tooltip?: string }> = [];
+  const targetCount = type === "target" ? 0 : sortValues(entity.targets).length;
 
-  if (type === "message" && (entity.usedInTargetCount ?? 0) > 0) {
-    labels.push(
-      `${entity.usedInTargetCount} ${entity.usedInTargetCount === 1 ? "target" : "targets"}`,
-    );
-  }
-
-  if (type === "locale" && (entity.usedInTargetCount ?? 0) > 0) {
-    labels.push(
-      `${entity.usedInTargetCount} ${entity.usedInTargetCount === 1 ? "target" : "targets"}`,
-    );
+  if (targetCount > 0) {
+    labels.push({
+      label: "Targets",
+      value: String(targetCount),
+      tooltip: getTargetTooltipLabel(entity.targets),
+    });
   }
 
   if (type === "segment" && (entity.usedInMessageCount ?? 0) > 0) {
-    labels.push(
-      `${entity.usedInMessageCount} ${entity.usedInMessageCount === 1 ? "message" : "messages"}`,
-    );
+    labels.push({
+      label: "Used in",
+      value: `${entity.usedInMessageCount} ${entity.usedInMessageCount === 1 ? "message" : "messages"}`,
+    });
   }
 
   if (type === "attribute") {
     if ((entity.usedInSegmentCount ?? 0) > 0) {
-      labels.push(
-        `${entity.usedInSegmentCount} ${entity.usedInSegmentCount === 1 ? "segment" : "segments"}`,
-      );
+      labels.push({
+        label: "Used in",
+        value: `${entity.usedInSegmentCount} ${entity.usedInSegmentCount === 1 ? "segment" : "segments"}`,
+      });
     }
 
     if ((entity.usedInMessageCount ?? 0) > 0) {
-      labels.push(
-        `${entity.usedInMessageCount} ${entity.usedInMessageCount === 1 ? "message" : "messages"}`,
-      );
+      labels.push({
+        label: "Used in",
+        value: `${entity.usedInMessageCount} ${entity.usedInMessageCount === 1 ? "message" : "messages"}`,
+      });
     }
   }
 
@@ -341,9 +306,17 @@ function RelationshipSummaryBadges(props: { entity: EntitySummary; type: EntityT
 
   return (
     <div className="flex shrink-0 items-center gap-1">
-      {labels.map((label) => (
-        <LabelValueBadge key={label} label="Used in" value={label} compact />
-      ))}
+      {labels.map((item) => {
+        const badge = <LabelValueBadge label={item.label} value={item.value} compact />;
+
+        return item.tooltip ? (
+          <HoverTooltip key={`${item.label}:${item.value}`} label={item.tooltip}>
+            {badge}
+          </HoverTooltip>
+        ) : (
+          <React.Fragment key={`${item.label}:${item.value}`}>{badge}</React.Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -354,7 +327,6 @@ function RowTrailingMeta(props: { entity: EntitySummary; type: EntityType }) {
       {getStatusBadges(props.entity)}
       <TargetMessageCountBadge entity={props.entity} type={props.type} />
       <RelationshipSummaryBadges entity={props.entity} type={props.type} />
-      <RowMetadataIcons entity={props.entity} type={props.type} />
     </>
   );
 }

@@ -384,7 +384,11 @@ describe("lintProject", function () {
       "targets/empty.yml",
       ["description: Empty", "includeMessages: []", "locales:", "  - en", ""].join("\n"),
     );
-    await writeFile(root, "targets/all.yml", ["description: All", "locales:", "  - en", ""].join("\n"));
+    await writeFile(
+      root,
+      "targets/all.yml",
+      ["description: All", "locales:", "  - en", ""].join("\n"),
+    );
 
     const projectConfig = getProjectConfig(root);
     const datasource = new Datasource(projectConfig, root);

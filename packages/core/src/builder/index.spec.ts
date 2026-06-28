@@ -178,7 +178,10 @@ describe("buildProject", function () {
     expect(datafiles[0].segments).toEqual({});
 
     const written = JSON.parse(
-      await fs.promises.readFile(path.join(root, "datafiles/messagevisor-empty-en-US.json"), "utf8"),
+      await fs.promises.readFile(
+        path.join(root, "datafiles/messagevisor-empty-en-US.json"),
+        "utf8",
+      ),
     );
     expect(written.messages).toEqual({});
     expect(written.translations).toEqual({});

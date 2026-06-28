@@ -131,6 +131,7 @@ Catalog is a generated, read-only website for reviewing a Messagevisor project:
 npx messagevisor catalog
 npx messagevisor catalog export
 npx messagevisor catalog serve
+npx messagevisor catalog --set=staging --set=production
 ```
 
 Translation-value search and duplicate reports are opt-in because they can be expensive in large projects:
@@ -142,6 +143,8 @@ npx messagevisor catalog export --with-translation-search --with-duplicates
 ```
 
 `catalog serve` only serves already generated output. It does not build optional search or duplicate indexes.
+
+For sets-based projects, catalog generation includes all sets by default. Pass `--set=<name>` one or more times to generate only selected sets.
 
 ## Example projects
 

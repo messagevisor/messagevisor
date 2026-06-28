@@ -344,6 +344,7 @@ export interface CatalogExportOptions {
   devEditors?: CatalogDevEditor[];
   withTranslationSearch?: boolean;
   withDuplicates?: boolean;
+  sets?: string[];
   devSession?: CatalogDevSession;
   preserveAssets?: boolean;
 }
@@ -353,6 +354,7 @@ export interface CatalogServeOptions {
   port?: number | string;
   browserRouter?: boolean;
   liveReload?: boolean;
+  sets?: string[];
 }
 
 export interface CatalogServerHandle {
@@ -2042,6 +2044,37 @@ function getOutputRelativeDirectory(projectConfig: any, set?: string) {
   return projectConfig.sets ? path.join("sets", set || "") : "root";
 }
 
+function normalizeSelectedSets(values: unknown): string[] {
+  const rawValues = Array.isArray(values) ? values : typeof values === "undefined" ? [] : [values];
+  const selectedSets = rawValues
+    .flatMap((value) => (typeof value === "string" ? [value] : []))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(selectedSets));
+}
+
+function filterCatalogSetExecutions(
+  executions: Array<{ set: string; projectConfig: any; datasource: any }>,
+  selectedSets: string[] | undefined,
+) {
+  if (!selectedSets || selectedSets.length === 0) {
+    return executions;
+  }
+
+  const selectedSet = new Set(selectedSets);
+  const filtered = executions.filter((execution) => selectedSet.has(execution.set));
+  const missingSets = selectedSets.filter(
+    (set) => !executions.some((execution) => execution.set === set),
+  );
+
+  if (missingSets.length > 0) {
+    throw new Error(`Catalog set not found: ${missingSets.join(", ")}`);
+  }
+
+  return filtered;
+}
+
 function getDataOutputDirectoryPath(session: CatalogDevSession, projectConfig: any, set?: string) {
   return path.join(
     session.outputDirectoryPath,
@@ -2389,6 +2422,7 @@ async function rebuildCatalogSetForDev(
   session: CatalogDevSession,
   options: {
     set?: string;
+    selectedSets?: string[];
     browserRouter: boolean;
     withTranslationSearch: boolean;
     withDuplicates: boolean;
@@ -2396,7 +2430,10 @@ async function rebuildCatalogSetForDev(
 ) {
   const writer = new CatalogJsonWriter();
   const progress = new CatalogProgressReporter(rootDirectoryPath, session.outputDirectoryPath);
-  const executions = await runtime.getProjectSetExecutions(projectConfig, datasource);
+  const executions = filterCatalogSetExecutions(
+    await runtime.getProjectSetExecutions(projectConfig, datasource),
+    options.selectedSets,
+  );
   const setIndexes: Record<string, CatalogSetIndex> = {};
   const existingIndexes = await Promise.all(
     executions.map(async (execution) => {
@@ -2520,10 +2557,14 @@ export async function exportCatalog(
   if (withDuplicates) {
     stepStartedAt = progress.step("Scanning duplicate translations");
     duplicateResultsBySet = Object.fromEntries(
-      (await runtime.findDuplicateTranslations(projectConfig, datasource)).results.map((result) => [
-        getDuplicateSetKey(result.set),
-        result,
-      ]),
+      (await runtime.findDuplicateTranslations(projectConfig, datasource)).results
+        .filter(
+          (result) =>
+            !projectConfig.sets ||
+            !options.sets?.length ||
+            (result.set !== null && options.sets.includes(result.set)),
+        )
+        .map((result) => [getDuplicateSetKey(result.set), result]),
     );
     progress.done(
       stepStartedAt,
@@ -2562,7 +2603,10 @@ export async function exportCatalog(
     writer,
   };
   stepStartedAt = progress.step("Discovering project sets");
-  const executions = await runtime.getProjectSetExecutions(projectConfig, datasource);
+  const executions = filterCatalogSetExecutions(
+    await runtime.getProjectSetExecutions(projectConfig, datasource),
+    projectConfig.sets ? options.sets : undefined,
+  );
   progress.done(
     stepStartedAt,
     projectConfig.sets
@@ -2892,6 +2936,7 @@ export async function serveCatalog(
     await exportCatalog(runtime, rootDirectoryPath, projectConfig, datasource, {
       outDir: outputDirectoryPath,
       browserRouter: options.browserRouter,
+      sets: options.sets,
     });
   }
 
@@ -3040,6 +3085,7 @@ export function createCatalogPlugin(
       const browserRouter = !(parsed.hashRouter || parsed["hash-router"]);
       const withTranslationSearch = isWithTranslationSearchEnabled(parsed);
       const withDuplicates = isWithDuplicatesEnabled(parsed);
+      const selectedSets = normalizeSelectedSets(parsed.set);
 
       if (!parsed.subcommand) {
         const outputDirectoryPath = parsed.outDir
@@ -3056,12 +3102,14 @@ export function createCatalogPlugin(
           devSession,
           withTranslationSearch,
           withDuplicates,
+          sets: selectedSets,
         });
         const server = await api.serveCatalog(rootDirectoryPath, projectConfig, datasource, {
           outDir: parsed.outDir,
           port: parsed.port || parsed.p,
           browserRouter,
           liveReload: true,
+          sets: selectedSets,
         });
 
         const ignoredDirectoryPaths = [
@@ -3086,18 +3134,24 @@ export function createCatalogPlugin(
           }
 
           exportInFlight = true;
-          const request = classifyCatalogDevChanges(
-            rootDirectoryPath,
-            projectConfig,
-            changedPaths,
-            {
-              withTranslationSearch,
-              withDuplicates,
-            },
-          );
-          console.log(`\n[catalog] Rebuilding (${request.kind}) because ${request.reason}`);
 
           try {
+            const request = classifyCatalogDevChanges(
+              rootDirectoryPath,
+              projectConfig,
+              changedPaths,
+              {
+                withTranslationSearch,
+                withDuplicates,
+              },
+            );
+
+            if (request.set && selectedSets.length > 0 && !selectedSets.includes(request.set)) {
+              return;
+            }
+
+            console.log(`\n[catalog] Rebuilding (${request.kind}) because ${request.reason}`);
+
             let handled = false;
 
             if (request.kind === "message") {
@@ -3126,6 +3180,7 @@ export function createCatalogPlugin(
                 devSession,
                 {
                   set: request.set,
+                  selectedSets,
                   browserRouter,
                   withTranslationSearch,
                   withDuplicates,
@@ -3143,6 +3198,7 @@ export function createCatalogPlugin(
                 devSession,
                 withTranslationSearch,
                 withDuplicates,
+                sets: selectedSets,
               });
             }
 
@@ -3196,6 +3252,7 @@ export function createCatalogPlugin(
           browserRouter,
           withTranslationSearch,
           withDuplicates,
+          sets: selectedSets,
         });
       }
 
@@ -3204,6 +3261,7 @@ export function createCatalogPlugin(
           outDir: parsed.outDir,
           port: parsed.port || parsed.p,
           browserRouter,
+          sets: selectedSets,
         });
       }
     },

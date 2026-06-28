@@ -72,11 +72,13 @@ npx messagevisor promote --from=dev --to=staging --apply --audit=markdown
 
 ## Excluding content from promotion
 
-Set `promotable: false` on an entity or override when it should not be copied by promotion:
+Set `promotable: false` on an entity when it should not be copied by promotion:
 
 ```yml
 promotable: false
 ```
+
+On message overrides, `promotable: false` keeps that override local to its current set. Source overrides marked this way are not copied or merged into the destination, destination overrides marked this way are protected from source updates, and dependencies used only by skipped overrides are not promoted.
 
 ## Safety checklist
 

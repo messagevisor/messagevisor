@@ -76,6 +76,8 @@ overrides:
 
 Overrides are evaluated top to bottom. First match wins. Reordering overrides changes behavior.
 
+In sets-based projects, add `promotable: false` to an override when that branch should stay local to its current set. Promotion skips that source override, protects a matching non-promotable destination override, and does not promote dependencies used only by skipped overrides.
+
 Inline conditions are fine for one-off branches:
 
 ```yml

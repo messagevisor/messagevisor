@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 
 import type { TranslationShard } from "../../api";
@@ -179,6 +180,129 @@ function getStatusBadges(entity: EntitySummary) {
   );
 }
 
+function sortValues(values?: string[]) {
+  return Array.from(new Set(values || [])).sort((left, right) => left.localeCompare(right));
+}
+
+export function getTargetTooltipLabel(targets?: string[]) {
+  const sortedTargets = sortValues(targets);
+
+  if (sortedTargets.length === 0) {
+    return "";
+  }
+
+  return `Targets: ${sortedTargets.join(", ")}`;
+}
+
+function HoverTooltip(props: { label: string; children: React.ReactNode; className?: string }) {
+  const ref = React.useRef<HTMLSpanElement | null>(null);
+  const [tooltipPosition, setTooltipPosition] = React.useState<{
+    left: number;
+    top: number;
+  } | null>(null);
+
+  function showTooltip() {
+    const rect = ref.current?.getBoundingClientRect();
+
+    if (!rect) {
+      return;
+    }
+
+    setTooltipPosition({
+      left: rect.left + rect.width / 2,
+      top: rect.top,
+    });
+  }
+
+  function hideTooltip() {
+    setTooltipPosition(null);
+  }
+
+  return (
+    <span
+      ref={ref}
+      className={`relative inline-flex ${props.className || ""}`}
+      aria-label={props.label}
+      onMouseEnter={showTooltip}
+      onMouseLeave={hideTooltip}
+      onFocus={showTooltip}
+      onBlur={hideTooltip}
+    >
+      {props.children}
+      {tooltipPosition &&
+        createPortal(
+          <span
+            className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-header px-2 py-1 text-xs font-semibold text-header-text shadow-lg"
+            style={{
+              left: tooltipPosition.left,
+              top: tooltipPosition.top - 8,
+            }}
+          >
+            {props.label}
+          </span>,
+          document.body,
+        )}
+    </span>
+  );
+}
+
+function TargetIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+      <path
+        fillRule="evenodd"
+        d="M10 2.75a7.25 7.25 0 1 0 0 14.5 7.25 7.25 0 0 0 0-14.5ZM4.25 10a5.75 5.75 0 1 1 11.5 0 5.75 5.75 0 0 1-11.5 0ZM10 6.25a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5ZM7.75 10a2.25 2.25 0 1 1 4.5 0 2.25 2.25 0 0 1-4.5 0Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+const rowMetadataIconClassName =
+  "rounded-full bg-elevated p-1 text-faint hover:bg-pill hover:text-muted";
+
+function RowMetadataIcons(props: { entity: EntitySummary; type: EntityType }) {
+  if (props.type === "target") {
+    return null;
+  }
+
+  const targets = sortValues(props.entity.targets);
+
+  if (targets.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      <HoverTooltip label={getTargetTooltipLabel(targets)} className={rowMetadataIconClassName}>
+        <TargetIcon />
+      </HoverTooltip>
+    </div>
+  );
+}
+
+function TargetMessageCountBadge(props: { entity: EntitySummary; type: EntityType }) {
+  if (props.type !== "target") {
+    return null;
+  }
+
+  return (
+    <Badge>
+      {props.entity.messageCount || 0} {props.entity.messageCount === 1 ? "message" : "messages"}
+    </Badge>
+  );
+}
+
+function RowTrailingMeta(props: { entity: EntitySummary; type: EntityType }) {
+  return (
+    <>
+      {getStatusBadges(props.entity)}
+      <TargetMessageCountBadge entity={props.entity} type={props.type} />
+      <RowMetadataIcons entity={props.entity} type={props.type} />
+    </>
+  );
+}
+
 function LastModified(props: { entity: EntitySummary; highlightQuery: string[] }) {
   if (!props.entity.lastModified) {
     return <span>Last modified n/a</span>;
@@ -202,14 +326,6 @@ function LastModified(props: { entity: EntitySummary; highlightQuery: string[] }
       on <SearchHighlight text={formattedDate} query={props.highlightQuery} />
     </span>
   );
-}
-
-function getRelationshipBadges(type: EntityType, entity: EntitySummary) {
-  if (type === "target") {
-    return [`${entity.messageCount || 0} ${entity.messageCount === 1 ? "message" : "messages"}`];
-  }
-
-  return entity.targets || [];
 }
 
 function uniqueTerms(terms: string[]) {
@@ -597,36 +713,29 @@ export function EntityList(props: {
             to={getEntityRoute(props.type, entity.key, props.setKey)}
             className="block px-6 py-3 hover:bg-elevated"
           >
-            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-col justify-between gap-2 md:flex-row md:items-start">
-                  <div className="min-w-0">
-                    <EntityKey
-                      value={entity.key}
-                      className="text-sm font-semibold text-primary"
-                      highlightQuery={highlightTerms.key}
-                    />
-                    <div className="mt-1 truncate text-sm text-muted">
-                      <SearchHighlight
-                        text={entity.description || "No description"}
-                        query={highlightTerms.description}
-                      />
-                    </div>
-                  </div>
-                  <div className="shrink-0">{getStatusBadges(entity)}</div>
-                </div>
-                <div className="mt-2 flex flex-col gap-2 text-xs text-muted md:flex-row md:items-center md:justify-between">
-                  <div className="flex flex-wrap gap-2">
-                    {getRelationshipBadges(props.type, entity).map((label) => (
-                      <Badge key={label}>
-                        <SearchHighlight text={label} query={highlightTerms.relationship} />
-                      </Badge>
-                    ))}
-                  </div>
-                  <span className="shrink-0 md:text-right">
-                    <LastModified entity={entity} highlightQuery={highlightTerms.lastModified} />
-                  </span>
-                </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_auto] gap-x-3 gap-y-1">
+              <div className="col-start-1 row-start-1 flex min-h-6 min-w-0 items-center">
+                <EntityKey
+                  value={entity.key}
+                  className="text-sm font-semibold text-primary"
+                  highlightQuery={highlightTerms.key}
+                />
+              </div>
+              <div className="col-start-2 row-start-1 flex min-h-6 w-full items-center justify-end gap-2">
+                <RowTrailingMeta entity={entity} type={props.type} />
+              </div>
+              <div className="col-start-1 row-start-2 flex min-h-5 min-w-0 items-center overflow-hidden">
+                <span className="min-w-0 truncate text-sm text-muted">
+                  <SearchHighlight
+                    text={entity.description || "No description"}
+                    query={highlightTerms.description}
+                  />
+                </span>
+              </div>
+              <div className="col-start-2 row-start-2 flex min-h-5 w-full items-center justify-end">
+                <span className="whitespace-nowrap text-right text-[11px] text-faint">
+                  <LastModified entity={entity} highlightQuery={highlightTerms.lastModified} />
+                </span>
               </div>
             </div>
           </Link>

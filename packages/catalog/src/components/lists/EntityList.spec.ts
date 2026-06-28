@@ -1,4 +1,4 @@
-import { getEntityListHighlightTerms } from "./EntityList";
+import { getEntityListHighlightTerms, getTargetTooltipLabel } from "./EntityList";
 
 describe("EntityList highlighting", function () {
   it("uses free text for key and last-modified highlights only", function () {
@@ -30,5 +30,16 @@ describe("EntityList highlighting", function () {
       relationship: [],
       lastModified: [],
     });
+  });
+});
+
+describe("EntityList target metadata", function () {
+  it("formats sorted unique target names for compact row tooltips", function () {
+    expect(getTargetTooltipLabel(["mobile", "web", "mobile"])).toEqual("Targets: mobile, web");
+  });
+
+  it("returns an empty target tooltip label when no targets are present", function () {
+    expect(getTargetTooltipLabel()).toEqual("");
+    expect(getTargetTooltipLabel([])).toEqual("");
   });
 });

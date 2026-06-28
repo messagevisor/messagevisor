@@ -1422,9 +1422,7 @@ export function EntityDetailPage() {
   return (
     <div>
       <PageHeader
-        title={
-          <EntityKey value={detail.key} className="min-w-0 font-black leading-tight" />
-        }
+        title={<EntityKey value={detail.key} className="min-w-0 font-black leading-tight" />}
         description={
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-faint">

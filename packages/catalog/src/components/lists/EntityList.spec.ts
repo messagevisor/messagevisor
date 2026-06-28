@@ -2,6 +2,7 @@ import {
   getEntityListHighlightTerms,
   getRelationshipSummaryLabels,
   getTargetTooltipLabel,
+  hasMessageOverrides,
 } from "./EntityList";
 
 describe("EntityList highlighting", function () {
@@ -49,6 +50,21 @@ describe("EntityList target metadata", function () {
 });
 
 describe("EntityList relationship metadata", function () {
+  it("detects message override metadata for compact row indicators", function () {
+    expect(hasMessageOverrides("message", { key: "welcome", href: "", overrideCount: 1 })).toBe(
+      true,
+    );
+    expect(
+      hasMessageOverrides("message", { key: "welcome", href: "", overrideLocales: ["en-US"] }),
+    ).toBe(true);
+    expect(hasMessageOverrides("message", { key: "welcome", href: "", overrideCount: 0 })).toBe(
+      false,
+    );
+    expect(hasMessageOverrides("segment", { key: "pro", href: "", overrideCount: 1 })).toBe(
+      false,
+    );
+  });
+
   it("formats compact relationship count labels by entity type", function () {
     expect(
       getRelationshipSummaryLabels("message", {

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import type { TranslationShard } from "../../api";
 import { fetchTranslationShard } from "../../api";
@@ -259,6 +259,58 @@ function TargetMessageCountBadge(props: { entity: EntitySummary; type: EntityTyp
   );
 }
 
+export function hasMessageOverrides(type: EntityType, entity: EntitySummary) {
+  if (type !== "message") {
+    return false;
+  }
+
+  return (entity.overrideCount ?? entity.overrideLocales?.length ?? 0) > 0;
+}
+
+function MessageOverridesIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" className="h-3.5 w-3.5">
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.53 1.53 0 0 1-2.29.95c-1.37-.84-2.94.73-2.1 2.1.5.8.07 1.86-.95 2.29-1.56.38-1.56 2.6 0 2.98 1.02.25 1.45 1.49.95 2.29-.84 1.37.73 2.94 2.1 2.1.8-.5 2.04-.07 2.29.95.38 1.56 2.6 1.56 2.98 0 .25-1.02 1.49-1.45 2.29-.95 1.37.84 2.94-.73 2.1-2.1-.5-.8-.07-2.04.95-2.29 1.56-.38 1.56-2.6 0-2.98-1.02-.25-1.45-1.49-.95-2.29.84-1.37-.73-2.94-2.1-2.1-.8.5-2.04.07-2.29-.95ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function MessageOverridesIndicator(props: {
+  entity: EntitySummary;
+  type: EntityType;
+  setKey?: string;
+}) {
+  const navigate = useNavigate();
+
+  if (!hasMessageOverrides(props.type, props.entity)) {
+    return null;
+  }
+
+  const overridesRoute = `${getEntityRoute("message", props.entity.key, props.setKey)}/overrides`;
+
+  return (
+    <HoverTooltip label="Has overrides">
+      <button
+        type="button"
+        aria-label="Has overrides"
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/70 bg-transparent text-faint outline-none transition-colors hover:border-border hover:bg-elevated/60 hover:text-muted focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          navigate(overridesRoute);
+        }}
+      >
+        <MessageOverridesIcon />
+      </button>
+    </HoverTooltip>
+  );
+}
+
 export function getRelationshipSummaryLabels(type: EntityType, entity: EntitySummary) {
   const labels: Array<{ label: string; value: string; tooltip?: string }> = [];
   const targetCount = type === "target" ? 0 : sortValues(entity.targets).length;
@@ -321,11 +373,12 @@ function RelationshipSummaryBadges(props: { entity: EntitySummary; type: EntityT
   );
 }
 
-function RowTrailingMeta(props: { entity: EntitySummary; type: EntityType }) {
+function RowTrailingMeta(props: { entity: EntitySummary; type: EntityType; setKey?: string }) {
   return (
     <>
       {getStatusBadges(props.entity)}
       <TargetMessageCountBadge entity={props.entity} type={props.type} />
+      <MessageOverridesIndicator entity={props.entity} type={props.type} setKey={props.setKey} />
       <RelationshipSummaryBadges entity={props.entity} type={props.type} />
     </>
   );
@@ -756,7 +809,7 @@ export function EntityList(props: {
                 />
               </div>
               <div className="col-start-2 row-start-1 flex min-h-6 w-full items-center justify-end gap-2">
-                <RowTrailingMeta entity={entity} type={props.type} />
+                <RowTrailingMeta entity={entity} type={props.type} setKey={props.setKey} />
               </div>
               <div className="col-start-1 row-start-2 flex min-h-5 min-w-0 items-center overflow-hidden">
                 <span className="min-w-0 truncate text-sm text-muted">

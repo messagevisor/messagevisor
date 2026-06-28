@@ -287,6 +287,7 @@ describe("catalog", function () {
     expect(
       index.entities.message.find((entry: any) => entry.key === "common.welcome").targets,
     ).toEqual(["web"]);
+    expect(index.entities.message.find((entry: any) => entry.key === "common.welcome").overrideCount).toBe(1);
     expect(index.entities.locale.find((entry: any) => entry.key === "en-US").targets).toEqual([
       "web",
     ]);

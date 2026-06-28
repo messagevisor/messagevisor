@@ -230,6 +230,7 @@ interface CatalogEntitySummary {
   archived?: boolean;
   deprecated?: boolean;
   targets?: string[];
+  overrideCount?: number;
   messageCount?: number;
   usedInMessageCount?: number;
   usedInSegmentCount?: number;
@@ -1742,6 +1743,7 @@ async function buildSetCatalog(
     index.entities.message.push(
       getEntitySummary(message, "message", messageKey, context.historyIndex, set || undefined, {
         targets: sortStrings(messageTargets[messageKey] || []),
+        ...(overrides.length > 0 ? { overrideCount: overrides.length } : {}),
         ...(directLocales.length > 0 ? { locales: sortStrings(directLocales) } : {}),
         ...(overrideLocalesList.length > 0 ? { overrideLocales: overrideLocalesList } : {}),
       }),
@@ -2210,6 +2212,7 @@ function summarizeMessage(
 
   return getEntitySummary(message, "message", messageKey, historyIndex, set, {
     targets,
+    ...((message.overrides || []).length > 0 ? { overrideCount: (message.overrides || []).length } : {}),
     ...(directLocales.length > 0 ? { locales: sortStrings(directLocales) } : {}),
     ...(overrideLocales.length > 0 ? { overrideLocales } : {}),
   });

@@ -58,8 +58,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "২:১৫ PM GMT +৫:৪৫"
-    expectedByRuntime:
-      java: ৮:৩০ AM GMT +০
   - description: "Time / time zone short generic"
     rawMessage: "{when, time, zoneShortGeneric}"
     values:

@@ -982,6 +982,81 @@ describe("catalog", function () {
         ],
       },
     ]);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-selected",
+      copyAssets: false,
+      sets: ["storefront"],
+    });
+
+    const selectedManifest = await readJson<any>(root, "catalog-selected/data/manifest.json");
+    const selectedStorefront = await readJson<any>(
+      root,
+      "catalog-selected/data/sets/storefront/index.json",
+    );
+
+    expect(selectedManifest.sets).toBe(true);
+    expect(selectedManifest.setKeys).toEqual(["storefront"]);
+    expect(selectedManifest.paths.sets).toEqual({
+      storefront: "data/sets/storefront/index.json",
+    });
+    expect(selectedManifest.counts.admin).toBeUndefined();
+    expect(selectedStorefront.counts.message).toBe(2);
+    await expect(pathExists(root, "catalog-selected/data/sets/admin/index.json")).resolves.toBe(
+      false,
+    );
+  });
+
+  it("fails clearly when a selected catalog set does not exist", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = { sets: true };\n");
+    await writeFile(root, "sets/storefront/locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "sets/storefront/messages/common/welcome.yml",
+      "description: Welcome\ntranslations:\n  en: storefront\n",
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await expect(
+      catalogApi.exportCatalog(root, projectConfig, datasource, {
+        outDir: "catalog-out",
+        copyAssets: false,
+        sets: ["missing"],
+      }),
+    ).rejects.toThrow("Catalog set not found: missing");
+  });
+
+  it("orders dev sets first and prod sets last in the catalog manifest", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = { sets: true };\n");
+
+    for (const set of ["production", "staging", "dev-next", "qa", "prod-eu", "dev"]) {
+      await writeFile(root, `sets/${set}/locales/en.yml`, "description: English\n");
+      await writeFile(
+        root,
+        `sets/${set}/messages/common/welcome.yml`,
+        `description: Welcome\ntranslations:\n  en: ${set}\n`,
+      );
+    }
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+
+    const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
+
+    expect(manifest.setKeys).toEqual(["dev", "dev-next", "qa", "staging", "prod-eu", "production"]);
   });
 
   it("prints set names while exporting set project catalogs", async function () {
@@ -1371,6 +1446,25 @@ describe("catalog plugin", function () {
     );
   });
 
+  it("forwards repeated set options for dev catalog mode", async function () {
+    const { handler } = createPlugin();
+
+    await handler({ _: ["catalog"], set: ["storefront", "admin", "storefront"] });
+
+    expect(exportMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({ sets: ["storefront", "admin"], dev: true }),
+    );
+    expect(serveMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({ sets: ["storefront", "admin"], liveReload: true }),
+    );
+  });
+
   it("forwards translation search option for export subcommand", async function () {
     const { handler } = createPlugin();
 
@@ -1402,6 +1496,23 @@ describe("catalog plugin", function () {
       expect.any(Object),
       expect.any(Object),
       expect.objectContaining({ withDuplicates: true }),
+    );
+  });
+
+  it("forwards set option for export subcommand", async function () {
+    const { handler } = createPlugin();
+
+    await handler({
+      _: ["catalog", "export"],
+      subcommand: "export",
+      set: "storefront",
+    });
+
+    expect(exportMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({ sets: ["storefront"] }),
     );
   });
 
@@ -1440,6 +1551,23 @@ describe("catalog plugin", function () {
       expect.any(Object),
       expect.any(Object),
       expect.objectContaining({ port: 3104 }),
+    );
+  });
+
+  it("forwards set option for serve subcommand", async function () {
+    const { handler } = createPlugin();
+
+    await handler({
+      _: ["catalog", "serve"],
+      subcommand: "serve",
+      set: ["storefront", "admin"],
+    });
+
+    expect(serveMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({ sets: ["storefront", "admin"] }),
     );
   });
 

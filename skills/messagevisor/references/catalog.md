@@ -9,9 +9,11 @@ npx messagevisor catalog
 npx messagevisor catalog --port=3100
 npx messagevisor catalog --with-translation-search
 npx messagevisor catalog --with-duplicates
+npx messagevisor catalog --set=staging --set=production
 npx messagevisor catalog export
 npx messagevisor catalog export --with-translation-search
 npx messagevisor catalog export --with-duplicates
+npx messagevisor catalog export --set=production
 npx messagevisor catalog serve
 npx messagevisor catalog serve --port=3100
 ```
@@ -23,6 +25,21 @@ npx messagevisor catalog serve --port=3100
 | `catalog serve` | Serve an already generated catalog |
 
 `catalog serve` does not build optional indexes. It only reflects what was generated.
+
+## Sets
+
+In `sets: true` projects, Catalog includes all sets by default.
+
+Use `--set=<name>` with `catalog` or `catalog export` to include only selected sets. Repeat the option for multiple sets:
+
+```bash
+npx messagevisor catalog --set=staging --set=production
+npx messagevisor catalog export --set=production
+```
+
+The generated Catalog stays set-aware whenever the project uses sets. The top nav still shows the set switcher even if only one set is selected.
+
+Set switcher ordering is intentional: set names starting with `dev` appear first, set names starting with `prod` appear last, and other sets are sorted alphabetically in the middle.
 
 ## Optional generated data
 
@@ -49,7 +66,7 @@ Do not tell users those features are always present. Check the generated manifes
 - Locale detail: direction, inherited translations, format rows, examples, optional duplicates.
 - Target detail: included messages, locales, target context, target format overrides.
 - Attributes and segments: condition schema, usage, relationships.
-- Set switcher: current set in `sets: true` projects.
+- Set switcher: current set in `sets: true` projects, ordered with `dev*` first and `prod*` last.
 
 ## Review workflow
 

@@ -207,10 +207,14 @@ Currently only TypeScript is supported. Regenerate after message key changes.
 npx messagevisor catalog
 npx messagevisor catalog --with-translation-search
 npx messagevisor catalog --with-duplicates
+npx messagevisor catalog --set=staging --set=production
 npx messagevisor catalog export
+npx messagevisor catalog export --set=production
 npx messagevisor catalog export --hashRouter
 npx messagevisor catalog serve
 ```
+
+In sets projects, Catalog includes all sets by default. Use repeatable `--set=<name>` with `catalog` or `catalog export` to generate only selected sets. The Catalog set switcher remains visible for sets projects and orders `dev*` sets first, `prod*` sets last.
 
 ## Translation exchange and cleanup
 

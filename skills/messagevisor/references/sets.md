@@ -41,9 +41,12 @@ npx messagevisor test --set=staging
 npx messagevisor build --set=production
 npx messagevisor find-duplicates --set=staging
 npx messagevisor catalog
+npx messagevisor catalog --set=staging --set=production
 ```
 
 Some commands scan all sets by default. Use `--set` when the user asks for one set or when output would be too broad.
+
+Catalog accepts repeatable `--set=<name>` to generate only selected sets in dev mode or static export. It still shows the set switcher for sets projects, even with one selected set. In the switcher, `dev*` set names appear first and `prod*` set names appear last.
 
 ## Promotion
 

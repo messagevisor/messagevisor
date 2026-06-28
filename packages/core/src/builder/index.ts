@@ -90,6 +90,50 @@ function matchesPattern(key: string, patterns?: string | string[]) {
   });
 }
 
+function formatTypeKeys(formats: FormatPresets | undefined) {
+  return Object.keys(formats || {}) as Array<keyof FormatPresets>;
+}
+
+function filterFormats(formats: FormatPresets | undefined, target?: Target): FormatPresets | undefined {
+  if (!formats) {
+    return undefined;
+  }
+
+  const includeFormats = target?.includeFormats;
+  const excludeFormats = target?.excludeFormats;
+
+  if (!includeFormats && !excludeFormats) {
+    return formats;
+  }
+
+  const result: FormatPresets = {};
+
+  for (const typeKey of formatTypeKeys(formats)) {
+    const styles = formats[typeKey];
+
+    if (!styles || typeof styles !== "object") {
+      continue;
+    }
+
+    const includePatterns = includeFormats?.[typeKey];
+    const excludePatterns = excludeFormats?.[typeKey];
+    const filteredStyles = Object.fromEntries(
+      Object.entries(styles).filter(([styleKey]) => {
+        const included = includeFormats ? matchesPattern(styleKey, includePatterns) : true;
+        const excluded = matchesPattern(styleKey, excludePatterns);
+
+        return included && !excluded;
+      }),
+    );
+
+    if (Object.keys(filteredStyles).length > 0) {
+      (result as Record<string, unknown>)[typeKey] = filteredStyles;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function isAvailable<T extends { archived?: boolean }>(entity: T) {
   return !entity.archived;
 }
@@ -132,7 +176,7 @@ export function resolveFormats(
     formats = mergeFormats(formats, locales[key]?.formats);
   }
 
-  return mergeFormats(formats, target?.formats?.[localeKey]);
+  return filterFormats(mergeFormats(formats, target?.formats?.[localeKey]), target);
 }
 
 function resolveLocaleValue<T>(

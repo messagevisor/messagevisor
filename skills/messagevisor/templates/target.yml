@@ -7,6 +7,13 @@ includeMessages:
 # excludeMessages:
 #   - dashboard.internal*
 
+# Include/exclude resolved format presets by type and style name.
+# includeFormats:
+#   number: "*"
+#   date: short*
+# excludeFormats:
+#   number: moneyCode
+
 locales:
   - en
   - nl

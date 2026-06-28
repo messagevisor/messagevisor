@@ -1,0 +1,28 @@
+target: format-filtered
+
+assertions:
+  - description: Format-filtered target includes selected resolved formats without messages
+    locale: en-US
+    expectedToIncludeMessages: []
+    expectedFormats:
+      number:
+        decimal:
+          maximumFractionDigits: 2
+        money:
+          style: currency
+          currency: USD
+      date:
+        short:
+          year: 2-digit
+          month: numeric
+          day: numeric
+          timeZone: UTC
+      time:
+        short:
+          hour: numeric
+          minute: 2-digit
+          timeZone: UTC
+    rawMessage: "Filtered total: {amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: "Filtered total: $12.00"

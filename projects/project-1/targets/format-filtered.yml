@@ -1,0 +1,19 @@
+description: Format-filtered target
+pretty: true
+
+includeMessages: []
+
+includeFormats:
+  number:
+    - decimal*
+    - money*
+  date: short*
+  time: "*"
+
+excludeFormats:
+  number: moneyCode
+  time:
+    - zone*
+
+locales:
+  - en-US

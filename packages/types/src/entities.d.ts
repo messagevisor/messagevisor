@@ -299,6 +299,8 @@ export interface Message {
  */
 export type TargetKey = string;
 
+export type TargetFormatPatterns = Partial<Record<keyof FormatPresets, string | string[]>>;
+
 export interface Target {
   key?: TargetKey;
   promotable?: boolean;
@@ -307,6 +309,8 @@ export interface Target {
   revisionFromHash?: boolean;
   includeMessages?: string | string[];
   excludeMessages?: string | string[];
+  includeFormats?: TargetFormatPatterns;
+  excludeFormats?: TargetFormatPatterns;
   locales?: LocaleKey[];
   context?: Context;
   formats?: { [locale: LocaleKey]: FormatPresets };

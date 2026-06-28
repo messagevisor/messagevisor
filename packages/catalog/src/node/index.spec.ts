@@ -458,6 +458,83 @@ describe("catalog", function () {
     expect(target.messages).toEqual(["auth.signin"]);
   });
 
+  it("exports target format rows after includeFormats and excludeFormats are applied", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(
+      root,
+      "locales/en.yml",
+      [
+        "description: English",
+        "formats:",
+        "  number:",
+        "    decimal:",
+        "      maximumFractionDigits: 2",
+        "    money:",
+        "      style: currency",
+        "      currency: USD",
+        "    moneyCode:",
+        "      style: currency",
+        "      currency: USD",
+        "      currencyDisplay: code",
+        "  date:",
+        "    short:",
+        "      year: numeric",
+        "      month: 2-digit",
+        "      day: 2-digit",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "targets/web.yml",
+      [
+        "description: Web",
+        "includeMessages: []",
+        "includeFormats:",
+        '  number: "*"',
+        "  date: short*",
+        "excludeFormats:",
+        "  number: moneyCode",
+        "locales:",
+        "  - en",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+
+    const target = await readJson<any>(root, "catalog-out/data/root/entities/target/web.json");
+
+    expect(target.formatsByLocale.en.number.decimal).toEqual({ maximumFractionDigits: 2 });
+    expect(target.formatsByLocale.en.number.money).toEqual({
+      style: "currency",
+      currency: "USD",
+    });
+    expect(target.formatsByLocale.en.number.moneyCode).toBeUndefined();
+    expect(target.formatsByLocale.en.date.short).toEqual({
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    expect(target.formatRowsByLocale.en.map((row: any) => row.path)).toEqual([
+      "date.short.day",
+      "date.short.month",
+      "date.short.year",
+      "number.decimal.maximumFractionDigits",
+      "number.money.currency",
+      "number.money.style",
+    ]);
+  });
+
   it("exports locale duplicate reports only when opted in", async function () {
     const root = await createProject();
     roots.push(root);

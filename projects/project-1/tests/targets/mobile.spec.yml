@@ -37,8 +37,6 @@ assertions:
     values:
       amount: 12
     expectedTranslation: "Mobiel bedrag: € 12,00"
-    expectedByRuntime:
-      go: "Mobiel bedrag: 12,00 €"
   - description: mobile target excluded message follows SDK behavior
     locale: en-US
     message: footer.copyright

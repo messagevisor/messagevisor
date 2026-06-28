@@ -6,15 +6,15 @@ import { EntityKey } from "../ui/EntityKey";
 
 export function UsageLinks(props: { type: EntityType; keys?: string[]; setKey?: string }) {
   if (!props.keys || props.keys.length === 0) {
-    return <p className="text-sm text-muted">No usage found.</p>;
+    return <p className="text-sm text-muted">None</p>;
   }
 
   return (
-    <ul className="list-inside list-disc space-y-1 text-sm">
+    <div className="flex flex-wrap gap-2">
       {props.keys.map((key) => (
-        <li key={key} className="[overflow-wrap:anywhere]">
+        <span key={key} className="inline-flex">
           <Link
-            className="text-primary hover:underline"
+            className="inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-elevated hover:underline"
             to={getEntityRoute(
               props.type,
               props.type === "attribute" ? key.split(".")[0] : key,
@@ -23,8 +23,8 @@ export function UsageLinks(props: { type: EntityType; keys?: string[]; setKey?: 
           >
             <EntityKey value={key} className="font-medium" />
           </Link>
-        </li>
+        </span>
       ))}
-    </ul>
+    </div>
   );
 }

@@ -11,6 +11,7 @@ import { EmptyState } from "../ui/EmptyState";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { EntityKey } from "../ui/EntityKey";
+import { LabelValueBadge } from "../ui/LabelValueBadge";
 import { SearchHighlight } from "../ui/SearchHighlight";
 import { CATALOG_LIST_INITIAL_LIMIT } from "../../config";
 import type { ParsedQuery } from "../../utils/searchQuery";
@@ -293,11 +294,66 @@ function TargetMessageCountBadge(props: { entity: EntitySummary; type: EntityTyp
   );
 }
 
+export function getRelationshipSummaryLabels(type: EntityType, entity: EntitySummary) {
+  const labels: string[] = [];
+
+  if (type === "message" && (entity.usedInTargetCount ?? 0) > 0) {
+    labels.push(
+      `${entity.usedInTargetCount} ${entity.usedInTargetCount === 1 ? "target" : "targets"}`,
+    );
+  }
+
+  if (type === "locale" && (entity.usedInTargetCount ?? 0) > 0) {
+    labels.push(
+      `${entity.usedInTargetCount} ${entity.usedInTargetCount === 1 ? "target" : "targets"}`,
+    );
+  }
+
+  if (type === "segment" && (entity.usedInMessageCount ?? 0) > 0) {
+    labels.push(
+      `${entity.usedInMessageCount} ${entity.usedInMessageCount === 1 ? "message" : "messages"}`,
+    );
+  }
+
+  if (type === "attribute") {
+    if ((entity.usedInSegmentCount ?? 0) > 0) {
+      labels.push(
+        `${entity.usedInSegmentCount} ${entity.usedInSegmentCount === 1 ? "segment" : "segments"}`,
+      );
+    }
+
+    if ((entity.usedInMessageCount ?? 0) > 0) {
+      labels.push(
+        `${entity.usedInMessageCount} ${entity.usedInMessageCount === 1 ? "message" : "messages"}`,
+      );
+    }
+  }
+
+  return labels;
+}
+
+function RelationshipSummaryBadges(props: { entity: EntitySummary; type: EntityType }) {
+  const labels = getRelationshipSummaryLabels(props.type, props.entity);
+
+  if (labels.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex shrink-0 items-center gap-1">
+      {labels.map((label) => (
+        <LabelValueBadge key={label} label="Used in" value={label} compact />
+      ))}
+    </div>
+  );
+}
+
 function RowTrailingMeta(props: { entity: EntitySummary; type: EntityType }) {
   return (
     <>
       {getStatusBadges(props.entity)}
       <TargetMessageCountBadge entity={props.entity} type={props.type} />
+      <RelationshipSummaryBadges entity={props.entity} type={props.type} />
       <RowMetadataIcons entity={props.entity} type={props.type} />
     </>
   );
@@ -396,7 +452,8 @@ const EntityListSearchControls = React.memo(function EntityListSearchControls({
   onHintClick: (hint: string) => void;
 }) {
   const [inputValue, setInputValue] = React.useState(query);
-  const [showHints, setShowHints] = React.useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showHints = searchParams.get("hints") === "1";
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const idleRef = React.useRef<number | null>(null);
   const animationFrameRef = React.useRef<number | null>(null);
@@ -504,8 +561,13 @@ const EntityListSearchControls = React.memo(function EntityListSearchControls({
         {hasHintsDefined && (
           <button
             type="button"
-            onClick={() => setShowHints((v) => !v)}
+            onClick={() =>
+              setSearchParams(setSearchParam(searchParams, "hints", showHints ? undefined : "1"), {
+                replace: true,
+              })
+            }
             aria-label={showHints ? "Hide advanced search hints" : "Show advanced search hints"}
+            aria-pressed={showHints}
             className={[
               "absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full border text-xs font-bold transition-colors",
               showHints

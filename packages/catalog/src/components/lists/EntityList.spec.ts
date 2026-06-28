@@ -1,4 +1,8 @@
-import { getEntityListHighlightTerms, getTargetTooltipLabel } from "./EntityList";
+import {
+  getEntityListHighlightTerms,
+  getRelationshipSummaryLabels,
+  getTargetTooltipLabel,
+} from "./EntityList";
 
 describe("EntityList highlighting", function () {
   it("uses free text for key and last-modified highlights only", function () {
@@ -41,5 +45,24 @@ describe("EntityList target metadata", function () {
   it("returns an empty target tooltip label when no targets are present", function () {
     expect(getTargetTooltipLabel()).toEqual("");
     expect(getTargetTooltipLabel([])).toEqual("");
+  });
+});
+
+describe("EntityList relationship metadata", function () {
+  it("formats compact relationship count labels by entity type", function () {
+    expect(
+      getRelationshipSummaryLabels("message", { key: "welcome", href: "", usedInTargetCount: 2 }),
+    ).toEqual(["2 targets"]);
+    expect(
+      getRelationshipSummaryLabels("attribute", {
+        key: "plan",
+        href: "",
+        usedInSegmentCount: 1,
+        usedInMessageCount: 2,
+      }),
+    ).toEqual(["1 segment", "2 messages"]);
+    expect(
+      getRelationshipSummaryLabels("segment", { key: "pro", href: "", usedInMessageCount: 1 }),
+    ).toEqual(["1 message"]);
   });
 });

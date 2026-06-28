@@ -20,12 +20,12 @@ function HistoryEntryCard(props: { entry: HistoryEntry; setKey?: string; commitU
   return (
     <li
       key={`${props.entry.commit}-${props.entry.timestamp}`}
-      className="rounded-lg border border-border bg-surface p-4 shadow-sm ring-1 ring-black/5"
+      className="rounded-lg border border-border bg-surface px-4 py-3 shadow-sm ring-1 ring-black/5"
     >
-      <div className="text-sm">
-        <span className="font-semibold">{props.entry.author}</span>{" "}
+      <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-baseline">
+        <div className="text-sm font-semibold text-text">{props.entry.author}</div>
         <a
-          className="text-primary hover:underline"
+          className="font-mono text-xs text-primary hover:underline"
           href={
             props.commitUrl?.replace("{{hash}}", props.entry.commit) || `#${props.entry.commit}`
           }
@@ -35,13 +35,18 @@ function HistoryEntryCard(props: { entry: HistoryEntry; setKey?: string; commitU
           {formatCatalogTimestamp(props.entry.timestamp)}
         </a>
       </div>
-      <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-muted">
+      <div className="mt-3 flex flex-wrap gap-2">
         {visibleEntities.map((entity) => (
-          <li key={`${entity.type}-${entity.key}`} className="[overflow-wrap:anywhere]">
-            {entity.type !== "test" ? entityLabels[entity.type].singular : "Test"}{" "}
+          <span
+            key={`${entity.type}-${entity.key}`}
+            className="inline-flex max-w-full items-center gap-1 rounded-full bg-pill px-2.5 py-0.5 text-xs text-muted"
+          >
+            <span className="shrink-0 text-faint">
+              {entity.type !== "test" ? entityLabels[entity.type].singular : "Test"}
+            </span>
             {entity.type !== "test" ? (
               <Link
-                className="font-medium text-primary hover:underline"
+                className="min-w-0 font-medium text-primary hover:underline"
                 to={getEntityRoute(entity.type, entity.key, entity.set || props.setKey)}
               >
                 <EntityKey value={entity.key} className="font-medium" />
@@ -49,9 +54,9 @@ function HistoryEntryCard(props: { entry: HistoryEntry; setKey?: string; commitU
             ) : (
               <EntityKey value={entity.key} className="font-medium" />
             )}
-          </li>
+          </span>
         ))}
-      </ul>
+      </div>
       {hasMore && (
         <button
           type="button"

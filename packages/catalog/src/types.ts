@@ -23,6 +23,8 @@ export interface EntitySummary {
   deprecated?: boolean;
   targets?: string[];
   messageCount?: number;
+  usedInMessageCount?: number;
+  usedInSegmentCount?: number;
   locales?: string[];
   overrideLocales?: string[];
   lastModified?: LastModified;

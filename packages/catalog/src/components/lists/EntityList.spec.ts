@@ -1,4 +1,8 @@
-import { getEntityListHighlightTerms } from "./EntityList";
+import {
+  getEntityListHighlightTerms,
+  getRelationshipSummaryLabels,
+  getTargetTooltipLabel,
+} from "./EntityList";
 
 describe("EntityList highlighting", function () {
   it("uses free text for key and last-modified highlights only", function () {
@@ -30,5 +34,44 @@ describe("EntityList highlighting", function () {
       relationship: [],
       lastModified: [],
     });
+  });
+});
+
+describe("EntityList target metadata", function () {
+  it("formats sorted unique target names for compact row tooltips", function () {
+    expect(getTargetTooltipLabel(["mobile", "web", "mobile"])).toEqual("Targets: mobile, web");
+  });
+
+  it("returns an empty target tooltip label when no targets are present", function () {
+    expect(getTargetTooltipLabel()).toEqual("");
+    expect(getTargetTooltipLabel([])).toEqual("");
+  });
+});
+
+describe("EntityList relationship metadata", function () {
+  it("formats compact relationship count labels by entity type", function () {
+    expect(
+      getRelationshipSummaryLabels("message", {
+        key: "welcome",
+        href: "",
+        targets: ["web", "mobile"],
+      }),
+    ).toEqual([{ label: "Targets", value: "2", tooltip: "Targets: mobile, web" }]);
+    expect(
+      getRelationshipSummaryLabels("attribute", {
+        key: "plan",
+        href: "",
+        targets: ["web"],
+        usedInSegmentCount: 1,
+        usedInMessageCount: 2,
+      }),
+    ).toEqual([
+      { label: "Targets", value: "1", tooltip: "Targets: web" },
+      { label: "Used in", value: "1 segment" },
+      { label: "Used in", value: "2 messages" },
+    ]);
+    expect(
+      getRelationshipSummaryLabels("segment", { key: "pro", href: "", usedInMessageCount: 1 }),
+    ).toEqual([{ label: "Used in", value: "1 message" }]);
   });
 });

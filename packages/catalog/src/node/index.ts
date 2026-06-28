@@ -231,6 +231,8 @@ interface CatalogEntitySummary {
   deprecated?: boolean;
   targets?: string[];
   messageCount?: number;
+  usedInMessageCount?: number;
+  usedInSegmentCount?: number;
   locales?: string[];
   overrideLocales?: string[];
   lastModified?: CatalogLastModified;
@@ -1626,6 +1628,7 @@ async function buildSetCatalog(
           context.runtime.resolveFormats(localeKey, locales, targets[targetKey]),
         ]),
       ),
+      targets: sortStrings(Array.from(localeTargets[localeKey] || [])),
       lastModified: getLastModified(context.historyIndex, "locale", localeKey, set || undefined),
     };
 
@@ -1836,6 +1839,7 @@ async function buildSetCatalog(
         segments: sortStrings(Array.from(attributesUsedInSegments[attributeKey] || [])),
         messages: sortStrings(Array.from(attributesUsedInMessages[attributeKey] || [])),
       },
+      targets: sortStrings(Array.from(attributeTargets[attributeKey] || [])),
       lastModified: getLastModified(
         context.historyIndex,
         "attribute",
@@ -1853,6 +1857,8 @@ async function buildSetCatalog(
         set || undefined,
         {
           targets: sortStrings(Array.from(attributeTargets[attributeKey] || [])),
+          usedInSegmentCount: (attributesUsedInSegments[attributeKey] || new Set()).size,
+          usedInMessageCount: (attributesUsedInMessages[attributeKey] || new Set()).size,
         },
       ),
     );
@@ -1892,12 +1898,14 @@ async function buildSetCatalog(
         attributes: sortStrings(Array.from(usedAttributes)),
         messages: sortStrings(Array.from(segmentsUsedInMessages[segmentKey] || [])),
       },
+      targets: sortStrings(Array.from(segmentTargets[segmentKey] || [])),
       lastModified: getLastModified(context.historyIndex, "segment", segmentKey, set || undefined),
     };
 
     index.entities.segment.push(
       getEntitySummary(segment, "segment", segmentKey, context.historyIndex, set || undefined, {
         targets: sortStrings(Array.from(segmentTargets[segmentKey] || [])),
+        usedInMessageCount: (segmentsUsedInMessages[segmentKey] || new Set()).size,
       }),
     );
     await context.writer.write(

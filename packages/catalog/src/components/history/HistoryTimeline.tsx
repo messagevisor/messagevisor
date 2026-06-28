@@ -20,12 +20,12 @@ function HistoryEntryCard(props: { entry: HistoryEntry; setKey?: string; commitU
   return (
     <li
       key={`${props.entry.commit}-${props.entry.timestamp}`}
-      className="rounded-lg border border-border bg-surface p-4 shadow-sm ring-1 ring-black/5"
+      className="rounded-lg border border-border bg-surface px-4 py-3 shadow-sm ring-1 ring-black/5"
     >
-      <div className="text-sm">
-        <span className="font-semibold">{props.entry.author}</span>{" "}
+      <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-baseline">
+        <div className="text-sm font-semibold text-text">{props.entry.author}</div>
         <a
-          className="text-primary hover:underline"
+          className="font-mono text-xs text-primary hover:underline"
           href={
             props.commitUrl?.replace("{{hash}}", props.entry.commit) || `#${props.entry.commit}`
           }

@@ -35,7 +35,6 @@ import { LabelValueBadge } from "../components/ui/LabelValueBadge";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input } from "../components/ui/Input";
 import { SearchHighlight } from "../components/ui/SearchHighlight";
-import { FieldGrid } from "../components/details/FieldGrid";
 import { ConditionTree } from "../components/details/ConditionTree";
 import { GroupSegmentTree } from "../components/details/GroupSegmentTree";
 import { MarkdownContent } from "../components/details/MarkdownContent";
@@ -1246,49 +1245,126 @@ function SourceLocaleLink(props: { localeKey: string }) {
   );
 }
 
-function LinkedLocaleList(props: { localeKeys?: string[]; setKey?: string }) {
-  const localeKeys = props.localeKeys || [];
+function LinkedTargetBadges(props: { targetKeys?: string[]; setKey?: string }) {
+  const targetKeys = props.targetKeys || [];
 
-  if (localeKeys.length === 0) {
-    return <>n/a</>;
+  if (targetKeys.length === 0) {
+    return null;
   }
 
   return (
     <>
-      {localeKeys.map((localeKey, index) => (
-        <React.Fragment key={localeKey}>
-          {index > 0 ? ", " : null}
-          <Link
-            className="font-medium text-primary hover:underline"
-            to={getEntityRoute("locale", localeKey, props.setKey)}
-          >
-            {localeKey}
-          </Link>
-        </React.Fragment>
+      {targetKeys.map((targetKey) => (
+        <OverviewChipLink key={targetKey} to={getEntityRoute("target", targetKey, props.setKey)}>
+          {targetKey}
+        </OverviewChipLink>
       ))}
     </>
   );
 }
 
-function LinkedTargetBadges(props: { targetKeys?: string[]; setKey?: string }) {
-  const targetKeys = props.targetKeys || [];
+function OverviewChip(props: { children: React.ReactNode; className?: string }) {
+  return (
+    <span
+      className={[
+        "inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs text-text",
+        props.className || "",
+      ].join(" ")}
+    >
+      {props.children}
+    </span>
+  );
+}
 
-  if (targetKeys.length === 0) {
-    return <>none</>;
+function OverviewChipLink(props: { to: string; children: React.ReactNode }) {
+  return (
+    <Link
+      to={props.to}
+      className="inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs font-medium text-primary hover:underline"
+    >
+      {props.children}
+    </Link>
+  );
+}
+
+function OverviewMetaPanel(props: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl bg-elevated px-5 py-4">
+      <dl className="space-y-3.5">{props.children}</dl>
+    </div>
+  );
+}
+
+function OverviewMetaRow(props: { label: string; children?: React.ReactNode }) {
+  if (!props.children) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-5">
+      <dt className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-faint sm:w-[7rem]">
+        {props.label}
+      </dt>
+      <dd className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
+        {props.children}
+      </dd>
+    </div>
+  );
+}
+
+function DescriptionField(props: {
+  title?: string;
+  value?: string;
+  fallback?: string;
+  showTopDivider?: boolean;
+}) {
+  const showTopDivider = props.showTopDivider !== false;
+
+  return (
+    <div className={showTopDivider ? "border-t border-border pt-6" : undefined}>
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-faint">
+        {props.title || "Description"}
+      </div>
+      <div className="mt-2 min-w-0 text-sm [overflow-wrap:anywhere]">
+        <MarkdownContent value={props.value || props.fallback} />
+      </div>
+    </div>
+  );
+}
+
+function EntityStatusBadges(props: { entity: Record<string, any> }) {
+  if (!hasEntityStatus(props.entity)) {
+    return null;
   }
 
   return (
     <div className="flex flex-wrap gap-2">
-      {targetKeys.map((targetKey) => (
-        <Link
-          key={targetKey}
-          className="inline-flex"
-          to={getEntityRoute("target", targetKey, props.setKey)}
-        >
-          <Badge>{targetKey}</Badge>
-        </Link>
-      ))}
+      {props.entity.archived === true && <Badge tone="danger">archived</Badge>}
+      {props.entity.deprecated === true && <Badge tone="warning">deprecated</Badge>}
+      {props.entity.promotable === false && <Badge>not promotable</Badge>}
     </div>
+  );
+}
+
+function hasEntityStatus(entity: Record<string, any>) {
+  return entity.archived === true || entity.deprecated === true || entity.promotable === false;
+}
+
+function LinkedLocaleChips(props: { localeKeys?: string[]; setKey?: string }) {
+  const localeKeys = props.localeKeys || [];
+
+  if (localeKeys.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {localeKeys.map((localeKey) => (
+        <OverviewChipLink key={localeKey} to={getEntityRoute("locale", localeKey, props.setKey)}>
+          {localeKey}
+        </OverviewChipLink>
+      ))}
+    </>
   );
 }
 
@@ -1407,82 +1483,99 @@ export function EntityOverviewTab() {
   const { detail, setKey } = useEntityDetail();
   const { manifest } = useCatalog();
   const entity = detail.entity as Record<string, any>;
-  const fields = getOverviewFields(detail, entity, setKey, manifest.sets);
+  const metaRows = getOverviewMetaRows(detail, entity, setKey, manifest.sets);
 
   return (
-    <div className="space-y-5">
-      <FieldGrid fields={fields} />
+    <div className="space-y-6">
+      {metaRows.length > 0 ? (
+        <OverviewMetaPanel>
+          {metaRows.map((row) => (
+            <OverviewMetaRow key={row.label} label={row.label}>
+              {row.value}
+            </OverviewMetaRow>
+          ))}
+        </OverviewMetaPanel>
+      ) : null}
+
+      {entity.summary ? (
+        <DescriptionField title="Summary" value={entity.summary} showTopDivider={false} />
+      ) : null}
+
+      <DescriptionField
+        value={entity.description}
+        showTopDivider={metaRows.length > 0 || Boolean(entity.summary)}
+      />
+
+      {entity.meta ? (
+        <div className="border-t border-border pt-6">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-faint">
+            Meta
+          </div>
+          <CodeBlock value={entity.meta} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function getOverviewFields(
+function getOverviewMetaRows(
   detail: EntityDetail,
   entity: Record<string, any>,
   setKey?: string,
   showPromotable?: boolean,
 ) {
+  const targetKeys = detail.targets as string[] | undefined;
+  const localeKeys = detail.locales as string[] | undefined;
   const promotableField = showPromotable
-    ? { label: "Promotable", value: entity.promotable === false ? "No" : "Yes" }
+    ? {
+        label: "Promotable",
+        value: <OverviewChip>{entity.promotable === false ? "No" : "Yes"}</OverviewChip>,
+      }
     : undefined;
-  const compact = (
-    fields: Array<{ label: string; value: React.ReactNode; fullWidth?: boolean } | undefined>,
-  ) =>
+  const compact = (fields: Array<{ label: string; value: React.ReactNode } | undefined>) =>
     fields.filter(
       (
         field,
       ): field is {
         label: string;
         value: React.ReactNode;
-        fullWidth?: boolean;
       } => Boolean(field?.value),
     );
 
   if (detail.type === "locale") {
-    const fields = [
+    return compact([
+      {
+        label: "Status",
+        value: hasEntityStatus(entity) ? <EntityStatusBadges entity={entity} /> : undefined,
+      },
       { label: "Direction", value: entity.direction },
       { label: "Inherits formats from", value: entity.inheritFormatsFrom },
       { label: "Inherits translations from", value: entity.inheritTranslationsFrom },
-      promotableField,
       {
-        label: "Description",
-        value: <MarkdownContent value={entity.description} />,
-        fullWidth: true,
+        label: "Targets",
+        value: targetKeys?.length ? (
+          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+        ) : undefined,
       },
-    ];
-
-    return compact(fields);
+      promotableField,
+    ]);
   }
 
   if (detail.type === "message") {
-    const fields = [
+    return compact([
+      {
+        label: "Status",
+        value: hasEntityStatus(entity) ? <EntityStatusBadges entity={entity} /> : undefined,
+      },
       promotableField,
-      { label: "Deprecated", value: entity.deprecated ? "Yes" : "No" },
       { label: "Deprecation warning", value: entity.deprecationWarning },
       {
         label: "Targets",
-        value: (
-          <LinkedTargetBadges targetKeys={detail.targets as string[] | undefined} setKey={setKey} />
-        ),
+        value: targetKeys?.length ? (
+          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+        ) : undefined,
       },
-      {
-        label: "Summary",
-        value: entity.summary,
-        fullWidth: true,
-      },
-      {
-        label: "Description",
-        value: <MarkdownContent value={entity.description} />,
-        fullWidth: true,
-      },
-      {
-        label: "Meta",
-        value: entity.meta ? <CodeBlock value={entity.meta} /> : undefined,
-        fullWidth: true,
-      },
-    ];
-
-    return compact(fields);
+    ]);
   }
 
   if (detail.type === "attribute") {
@@ -1493,8 +1586,21 @@ function getOverviewFields(
       ? entity.required.length > 0
       : Boolean(entity.required);
     const hasRange = typeof entity.minimum !== "undefined" || typeof entity.maximum !== "undefined";
-    const fields = [
-      { label: "Type", value: entity.type },
+    return compact([
+      {
+        label: "Status",
+        value: hasEntityStatus(entity) ? <EntityStatusBadges entity={entity} /> : undefined,
+      },
+      {
+        label: "Type",
+        value: entity.type ? <OverviewChip>{entity.type}</OverviewChip> : undefined,
+      },
+      {
+        label: "Targets",
+        value: targetKeys?.length ? (
+          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+        ) : undefined,
+      },
       promotableField,
       { label: "Allowed values", value: hasAllowedValues ? formatValue(entity.enum) : undefined },
       {
@@ -1508,46 +1614,40 @@ function getOverviewFields(
           ? `${typeof entity.minimum !== "undefined" ? entity.minimum : "-∞"} to ${typeof entity.maximum !== "undefined" ? entity.maximum : "∞"}`
           : undefined,
       },
-      {
-        label: "Description",
-        value: <MarkdownContent value={entity.description} />,
-        fullWidth: true,
-      },
-    ];
-
-    return compact(fields);
+    ]);
   }
 
   if (detail.type === "segment") {
     return compact([
-      { label: "Archived", value: entity.archived ? "Yes" : "No" },
+      {
+        label: "Status",
+        value: hasEntityStatus(entity) ? <EntityStatusBadges entity={entity} /> : undefined,
+      },
       promotableField,
       {
-        label: "Description",
-        value: <MarkdownContent value={entity.description} />,
-        fullWidth: true,
+        label: "Targets",
+        value: targetKeys?.length ? (
+          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+        ) : undefined,
       },
     ]);
   }
 
-  const fields = [
+  return compact([
+    {
+      label: "Status",
+      value: hasEntityStatus(entity) ? <EntityStatusBadges entity={entity} /> : undefined,
+    },
     promotableField,
     { label: "Included message patterns", value: formatValue(entity.includeMessages) },
     { label: "Excluded message patterns", value: formatValue(entity.excludeMessages) },
     {
       label: "Locales",
-      value: (
-        <LinkedLocaleList localeKeys={detail.locales as string[] | undefined} setKey={setKey} />
-      ),
+      value: localeKeys?.length ? (
+        <LinkedLocaleChips localeKeys={localeKeys} setKey={setKey} />
+      ) : undefined,
     },
-    {
-      label: "Description",
-      value: <MarkdownContent value={entity.description} />,
-      fullWidth: true,
-    },
-  ];
-
-  return compact(fields);
+  ]);
 }
 
 const FORMAT_SEARCH_HINTS = [
@@ -1654,7 +1754,7 @@ function useFormatsTypePillSelection(formatRows: FormatRow[]) {
 /** Shared by Locale and Target entity Format tabs (below type pills; on Target, below locale pills). */
 function FormatsSearchToolbar() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [showHints, setShowHints] = React.useState(false);
+  const showHints = searchParams.get("hints") === "1";
   const searchQuery = searchParams.get("q") ?? "";
 
   function handleFormatSearchHintClick(hint: string) {
@@ -1696,8 +1796,13 @@ function FormatsSearchToolbar() {
           />
           <button
             type="button"
-            onClick={() => setShowHints((v) => !v)}
+            onClick={() =>
+              setSearchParams(setSearchParam(searchParams, "hints", showHints ? undefined : "1"), {
+                replace: true,
+              })
+            }
             aria-label={showHints ? "Hide advanced search hints" : "Show advanced search hints"}
+            aria-pressed={showHints}
             className={[
               "absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full border text-xs font-bold transition-colors",
               showHints
@@ -3423,16 +3528,13 @@ export function AttributeUsageTab() {
   const usage = (detail.usage || {}) as Record<string, string[]>;
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <section>
-        <h2 className="mb-2 font-semibold">Segments</h2>
-        <UsageLinks type="segment" keys={usage.segments} setKey={setKey} />
-      </section>
-      <section>
-        <h2 className="mb-2 font-semibold">Messages</h2>
-        <UsageLinks type="message" keys={usage.messages} setKey={setKey} />
-      </section>
-    </div>
+    <UsageSections
+      sections={[
+        { title: "Segments", type: "segment", keys: usage.segments },
+        { title: "Messages", type: "message", keys: usage.messages },
+      ]}
+      setKey={setKey}
+    />
   );
 }
 
@@ -3441,15 +3543,35 @@ export function SegmentUsageTab() {
   const usage = (detail.usage || {}) as Record<string, string[]>;
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <section>
-        <h2 className="mb-2 font-semibold">Attributes</h2>
-        <UsageLinks type="attribute" keys={usage.attributes} setKey={setKey} />
-      </section>
-      <section>
-        <h2 className="mb-2 font-semibold">Messages</h2>
-        <UsageLinks type="message" keys={usage.messages} setKey={setKey} />
-      </section>
+    <UsageSections
+      sections={[
+        { title: "Attributes", type: "attribute", keys: usage.attributes },
+        { title: "Messages", type: "message", keys: usage.messages },
+      ]}
+      setKey={setKey}
+    />
+  );
+}
+
+function UsageSections(props: {
+  sections: Array<{ title: string; type: "attribute" | "message" | "segment"; keys?: string[] }>;
+  setKey?: string;
+}) {
+  const visibleSections = props.sections.filter((section) => (section.keys || []).length > 0);
+
+  if (visibleSections.length === 0) {
+    return <EmptyState title="No usage found" />;
+  }
+
+  return (
+    <div className="space-y-4">
+      {visibleSections.map((section) => (
+        <OverviewMetaPanel key={section.title}>
+          <OverviewMetaRow label={section.title}>
+            <UsageLinks type={section.type} keys={section.keys} setKey={props.setKey} />
+          </OverviewMetaRow>
+        </OverviewMetaPanel>
+      ))}
     </div>
   );
 }
@@ -3547,7 +3669,12 @@ export function TargetFormatsTab() {
 export function TargetMessagesTab() {
   const { detail, setKey } = useEntityDetail();
 
-  return <UsageLinks type="message" keys={detail.messages as string[]} setKey={setKey} />;
+  return (
+    <UsageSections
+      sections={[{ title: "Messages", type: "message", keys: detail.messages as string[] }]}
+      setKey={setKey}
+    />
+  );
 }
 
 export function EntityHistoryTab() {

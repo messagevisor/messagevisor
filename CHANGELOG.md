@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.19.0](https://github.com/messagevisor/messagevisor/compare/v0.18.0...v0.19.0) (2026-06-28)
+
+
+### Features
+
+* catalog showing targets in list view ([#27](https://github.com/messagevisor/messagevisor/issues/27)) ([353a9f4](https://github.com/messagevisor/messagevisor/commit/353a9f421676c9a6798479a0bb8aa5ed77d7f6d0))
+
+
+
+
+
 # [0.18.0](https://github.com/messagevisor/messagevisor/compare/v0.17.1...v0.18.0) (2026-06-28)
 
 

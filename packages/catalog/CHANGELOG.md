@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.20.0](https://github.com/messagevisor/messagevisor/compare/v0.19.0...v0.20.0) (2026-06-28)
+
+
+### Features
+
+* show overrides info in catalog list view ([#28](https://github.com/messagevisor/messagevisor/issues/28)) ([d8c5d0f](https://github.com/messagevisor/messagevisor/commit/d8c5d0f5a6c461cbac7fe30b61ca128353f434d1))
+
+
+
+
+
 # [0.19.0](https://github.com/messagevisor/messagevisor/compare/v0.18.0...v0.19.0) (2026-06-28)
 
 

@@ -14,7 +14,7 @@ export function UsageLinks(props: { type: EntityType; keys?: string[]; setKey?: 
       {props.keys.map((key) => (
         <span key={key} className="inline-flex">
           <Link
-            className="inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-elevated hover:underline"
+            className="inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs font-medium text-primary hover:underline"
             to={getEntityRoute(
               props.type,
               props.type === "attribute" ? key.split(".")[0] : key,

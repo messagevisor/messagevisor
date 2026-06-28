@@ -1280,7 +1280,7 @@ function OverviewChipLink(props: { to: string; children: React.ReactNode }) {
   return (
     <Link
       to={props.to}
-      className="inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-elevated hover:underline"
+      className="inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs font-medium text-primary hover:underline"
     >
       {props.children}
     </Link>

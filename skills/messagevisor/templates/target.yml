@@ -7,6 +7,18 @@ includeMessages:
 # excludeMessages:
 #   - dashboard.internal*
 
+# Include/exclude resolved format presets by type and style name.
+# includeFormats:
+#   number: "*"
+#   date: short*
+# excludeFormats:
+#   number: moneyCode
+#
+# Or automatically include only named ICU number/date/time presets used by
+# emitted message and override translations. Do not combine with
+# includeFormats/excludeFormats.
+# includeOnlyUsedFormats: true
+
 locales:
   - en
   - nl

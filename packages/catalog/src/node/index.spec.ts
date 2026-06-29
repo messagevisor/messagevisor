@@ -3,7 +3,7 @@ import * as os from "os";
 import * as path from "path";
 import * as childProcess from "child_process";
 
-import { mergeFormats, resolveFormats } from "../../../core/src/builder";
+import { buildDatafile, mergeFormats, resolveFormats } from "../../../core/src/builder";
 import { getProjectConfig } from "../../../core/src/config";
 import { Datasource } from "../../../core/src/datasource";
 import { resolveExamples } from "../../../core/src/examples";
@@ -19,6 +19,7 @@ import {
 const catalogApi = createCatalogApi({
   mergeFormats,
   resolveFormats,
+  buildDatafile,
   getProjectSetExecutions,
   resolveExamples,
   findDuplicateTranslations,
@@ -26,6 +27,7 @@ const catalogApi = createCatalogApi({
 const catalogRuntime: CatalogRuntime = {
   mergeFormats,
   resolveFormats,
+  buildDatafile,
   getProjectSetExecutions,
   resolveExamples,
   findDuplicateTranslations,
@@ -456,6 +458,156 @@ describe("catalog", function () {
     expect(target.entity.includeMessages).toBe("*");
     expect(target.entity.excludeMessages).toBe("footer*");
     expect(target.messages).toEqual(["auth.signin"]);
+  });
+
+  it("exports target format rows after includeFormats and excludeFormats are applied", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(
+      root,
+      "locales/en.yml",
+      [
+        "description: English",
+        "formats:",
+        "  number:",
+        "    decimal:",
+        "      maximumFractionDigits: 2",
+        "    money:",
+        "      style: currency",
+        "      currency: USD",
+        "    moneyCode:",
+        "      style: currency",
+        "      currency: USD",
+        "      currencyDisplay: code",
+        "  date:",
+        "    short:",
+        "      year: numeric",
+        "      month: 2-digit",
+        "      day: 2-digit",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "targets/web.yml",
+      [
+        "description: Web",
+        "includeMessages: []",
+        "includeFormats:",
+        '  number: "*"',
+        "  date: short*",
+        "excludeFormats:",
+        "  number: moneyCode",
+        "locales:",
+        "  - en",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+
+    const target = await readJson<any>(root, "catalog-out/data/root/entities/target/web.json");
+
+    expect(target.formatsByLocale.en.number.decimal).toEqual({ maximumFractionDigits: 2 });
+    expect(target.formatsByLocale.en.number.money).toEqual({
+      style: "currency",
+      currency: "USD",
+    });
+    expect(target.formatsByLocale.en.number.moneyCode).toBeUndefined();
+    expect(target.formatsByLocale.en.date.short).toEqual({
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    expect(target.formatRowsByLocale.en.map((row: any) => row.path)).toEqual([
+      "date.short.day",
+      "date.short.month",
+      "date.short.year",
+      "number.decimal.maximumFractionDigits",
+      "number.money.currency",
+      "number.money.style",
+    ]);
+  });
+
+  it("exports target format rows after includeOnlyUsedFormats is applied", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
+    roots.push(root);
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(
+      root,
+      "locales/en.yml",
+      [
+        "description: English",
+        "formats:",
+        "  number:",
+        "    decimal:",
+        "      maximumFractionDigits: 2",
+        "    money:",
+        "      style: currency",
+        "      currency: USD",
+        "  date:",
+        "    short:",
+        "      year: numeric",
+        "      month: 2-digit",
+        "      day: 2-digit",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "targets/web.yml",
+      [
+        "description: Web",
+        "includeOnlyUsedFormats: true",
+        "includeMessages:",
+        "  - billing.total",
+        "locales:",
+        "  - en",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "messages/billing/total.yml",
+      [
+        "description: Billing total",
+        "translations:",
+        '  en: "Total {amount, number, money}"',
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+
+    const target = await readJson<any>(root, "catalog-out/data/root/entities/target/web.json");
+
+    expect(target.formatsByLocale.en).toEqual({
+      number: {
+        money: {
+          style: "currency",
+          currency: "USD",
+        },
+      },
+    });
+    expect(target.formatRowsByLocale.en.map((row: any) => row.path)).toEqual([
+      "number.money.currency",
+      "number.money.style",
+    ]);
   });
 
   it("exports locale duplicate reports only when opted in", async function () {

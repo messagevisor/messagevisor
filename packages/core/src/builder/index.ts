@@ -20,6 +20,7 @@ import { SCHEMA_VERSION, ProjectConfig, formatDatafilePath } from "../config";
 import { Datasource } from "../datasource";
 import { evaluateCondition } from "../evaluate";
 import { mergeFormatPresets } from "../formats";
+import { extractIcuStyleReferences } from "../icuStyleReferences";
 import { formatProjectPath } from "../path";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
@@ -30,6 +31,9 @@ interface TargetDatafileOptions {
   pretty: boolean;
   revisionFromHash: boolean;
 }
+
+type FormatPatterns = Partial<Record<keyof FormatPresets, string | string[]>>;
+type UsedFormatPatterns = Partial<Record<keyof FormatPresets, string[]>>;
 
 export interface BuildProjectOptions {
   target?: string;
@@ -90,6 +94,60 @@ function matchesPattern(key: string, patterns?: string | string[]) {
   });
 }
 
+function formatTypeKeys(formats: FormatPresets | undefined) {
+  return Object.keys(formats || {}) as Array<keyof FormatPresets>;
+}
+
+function filterFormats(
+  formats: FormatPresets | undefined,
+  target?: Target,
+  usedFormatPatterns?: UsedFormatPatterns,
+): FormatPresets | undefined {
+  if (!formats) {
+    return undefined;
+  }
+
+  const includeFormats: FormatPatterns | undefined = target?.includeOnlyUsedFormats
+    ? usedFormatPatterns
+    : target?.includeFormats;
+  const excludeFormats = target?.includeOnlyUsedFormats ? undefined : target?.excludeFormats;
+
+  if (target?.includeOnlyUsedFormats && !includeFormats) {
+    return undefined;
+  }
+
+  if (!includeFormats && !excludeFormats) {
+    return formats;
+  }
+
+  const result: FormatPresets = {};
+
+  for (const typeKey of formatTypeKeys(formats)) {
+    const styles = formats[typeKey];
+
+    if (!styles || typeof styles !== "object") {
+      continue;
+    }
+
+    const includePatterns = includeFormats?.[typeKey];
+    const excludePatterns = excludeFormats?.[typeKey];
+    const filteredStyles = Object.fromEntries(
+      Object.entries(styles).filter(([styleKey]) => {
+        const included = includeFormats ? matchesPattern(styleKey, includePatterns) : true;
+        const excluded = matchesPattern(styleKey, excludePatterns);
+
+        return included && !excluded;
+      }),
+    );
+
+    if (Object.keys(filteredStyles).length > 0) {
+      (result as Record<string, unknown>)[typeKey] = filteredStyles;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function isAvailable<T extends { archived?: boolean }>(entity: T) {
   return !entity.archived;
 }
@@ -124,6 +182,7 @@ export function resolveFormats(
   localeKey: string,
   locales: Record<string, Locale>,
   target?: Target,
+  usedFormatPatterns?: UsedFormatPatterns,
 ): FormatPresets | undefined {
   const chain = resolveLocaleChain(localeKey, locales, "inheritFormatsFrom");
   let formats: FormatPresets | undefined;
@@ -132,7 +191,28 @@ export function resolveFormats(
     formats = mergeFormats(formats, locales[key]?.formats);
   }
 
-  return mergeFormats(formats, target?.formats?.[localeKey]);
+  return filterFormats(
+    mergeFormats(formats, target?.formats?.[localeKey]),
+    target,
+    usedFormatPatterns,
+  );
+}
+
+function addUsedIcuFormatPatterns(result: UsedFormatPatterns, translation: string) {
+  for (const reference of extractIcuStyleReferences(translation)) {
+    if (reference.isSkeleton) {
+      continue;
+    }
+
+    const type = reference.type as keyof FormatPresets;
+    const styles = result[type] || [];
+
+    if (!styles.includes(reference.style)) {
+      styles.push(reference.style);
+    }
+
+    result[type] = styles;
+  }
 }
 
 function resolveLocaleValue<T>(
@@ -480,6 +560,7 @@ async function buildDatafileFromMessageKeys(
   const datafileMessages: DatafileContent["messages"] = {};
   const translations: DatafileContent["translations"] = {};
   const usedSegmentKeys = new Set<SegmentKey>();
+  const usedFormatPatterns: UsedFormatPatterns = {};
   const segmentKeys = await datasource.listSegments();
   const segments = await readAll<Segment>(segmentKeys, (key) => datasource.readSegment(key));
   const targetSimplifier = createTargetSimplifier(segments, target?.context);
@@ -502,6 +583,10 @@ async function buildDatafileFromMessageKeys(
     }
 
     translations[key] = translation;
+
+    if (target?.includeOnlyUsedFormats) {
+      addUsedIcuFormatPatterns(usedFormatPatterns, translation);
+    }
 
     const overrides = (message.overrides || [])
       .map<MessageOverride | undefined>((override) => {
@@ -556,6 +641,10 @@ async function buildDatafileFromMessageKeys(
           }
         }
 
+        if (target?.includeOnlyUsedFormats) {
+          addUsedIcuFormatPatterns(usedFormatPatterns, overrideTranslation);
+        }
+
         return targetedOverride;
       })
       .filter((override): override is MessageOverride => Boolean(override));
@@ -591,7 +680,7 @@ async function buildDatafileFromMessageKeys(
     target: targetKey || "",
     locale: localeKey,
     direction: locales[localeKey]?.direction,
-    formats: resolveFormats(localeKey, locales, target),
+    formats: resolveFormats(localeKey, locales, target, usedFormatPatterns),
     segments: datafileSegments,
     messages: datafileMessages,
     translations,

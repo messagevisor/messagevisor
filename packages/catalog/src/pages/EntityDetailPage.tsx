@@ -1651,6 +1651,12 @@ function getOverviewMetaRows(
     { label: "Included message patterns", value: formatOverviewValue(entity.includeMessages) },
     { label: "Excluded message patterns", value: formatOverviewValue(entity.excludeMessages) },
     {
+      label: "Include only used formats",
+      value: entity.includeOnlyUsedFormats ? "true" : undefined,
+    },
+    { label: "Included format patterns", value: formatOverviewValue(entity.includeFormats) },
+    { label: "Excluded format patterns", value: formatOverviewValue(entity.excludeFormats) },
+    {
       label: "Locales",
       value: localeKeys?.length ? (
         <LinkedLocaleChips localeKeys={localeKeys} setKey={setKey} />

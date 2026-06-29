@@ -19,6 +19,12 @@ locales:
   - nl-NL
 context:
   platform: web
+includeFormats:
+  number: "*"
+  date: short*
+excludeFormats:
+  number: moneyCode
+# includeOnlyUsedFormats: true
 formats:
   en-US:
     number:
@@ -37,6 +43,8 @@ revisionFromHash: false
 - `locales` lists which locale datafiles are produced.
 - `context` is compile-time known context. It can remove impossible override branches from output.
 - `formats.<locale>` applies target-level format overrides after locale format resolution.
+- `includeFormats` and `excludeFormats` filter resolved format presets by type and style name. Use a string for one pattern, or an array for multiple patterns.
+- `includeOnlyUsedFormats: true` keeps only named ICU `number`, `date`, and `time` presets referenced by emitted message and override translations. It cannot be combined with `includeFormats` or `excludeFormats`.
 - `pretty`, `stringify`, and `revisionFromHash` control generated JSON.
 
 Defaults are optimized for deployment: compact JSON, stringified conditions, and revision from state unless `revisionFromHash` is enabled.
@@ -44,6 +52,34 @@ Defaults are optimized for deployment: compact JSON, stringified conditions, and
 ## Format overrides
 
 Target format overlays follow the same style-level rule as locale inheritance. If target `formats.en-US.number.money` exists, it replaces the resolved locale `number.money` style in full. Include every intended option in that style object. Sibling styles remain inherited.
+
+## Format filters
+
+Use `includeFormats` and `excludeFormats` when a target should ship only part of the resolved format object:
+
+```yml
+includeFormats:
+  number:
+    - decimal*
+    - money*
+  date: short*
+  time: "*"
+
+excludeFormats:
+  number: moneyCode
+  time:
+    - zone*
+```
+
+Filtering runs after locale inheritance and target `formats` overrides are resolved. If both filters are omitted, all resolved formats are included. If `includeFormats` is present, only matching type/style pairs are included; `excludeFormats` then removes matching styles from that set.
+
+Use `includeOnlyUsedFormats: true` instead when the target should automatically keep only named ICU format presets that are actively used by the messages and overrides emitted into the generated datafile:
+
+```yml
+includeOnlyUsedFormats: true
+```
+
+This optimization is mutually exclusive with `includeFormats` and `excludeFormats`.
 
 ## Check target coverage
 

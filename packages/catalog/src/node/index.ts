@@ -7,6 +7,7 @@ import * as path from "path";
 import type {
   Attribute,
   Condition,
+  DatafileContent,
   FormatPresets,
   GroupSegment,
   Locale,
@@ -163,6 +164,13 @@ export interface CatalogRuntime {
     locales: Record<string, Locale>,
     target?: Target,
   ) => FormatPresets | undefined;
+  buildDatafile: (
+    projectConfig: any,
+    datasource: any,
+    targetKey: string | undefined,
+    localeKey: string,
+    revision: string,
+  ) => Promise<DatafileContent>;
   getProjectSetExecutions: (
     projectConfig: any,
     datasource: any,
@@ -684,10 +692,12 @@ function getFormatRows(
   localeKey: string,
   locales: Record<string, Locale>,
   target?: Target,
+  computedFormats?: FormatPresets,
 ): CatalogFormatRow[] {
-  const computedFormats = runtime.resolveFormats(localeKey, locales, target) || {};
+  const effectiveFormats =
+    computedFormats || runtime.resolveFormats(localeKey, locales, target) || {};
 
-  const rows = flattenObjectRows(computedFormats).map((row) => {
+  const rows = flattenObjectRows(effectiveFormats).map((row) => {
     if (
       target &&
       typeof getPathValue(target.formats?.[localeKey], getFormatStylePathSegments(row.path)) !==
@@ -702,7 +712,7 @@ function getFormatRows(
     };
   });
 
-  return attachFormatExamplePreviews(localeKey, computedFormats, rows);
+  return attachFormatExamplePreviews(localeKey, effectiveFormats, rows);
 }
 
 function resolveTranslationRow(
@@ -1934,8 +1944,28 @@ async function buildSetCatalog(
     const formatRowsByLocale: Record<string, CatalogFormatRow[]> = {};
 
     for (const localeKey of targetLocaleKeys) {
-      formatsByLocale[localeKey] = context.runtime.resolveFormats(localeKey, locales, target);
-      formatRowsByLocale[localeKey] = getFormatRows(context.runtime, localeKey, locales, target);
+      const datafileFormats = target.includeOnlyUsedFormats
+        ? (
+            await context.runtime.buildDatafile(
+              projectConfig,
+              datasource,
+              targetKey,
+              localeKey,
+              "__catalog__",
+            )
+          ).formats
+        : undefined;
+
+      formatsByLocale[localeKey] = target.includeOnlyUsedFormats
+        ? datafileFormats
+        : context.runtime.resolveFormats(localeKey, locales, target);
+      formatRowsByLocale[localeKey] = getFormatRows(
+        context.runtime,
+        localeKey,
+        locales,
+        target,
+        formatsByLocale[localeKey],
+      );
     }
 
     const sourceFileInfo = getSourceFileInfo(

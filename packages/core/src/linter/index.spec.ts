@@ -422,6 +422,143 @@ describe("lintProject", function () {
     expect(result.errors).toHaveLength(0);
   });
 
+  it("allows target includeFormats and excludeFormats pattern maps", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "targets/web.yml",
+      [
+        "description: Web",
+        'includeMessages: "*"',
+        "includeFormats:",
+        '  number: "*"',
+        "  date: short*",
+        "  time:",
+        "    - short",
+        "    - long*",
+        "excludeFormats:",
+        "  number: money*",
+        "locales:",
+        "  - en",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("allows includeOnlyUsedFormats in targets", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "targets/web.yml",
+      ["description: Web", "includeOnlyUsedFormats: true", "locales:", "  - en", ""].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("rejects includeOnlyUsedFormats true with includeFormats or excludeFormats", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "targets/web.yml",
+      [
+        "description: Web",
+        "includeOnlyUsedFormats: true",
+        "includeFormats:",
+        '  number: "*"',
+        "excludeFormats:",
+        "  number: money",
+        "locales:",
+        "  - en",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(result.errors.map((error) => error.path.join("."))).toContain("includeOnlyUsedFormats");
+  });
+
+  it("allows includeOnlyUsedFormats false with includeFormats and excludeFormats", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "targets/web.yml",
+      [
+        "description: Web",
+        "includeOnlyUsedFormats: false",
+        "includeFormats:",
+        '  number: "*"',
+        "excludeFormats:",
+        "  number: money",
+        "locales:",
+        "  - en",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("rejects unknown target includeFormats and excludeFormats types", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "targets/web.yml",
+      [
+        "description: Web",
+        'includeMessages: "*"',
+        "includeFormats:",
+        '  number: "*"',
+        '  unknown: "*"',
+        "excludeFormats:",
+        '  nope: "*"',
+        "locales:",
+        "  - en",
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+    const paths = result.errors.map((error) => error.path.join("."));
+
+    expect(paths).toContain("includeFormats");
+    expect(paths).toContain("excludeFormats");
+  });
+
   it("rejects invalid locale format option combinations and ICU-only pseudo-styles", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
 

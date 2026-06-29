@@ -1,11 +1,7 @@
 import type { FormatPresets, Locale, Message } from "@messagevisor/types";
 
 import { mergeFormatPresets } from "../formats";
-import {
-  extractIcuStyleReferences,
-  type IcuFormatType,
-  type IcuStyleReference,
-} from "../icuStyleReferences";
+import { extractIcuStyleReferences, type IcuFormatType } from "../icuStyleReferences";
 import type { LintError } from "./index";
 
 const IntlMessageFormat =

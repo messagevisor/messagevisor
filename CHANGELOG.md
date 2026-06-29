@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.24.0](https://github.com/messagevisor/messagevisor/compare/v0.23.0...v0.24.0) (2026-06-29)
+
+
+### Features
+
+* linting icu syntax in translations ([#33](https://github.com/messagevisor/messagevisor/issues/33)) ([aea4510](https://github.com/messagevisor/messagevisor/commit/aea4510d0e33ecb472bf8ea9bf2cdca239159e78))
+
+
+
+
+
 # [0.23.0](https://github.com/messagevisor/messagevisor/compare/v0.22.0...v0.23.0) (2026-06-29)
 
 

@@ -1,7 +1,7 @@
 {
   "name": "@messagevisor/project-demo",
   "private": true,
-  "version": "0.23.0",
+  "version": "0.24.0",
   "description": "Sets-based ecommerce demo with realistic locales and messages",
   "scripts": {
     "lint": "messagevisor lint",
@@ -9,7 +9,7 @@
     "test": "messagevisor test"
   },
   "dependencies": {
-    "@messagevisor/cli": "0.23.0",
-    "@messagevisor/module-icu": "0.23.0"
+    "@messagevisor/cli": "0.24.0",
+    "@messagevisor/module-icu": "0.24.0"
   }
 }

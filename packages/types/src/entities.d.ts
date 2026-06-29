@@ -309,6 +309,7 @@ export interface Target {
   revisionFromHash?: boolean;
   includeMessages?: string | string[];
   excludeMessages?: string | string[];
+  includeOnlyUsedFormats?: boolean;
   includeFormats?: TargetFormatPatterns;
   excludeFormats?: TargetFormatPatterns;
   locales?: LocaleKey[];

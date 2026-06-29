@@ -1,0 +1,24 @@
+target: used-formats
+
+assertions:
+  - description: Used-formats target includes only messages that actively need its emitted formats
+    locale: en-US
+    expectedToIncludeMessages:
+      - billing.checkoutTotal
+      - billing.meetingTime
+    expectedToNotIncludeMessages:
+      - billing.compactTotal
+    expectedFormats:
+      number:
+        money:
+          style: currency
+          currency: USD
+      time:
+        short:
+          hour: numeric
+          minute: 2-digit
+          timeZone: UTC
+    message: billing.checkoutTotal
+    values:
+      amount: 12
+    expectedTranslation: "Total: $12.00"

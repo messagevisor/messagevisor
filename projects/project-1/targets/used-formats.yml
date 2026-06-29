@@ -1,0 +1,7 @@
+description: Target optimized to include only formats used by included messages
+includeOnlyUsedFormats: true
+includeMessages:
+  - billing.checkoutTotal
+  - billing.meetingTime
+locales:
+  - en-US

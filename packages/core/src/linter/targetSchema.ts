@@ -27,6 +27,7 @@ export function getTargetZodSchema(localeKeys: string[]) {
       }),
       includeMessages: messagePatternsZodSchema.optional(),
       excludeMessages: messagePatternsZodSchema.optional(),
+      includeOnlyUsedFormats: z.boolean().optional(),
       includeFormats: formatPatternsZodSchema.optional(),
       excludeFormats: formatPatternsZodSchema.optional(),
       locales: z
@@ -50,5 +51,18 @@ export function getTargetZodSchema(localeKeys: string[]) {
         )
         .optional(),
     })
-    .strict();
+    .strict()
+    .superRefine((data, ctx) => {
+      if (
+        data.includeOnlyUsedFormats === true &&
+        (typeof data.includeFormats !== "undefined" || typeof data.excludeFormats !== "undefined")
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["includeOnlyUsedFormats"],
+          message:
+            "`includeOnlyUsedFormats: true` cannot be combined with `includeFormats` or `excludeFormats`.",
+        });
+      }
+    });
 }

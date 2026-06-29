@@ -3,7 +3,7 @@ import { createCatalogPlugin } from "@messagevisor/catalog";
 import { ProjectConfig, getProjectConfig } from "../config";
 import { Datasource } from "../datasource";
 
-import { buildPlugin } from "../builder";
+import { buildDatafile, buildPlugin } from "../builder";
 import { benchmarkPlugin } from "../benchmark";
 import { mergeFormats, resolveFormats } from "../builder";
 import { configPlugin } from "../config";
@@ -69,6 +69,7 @@ const projectBasedPlugins = [
   createCatalogPlugin({
     mergeFormats,
     resolveFormats,
+    buildDatafile,
     getProjectSetExecutions,
     resolveExamples,
     findDuplicateTranslations,

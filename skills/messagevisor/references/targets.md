@@ -24,6 +24,7 @@ includeFormats:
   date: short*
 excludeFormats:
   number: moneyCode
+# includeOnlyUsedFormats: true
 formats:
   en-US:
     number:
@@ -43,6 +44,7 @@ revisionFromHash: false
 - `context` is compile-time known context. It can remove impossible override branches from output.
 - `formats.<locale>` applies target-level format overrides after locale format resolution.
 - `includeFormats` and `excludeFormats` filter resolved format presets by type and style name. Use a string for one pattern, or an array for multiple patterns.
+- `includeOnlyUsedFormats: true` keeps only named ICU `number`, `date`, and `time` presets referenced by emitted message and override translations. It cannot be combined with `includeFormats` or `excludeFormats`.
 - `pretty`, `stringify`, and `revisionFromHash` control generated JSON.
 
 Defaults are optimized for deployment: compact JSON, stringified conditions, and revision from state unless `revisionFromHash` is enabled.
@@ -70,6 +72,14 @@ excludeFormats:
 ```
 
 Filtering runs after locale inheritance and target `formats` overrides are resolved. If both filters are omitted, all resolved formats are included. If `includeFormats` is present, only matching type/style pairs are included; `excludeFormats` then removes matching styles from that set.
+
+Use `includeOnlyUsedFormats: true` instead when the target should automatically keep only named ICU format presets that are actively used by the messages and overrides emitted into the generated datafile:
+
+```yml
+includeOnlyUsedFormats: true
+```
+
+This optimization is mutually exclusive with `includeFormats` and `excludeFormats`.
 
 ## Check target coverage
 

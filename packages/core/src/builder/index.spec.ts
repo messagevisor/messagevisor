@@ -323,6 +323,135 @@ describe("buildProject", function () {
     expect(datafiles[0].formats).toBeUndefined();
   });
 
+  it("includes only named ICU formats used by emitted messages and overrides", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "locales/en.yml",
+      [
+        "description: English",
+        "formats:",
+        "  number:",
+        "    decimal:",
+        "      maximumFractionDigits: 2",
+        "    money:",
+        "      style: currency",
+        "      currency: USD",
+        "      currencyDisplay: symbol",
+        "  date:",
+        "    short:",
+        "      month: numeric",
+        "      day: numeric",
+        "  time:",
+        "    short:",
+        "      hour: numeric",
+        "      minute: 2-digit",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "targets/used-formats.yml",
+      [
+        "description: Used formats",
+        "includeOnlyUsedFormats: true",
+        "includeMessages:",
+        "  - billing.total",
+        "locales:",
+        "  - en-US",
+        "context:",
+        "  platform: web",
+        "formats:",
+        "  en-US:",
+        "    number:",
+        "      money:",
+        "        style: currency",
+        "        currency: GBP",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "messages/billing/total.yml",
+      [
+        "description: Billing total",
+        "translations:",
+        '  en: "Total {amount, number, money}"',
+        "overrides:",
+        "  - key: web",
+        "    conditions:",
+        "      - attribute: platform",
+        "        operator: equals",
+        "        value: web",
+        "    translations:",
+        '      en: "Web total for {date, date, short}"',
+        "  - key: mobile",
+        "    conditions:",
+        "      - attribute: platform",
+        "        operator: equals",
+        "        value: mobile",
+        "    translations:",
+        '      en: "Mobile total at {time, time, short}"',
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "messages/billing/hidden.yml",
+      [
+        "description: Hidden billing",
+        "translations:",
+        '  en: "Hidden {amount, number, decimal}"',
+        "",
+      ].join("\n"),
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const datafiles = await buildProject(projectConfig, datasource, { target: "used-formats" });
+
+    expect(datafiles).toHaveLength(1);
+    expect(datafiles[0].formats).toEqual({
+      number: {
+        money: {
+          style: "currency",
+          currency: "GBP",
+        },
+      },
+      date: {
+        short: {
+          month: "numeric",
+          day: "numeric",
+        },
+      },
+    });
+  });
+
+  it("omits formats when includeOnlyUsedFormats finds no emitted format references", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "targets/used-formats.yml",
+      [
+        "description: Used formats",
+        "includeOnlyUsedFormats: true",
+        "includeMessages:",
+        "  - auth*",
+        "locales:",
+        "  - en-US",
+        "",
+      ].join("\n"),
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const datafiles = await buildProject(projectConfig, datasource, { target: "used-formats" });
+
+    expect(datafiles).toHaveLength(1);
+    expect(datafiles[0].translations["auth.signin"]).toEqual("Sign in now");
+    expect(datafiles[0].formats).toBeUndefined();
+  });
+
   it("writes nested target datafiles under matching subdirectories", async function () {
     const root = await createProject();
     await writeFile(

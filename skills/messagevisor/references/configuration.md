@@ -17,15 +17,16 @@ npx messagevisor --rootDirectoryPath=/absolute/path/to/project info
 
 ## Important options
 
-| Option | What it changes |
-| --- | --- |
-| `parser` | Source file parser. Built-ins are `yml` and `json`; custom parsers are supported. |
-| `modules` | Runtime modules used by CLI evaluation, examples, tests, and Catalog examples. |
-| `namespaceCharacter` | Separator used when deriving message keys from paths. Default is `"."`. |
-| `exportOverrideKeySeparator` | Separator used for override row keys in CSV export/import. Default is `":"`. |
-| `sets` | Enables `sets/<name>/...` project layout when `true`. |
-| `promotionFlows` | Restricts allowed `promote --from --to` directions. |
-| `icuSkeleton` | Allows inline ICU skeleton styles during linting when `true`. |
+| Option                       | What it changes                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------- |
+| `parser`                     | Source file parser. Built-ins are `yml` and `json`; custom parsers are supported.           |
+| `modules`                    | Runtime modules used by CLI evaluation, examples, tests, and Catalog examples.              |
+| `namespaceCharacter`         | Separator used when deriving message keys from paths. Default is `"."`.                     |
+| `exportOverrideKeySeparator` | Separator used for override row keys in CSV export/import. Default is `":"`.                |
+| `sets`                       | Enables `sets/<name>/...` project layout when `true`.                                       |
+| `promotionFlows`             | Restricts allowed `promote --from --to` directions.                                         |
+| `lintIcu`                    | Enables ICU syntax and named format reference validation during linting. Default is `true`. |
+| `icuSkeleton`                | Allows inline ICU skeleton styles during linting when `true`.                               |
 
 Directory options: `localesDirectoryPath`, `messagesDirectoryPath`, `attributesDirectoryPath`, `segmentsDirectoryPath`, `targetsDirectoryPath`, `testsDirectoryPath`, `datafilesDirectoryPath`, `catalogDirectoryPath`, `exportsDirectoryPath`.
 
@@ -36,6 +37,7 @@ Directory options: `localesDirectoryPath`, `messagesDirectoryPath`, `attributesD
 - Do not casually change `namespaceCharacter`. It changes derived keys and can break imports, tests, codegen, SDK calls, and existing datafiles.
 - Do not set `exportOverrideKeySeparator` to the same value as `namespaceCharacter`.
 - Register formatting modules in both project config and application runtime. A CLI test can pass while the app renders differently if module setup differs.
+- Keep `lintIcu: true` unless the project intentionally stores text that looks like ICU but should not be validated by Messagevisor linting.
 - Prefer named locale formats over enabling `icuSkeleton` unless inline ICU skeleton syntax is intentional.
 - If paths are customized, use the resolved config output instead of assuming default directories.
 
@@ -48,6 +50,14 @@ const { createICUModule } = require("@messagevisor/module-icu");
 
 module.exports = {
   modules: [createICUModule()],
+};
+```
+
+ICU linting is on by default. Disable only the ICU-specific lint pass if the project intentionally needs it:
+
+```js
+module.exports = {
+  lintIcu: false,
 };
 ```
 

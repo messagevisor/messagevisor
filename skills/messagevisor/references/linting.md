@@ -25,7 +25,7 @@ Use JSON output when an agent needs to group errors by file, line, entity, or ru
 - Segment references in overrides and tests.
 - Message, locale, segment, and target references in tests.
 - Locale format preset shape and plausible currency codes.
-- ICU named format references when ICU is configured.
+- ICU syntax and named format references when `lintIcu` is enabled.
 - Namespace and override key separator constraints.
 
 Lint does not prove that copy reads well or that runtime output matches product expectations. Use tests, examples, evaluate, and Catalog review for behavior.
@@ -60,6 +60,8 @@ If the attribute type is `string` with `enum: [free, pro]`, using `operator: gre
 ### Invalid ICU format reference
 
 If a message uses `{amount, number, money}`, verify that the active locale or an ancestor defines `formats.number.money`. Remember format inheritance replaces whole style objects by style name. A child style named `money` does not inherit missing properties from the parent `money` style.
+
+If a project intentionally stores text that looks like ICU but should not be validated, `lintIcu: false` can disable only the ICU-specific lint pass. Schema, reference, condition, format shape, and test checks still run.
 
 ### Inline ICU skeleton blocked
 

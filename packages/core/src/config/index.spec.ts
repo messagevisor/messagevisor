@@ -11,6 +11,40 @@ async function createProject(configContent: string) {
 }
 
 describe("getProjectConfig", function () {
+  it("defaults lintIcu to true", async function () {
+    const root = await createProject("module.exports = {};\n");
+
+    const projectConfig = getProjectConfig(root);
+
+    expect(projectConfig.lintIcu).toEqual(true);
+  });
+
+  it("accepts lintIcu false", async function () {
+    const root = await createProject("module.exports = { lintIcu: false };\n");
+
+    const projectConfig = getProjectConfig(root);
+
+    expect(projectConfig.lintIcu).toEqual(false);
+  });
+
+  it("rejects invalid lintIcu values", async function () {
+    const invalidConfigs = [
+      {
+        config: 'module.exports = { lintIcu: "false" };\n',
+        message: "Invalid lintIcu: false. It must be a boolean.",
+      },
+      {
+        config: "module.exports = { lintIcu: null };\n",
+        message: "Invalid lintIcu: null. It must be a boolean.",
+      },
+    ];
+
+    for (const invalid of invalidConfigs) {
+      const root = await createProject(invalid.config);
+      expect(() => getProjectConfig(root)).toThrow(invalid.message);
+    }
+  });
+
   it("accepts valid promotionFlows object rules", async function () {
     const root = await createProject(
       [

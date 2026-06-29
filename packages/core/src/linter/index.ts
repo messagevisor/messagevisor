@@ -286,15 +286,17 @@ export async function lintProject(
       );
     }
 
-    errors.push(
-      ...lintMessageIcuFormatStyles(
-        Object.fromEntries(Object.entries(messagesByKey).filter(([key]) => shouldLintKey(key))),
-        localesByKey,
-        (key) =>
-          formatProjectPath(projectConfig, getFullPathFromKey(projectConfig, "message", key)),
-        { icuSkeleton: projectConfig.icuSkeleton },
-      ),
-    );
+    if (projectConfig.lintIcu !== false) {
+      errors.push(
+        ...lintMessageIcuFormatStyles(
+          Object.fromEntries(Object.entries(messagesByKey).filter(([key]) => shouldLintKey(key))),
+          localesByKey,
+          (key) =>
+            formatProjectPath(projectConfig, getFullPathFromKey(projectConfig, "message", key)),
+          { icuSkeleton: projectConfig.icuSkeleton },
+        ),
+      );
+    }
   }
 
   if (!options.entityType || options.entityType === "target") {

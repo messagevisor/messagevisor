@@ -9,9 +9,12 @@ const { createICUModule } = require("@messagevisor/module-icu");
 
 module.exports = {
   modules: [createICUModule()],
+  // lintIcu: false,
   // icuSkeleton: true,
 };
 ```
+
+`lintIcu` defaults to `true`. Set `lintIcu: false` only when the project intentionally stores message text that looks like ICU but should not be validated by `npx messagevisor lint`.
 
 `icuSkeleton: true` allows inline skeletons such as `{amount, number, ::currency/USD}`. Prefer named formats for shared product copy.
 

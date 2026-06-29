@@ -25,6 +25,7 @@ export const ROOT_DIR_PLACEHOLDER = "<rootDir>";
 export const DEFAULT_NAMESPACE_CHARACTER = ".";
 export const DEFAULT_EXPORT_OVERRIDE_KEY_SEPARATOR = ":";
 export const DEFAULT_PARSER: Parser = "yml";
+export const DEFAULT_LINT_ICU = true;
 export const DEFAULT_ICU_SKELETON = false;
 export const DEFAULT_SETS = false;
 export const SCHEMA_VERSION = "1";
@@ -36,6 +37,7 @@ export interface ProjectConfig {
   }>;
   namespaceCharacter: string;
   exportOverrideKeySeparator: string;
+  lintIcu: boolean;
   icuSkeleton: boolean;
   modules: MessagevisorModule[];
   sets: boolean;
@@ -61,6 +63,7 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
   const baseConfig: ProjectConfig = {
     namespaceCharacter: DEFAULT_NAMESPACE_CHARACTER,
     exportOverrideKeySeparator: DEFAULT_EXPORT_OVERRIDE_KEY_SEPARATOR,
+    lintIcu: DEFAULT_LINT_ICU,
     icuSkeleton: DEFAULT_ICU_SKELETON,
     modules: [],
     sets: DEFAULT_SETS,
@@ -127,6 +130,10 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
 
   if (typeof finalConfig.icuSkeleton !== "boolean") {
     throw new Error(`Invalid icuSkeleton: ${finalConfig.icuSkeleton}. It must be a boolean.`);
+  }
+
+  if (typeof finalConfig.lintIcu !== "boolean") {
+    throw new Error(`Invalid lintIcu: ${finalConfig.lintIcu}. It must be a boolean.`);
   }
 
   if (!Array.isArray(finalConfig.modules)) {

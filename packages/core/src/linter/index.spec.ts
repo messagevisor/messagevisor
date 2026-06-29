@@ -1121,4 +1121,77 @@ describe("lintProject", function () {
     );
     expect(syntaxErrors[0].message).toContain("Parser reported:");
   });
+
+  it("skips ICU syntax and format style checks when lintIcu is false", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = { lintIcu: false };\n");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "messages/cart/count.yml",
+      [
+        "description: Cart count",
+        "translations:",
+        '  en: "{count, plural, one {One item} other {# items}"',
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "messages/billing/summary.yml",
+      [
+        "description: Billing summary",
+        "translations:",
+        '  en: "Total {amount, number, missingMoney}"',
+        "overrides:",
+        "  - key: vip",
+        '    conditions: "*"',
+        "    translations:",
+        '      en: "VIP total {amount, number, missingVipMoney}"',
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(projectConfig.lintIcu).toEqual(false);
+    expect(result.errors.filter((error) => error.code === "invalid_icu_syntax")).toHaveLength(0);
+    expect(result.errors.filter((error) => error.code === "missing_icu_format_style")).toHaveLength(
+      0,
+    );
+  });
+
+  it("skips ICU skeleton checks when lintIcu is false", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(
+      root,
+      "messagevisor.config.js",
+      "module.exports = { lintIcu: false, icuSkeleton: false };\n",
+    );
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(
+      root,
+      "messages/billing/total.yml",
+      [
+        "description: Billing total",
+        "translations:",
+        '  en: "Total {amount, number, ::currency/USD}"',
+        "",
+      ].join("\n"),
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const result = await lintProject(projectConfig, datasource);
+
+    expect(projectConfig.lintIcu).toEqual(false);
+    expect(projectConfig.icuSkeleton).toEqual(false);
+    expect(result.errors.filter((error) => error.code === "icu_skeleton_not_allowed")).toHaveLength(
+      0,
+    );
+  });
 });

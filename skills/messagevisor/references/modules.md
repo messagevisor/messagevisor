@@ -18,12 +18,12 @@ npx messagevisor test
 
 ## Built-in modules
 
-| Package | Use for |
-| --- | --- |
-| `@messagevisor/module-icu` | ICU MessageFormat, plurals, selects, named formats, rich text tags |
-| `@messagevisor/module-interpolation` | Lightweight `{name}` placeholder replacement |
-| `@messagevisor/module-featurevisor` | Feature and experiment condition resolution through Featurevisor |
-| `@messagevisor/module-missing-translations` | Missing translation diagnostics and reporting |
+| Package                                     | Use for                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------ |
+| `@messagevisor/module-icu`                  | ICU MessageFormat, plurals, selects, named formats, rich text tags |
+| `@messagevisor/module-interpolation`        | Lightweight `{name}` placeholder replacement                       |
+| `@messagevisor/module-featurevisor`         | Feature and experiment condition resolution through Featurevisor   |
+| `@messagevisor/module-missing-translations` | Missing translation diagnostics and reporting                      |
 
 ## Register in project config
 
@@ -88,6 +88,7 @@ Rules for safe custom modules:
 - Return `undefined` when the module does not own the current value.
 - Preserve non-string rich outputs unless transforming rich output is the goal.
 - Avoid swallowing diagnostics from other modules.
+- Put custom module diagnostic context in `details`; the SDK attaches module provenance and normalizes the final diagnostic envelope.
 - Test both keyed translations and `formatMessage()` when the module supports raw messages.
 
 ## Verification

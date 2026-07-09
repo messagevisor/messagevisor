@@ -265,8 +265,10 @@ describe("condition and evaluation edge cases", function () {
     expect(diagnostics).toEqual([
       expect.objectContaining({
         code: "deprecated_message",
-        messageKey: "deprecated.override",
-        deprecationWarning: "Use replacement.override.",
+        details: expect.objectContaining({
+          messageKey: "deprecated.override",
+          deprecationWarning: "Use replacement.override.",
+        }),
       }),
     ]);
   });

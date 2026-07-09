@@ -44,8 +44,11 @@ describe("@messagevisor/module-missing-translations", function () {
       diagnostic: {
         code: "missing_translation",
         level: "error",
-        messageKey: "missing.key",
-        locale: "en-US",
+        details: {
+          messageKey: "missing.key",
+          locale: "en-US",
+          source: "translation",
+        },
       },
     });
   });

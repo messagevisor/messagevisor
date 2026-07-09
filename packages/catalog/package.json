@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/catalog",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "Static catalog UI for Messagevisor projects",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

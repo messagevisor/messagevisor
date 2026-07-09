@@ -192,7 +192,7 @@ describe("createMessagevisor", function () {
         expect.objectContaining({
           code: "missing_locale",
           message: "Locale not set",
-          locale: null,
+          details: { locale: null },
         }),
       ]),
     );
@@ -268,20 +268,21 @@ describe("createMessagevisor", function () {
     expect(
       diagnostics.some(
         (diagnostic) =>
-          diagnostic.code === "message_override_matched" && diagnostic.locale === "nl-NL",
+          diagnostic.code === "message_override_matched" && diagnostic.details.locale === "nl-NL",
       ),
     ).toEqual(true);
     expect(
       diagnostics.some(
-        (diagnostic) => diagnostic.code === "missing_translation" && diagnostic.locale === "nl-NL",
+        (diagnostic) =>
+          diagnostic.code === "missing_translation" && diagnostic.details.locale === "nl-NL",
       ),
     ).toEqual(true);
     expect(
       diagnostics.some(
         (diagnostic) =>
           diagnostic.code === "deprecated_message" &&
-          diagnostic.locale === "nl-NL" &&
-          diagnostic.messageKey === "greeting",
+          diagnostic.details.locale === "nl-NL" &&
+          diagnostic.details.messageKey === "greeting",
       ),
     ).toEqual(true);
     expect(formatPayloads.some((payload) => payload.locale === "nl-NL")).toEqual(true);
@@ -385,9 +386,11 @@ describe("createMessagevisor", function () {
       expect.objectContaining({
         code: "missing_translation",
         level: "error",
-        locale: "en-US",
-        messageKey: "missing.message",
-        source: "translation",
+        details: {
+          locale: "en-US",
+          messageKey: "missing.message",
+          source: "translation",
+        },
       }),
     );
 
@@ -406,9 +409,11 @@ describe("createMessagevisor", function () {
         code: "missing_translation",
         level: "error",
         message: "Missing translation",
-        locale: "en-US",
-        messageKey: "missing.message",
-        source: "translation",
+        details: {
+          locale: "en-US",
+          messageKey: "missing.message",
+          source: "translation",
+        },
       }),
     ]);
     expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -471,10 +476,12 @@ describe("createMessagevisor", function () {
         code: "deprecated_message",
         level: "warn",
         message: "Deprecated message evaluated",
-        locale: "en-US",
-        messageKey: "greeting",
-        deprecationWarning: "Use welcome.title instead.",
-        source: "translation",
+        details: {
+          locale: "en-US",
+          messageKey: "greeting",
+          deprecationWarning: "Use welcome.title instead.",
+          source: "translation",
+        },
       }),
     );
 
@@ -492,10 +499,12 @@ describe("createMessagevisor", function () {
         code: "deprecated_message",
         level: "warn",
         message: "Deprecated message evaluated",
-        locale: "en-US",
-        messageKey: "greeting",
-        deprecationWarning: "Use welcome.title instead.",
-        source: "translation",
+        details: {
+          locale: "en-US",
+          messageKey: "greeting",
+          deprecationWarning: "Use welcome.title instead.",
+          source: "translation",
+        },
       }),
     ]);
     expect(consoleWarnSpy).not.toHaveBeenCalled();
@@ -528,6 +537,33 @@ describe("createMessagevisor", function () {
     expect(quietDiagnostics).toEqual([]);
   });
 
+  it("normalizes diagnostic details and supports changing the log level at runtime", function () {
+    const diagnostics: any[] = [];
+    const m = createMessagevisor({
+      datafile,
+      logLevel: "fatal",
+      onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+    });
+
+    m.getRawTranslation("missing.before");
+    expect(diagnostics).toEqual([]);
+
+    m.setLogLevel("error");
+    m.getRawTranslation("missing.after");
+
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        level: "error",
+        code: "missing_translation",
+        details: {
+          locale: "en-US",
+          messageKey: "missing.after",
+          source: "translation",
+        },
+      }),
+    ]);
+  });
+
   it("lets modules subscribe to diagnostics with their own log level", function () {
     const moduleDiagnostics: any[] = [];
     const rootDiagnostics: any[] = [];
@@ -554,7 +590,7 @@ describe("createMessagevisor", function () {
       expect.objectContaining({
         code: "missing_translation",
         level: "error",
-        messageKey: "missing.message",
+        details: expect.objectContaining({ messageKey: "missing.message" }),
       }),
     ]);
   });
@@ -649,7 +685,10 @@ describe("createMessagevisor", function () {
     m.getRawTranslation("second.missing");
 
     expect(diagnostics).toEqual([
-      expect.objectContaining({ code: "missing_translation", messageKey: "first.missing" }),
+      expect.objectContaining({
+        code: "missing_translation",
+        details: expect.objectContaining({ messageKey: "first.missing" }),
+      }),
     ]);
   });
 
@@ -966,6 +1005,37 @@ describe("createMessagevisor", function () {
     expect(localeEvents[0].snapshot.locale).toEqual("nl-NL");
   });
 
+  it("emits lightweight lifecycle events for every observable state change", function () {
+    const m = createMessagevisor({ datafile });
+    const events: string[] = [];
+
+    (
+      ["datafile_set", "locale_set", "context_set", "currency_set", "timeZone_set"] as const
+    ).forEach((eventName) => {
+      m.on(eventName, () => events.push(eventName));
+    });
+
+    m.setContext({ plan: "pro" });
+    m.setCurrency("EUR");
+    m.setTimeZone("UTC");
+    m.setDatafile({
+      ...datafile,
+      locale: "nl-NL",
+      revision: "2",
+      translations: { greeting: "Hallo {name}" },
+      messages: { greeting: {} },
+    });
+    m.setLocale("nl-NL");
+
+    expect(events).toEqual([
+      "context_set",
+      "currency_set",
+      "timeZone_set",
+      "datafile_set",
+      "locale_set",
+    ]);
+  });
+
   it("supports unsubscribing from detailed events", function () {
     const m = createMessagevisor();
     const events: string[] = [];
@@ -1261,10 +1331,13 @@ describe("createMessagevisor", function () {
     expect(calls).toEqual(["stay"]);
   });
 
-  it("continues closing remaining modules and rejects with an aggregate error", async function () {
+  it("reports module close failures, closes remaining modules, and rejects with an aggregate error", async function () {
     const calls: string[] = [];
+    const diagnostics: any[] = [];
     const m = createMessagevisor({
       datafile,
+      logLevel: "error",
+      onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
       modules: [
         {
           name: "first",
@@ -1290,6 +1363,15 @@ describe("createMessagevisor", function () {
 
     await expect(m.close()).rejects.toThrow("One or more Messagevisor modules failed to close.");
     expect(calls).toEqual(["last", "broken", "first"]);
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        level: "error",
+        code: "module_close_error",
+        message: "Module close failed",
+        moduleName: "broken",
+        details: {},
+      }),
+    ]);
   });
 
   it("clears listeners and modules after close", async function () {
@@ -1677,16 +1759,20 @@ describe("createMessagevisor", function () {
     expect(missingMessages[0]).toMatchObject({
       level: "error",
       message: "Missing translation",
-      messageKey: "missing.key",
-      locale: "en-US",
-      source: "translation",
+      details: {
+        messageKey: "missing.key",
+        locale: "en-US",
+        source: "translation",
+      },
     });
     expect(missingMessages[1]).toMatchObject({
       level: "error",
       message: "Missing translation",
-      messageKey: "missing.raw",
-      locale: "en-US",
-      source: "translation",
+      details: {
+        messageKey: "missing.raw",
+        locale: "en-US",
+        source: "translation",
+      },
     });
   });
 
@@ -1727,7 +1813,7 @@ describe("createMessagevisor", function () {
       diagnostics
         .filter((diagnostic) => diagnostic.code === "missing_translation")
         .map((diagnostic) => ({
-          messageKey: diagnostic.messageKey,
+          messageKey: diagnostic.details.messageKey,
           message: diagnostic.message,
         })),
     ).toEqual([
@@ -1897,9 +1983,11 @@ describe("createMessagevisor", function () {
               level: "warn",
               code: "runtime_format_seen",
               message: "Runtime format seen",
-              locale: payload.locale,
-              messageKey: payload.messageKey,
-              source: payload.source,
+              details: {
+                locale: payload.locale,
+                messageKey: payload.messageKey,
+                source: payload.source,
+              },
             });
           },
           transform(payload, api) {
@@ -1907,9 +1995,11 @@ describe("createMessagevisor", function () {
               level: "warn",
               code: "runtime_transform_seen",
               message: "Runtime transform seen",
-              locale: payload.locale,
-              messageKey: payload.messageKey,
-              source: payload.source,
+              details: {
+                locale: payload.locale,
+                messageKey: payload.messageKey,
+                source: payload.source,
+              },
             });
           },
         },
@@ -1923,12 +2013,12 @@ describe("createMessagevisor", function () {
         expect.objectContaining({
           code: "runtime_format_seen",
           module: "runtime",
-          messageKey: "greeting",
+          details: expect.objectContaining({ messageKey: "greeting" }),
         }),
         expect.objectContaining({
           code: "runtime_transform_seen",
           module: "runtime",
-          messageKey: "greeting",
+          details: expect.objectContaining({ messageKey: "greeting" }),
         }),
       ]),
     );
@@ -1947,9 +2037,11 @@ describe("createMessagevisor", function () {
               level: "error",
               code: "runtime_transform_failed",
               message: "Runtime transform failed",
-              locale: payload.locale,
-              messageKey: payload.messageKey,
-              source: payload.source,
+              details: {
+                locale: payload.locale,
+                messageKey: payload.messageKey,
+                source: payload.source,
+              },
             });
           },
         },
@@ -1964,7 +2056,7 @@ describe("createMessagevisor", function () {
         diagnostic: expect.objectContaining({
           code: "runtime_transform_failed",
           module: "runtime",
-          messageKey: "greeting",
+          details: expect.objectContaining({ messageKey: "greeting" }),
         }),
       }),
     ]);
@@ -2036,18 +2128,18 @@ describe("createMessagevisor", function () {
           level: "debug",
           code: "message_override_matched",
           message: "Message override matched",
-          locale: "en-US",
-          messageKey: "greeting",
-          overrideKey: "override-0",
+          details: {
+            locale: "en-US",
+            messageKey: "greeting",
+            overrideKey: "override-0",
+          },
         }),
       ]),
     );
     expect(
       diagnostics.filter((diagnostic) => diagnostic.code === "message_override_matched"),
     ).toHaveLength(1);
-    expect(
-      diagnostics.some((diagnostic) => Object.prototype.hasOwnProperty.call(diagnostic, "details")),
-    ).toEqual(false);
+    expect(diagnostics.every((diagnostic) => diagnostic.details)).toEqual(true);
   });
 
   it("does not emit override debug diagnostics when no message override matches", function () {

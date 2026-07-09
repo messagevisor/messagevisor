@@ -99,7 +99,7 @@ export interface MessagevisorModuleApi {
     handler: MessagevisorDiagnosticHandler,
     options?: MessagevisorModuleDiagnosticOptions,
   ) => MessagevisorUnsubscribe;
-  reportDiagnostic: (diagnostic: Omit<MessagevisorDiagnostic, "module">) => void;
+  reportDiagnostic: (diagnostic: MessagevisorModuleReportedDiagnostic) => void;
 }
 
 export type MessagevisorModuleSetupApi = MessagevisorModuleApi;
@@ -123,21 +123,33 @@ export type MessagevisorDiagnosticCode =
   | "message_override_matched"
   | "deprecated_message"
   | "duplicate_module"
+  | "module_close_error"
   | (string & {});
+
+export type MessagevisorDiagnosticDetails = Record<string, unknown>;
 
 export interface MessagevisorDiagnostic {
   level: MessagevisorLogLevel;
   code: MessagevisorDiagnosticCode;
   message: string;
+  /** Structured diagnostic context. Always present, including when empty. */
+  details: MessagevisorDiagnosticDetails;
   module?: string;
   moduleName?: string;
-  locale?: LocaleKey | null;
-  messageKey?: MessageKey;
-  overrideKey?: string;
-  deprecationWarning?: string;
-  source?: MessagevisorTranslationSource;
   originalError?: unknown;
 }
+
+export interface MessagevisorModuleReportedDiagnostic extends Omit<
+  MessagevisorDiagnostic,
+  "details" | "module" | "moduleName"
+> {
+  /** Additional module-owned context, normalized to an object by the SDK. */
+  details?: MessagevisorDiagnosticDetails;
+}
+
+type MessagevisorDiagnosticInput = Omit<MessagevisorDiagnostic, "details"> & {
+  details?: MessagevisorDiagnosticDetails;
+};
 
 export type MessagevisorDiagnosticHandler = (diagnostic: MessagevisorDiagnostic) => void;
 
@@ -400,6 +412,10 @@ export class Messagevisor {
     return this.on("change", callback);
   }
 
+  setLogLevel(level: MessagevisorLogLevel) {
+    this.logLevel = level;
+  }
+
   on(
     eventName: MessagevisorEventName,
     callback: MessagevisorEventCallback,
@@ -588,7 +604,7 @@ export class Messagevisor {
         level: "error",
         code: "missing_locale",
         message: "Datafile not found: no locale is set",
-        locale: this.locale,
+        details: { locale: this.locale },
       });
       throw new Error("Datafile not found: no locale is set");
     }
@@ -600,7 +616,7 @@ export class Messagevisor {
         level: "error",
         code: "missing_datafile",
         message: "Datafile not found for locale",
-        locale,
+        details: { locale },
       });
       throw new Error(`Datafile not found for locale: ${locale}`);
     }
@@ -620,7 +636,7 @@ export class Messagevisor {
         level: "error",
         code: "missing_locale",
         message: "Locale not set",
-        locale: this.locale,
+        details: { locale: this.locale },
       });
       throw new Error("Locale not set");
     }
@@ -645,37 +661,42 @@ export class Messagevisor {
     this.listeners.error.slice().forEach((callback) => callback(event));
   }
 
-  private reportDiagnostic(diagnostic: MessagevisorDiagnostic, sourceModuleKey?: string) {
+  private reportDiagnostic(diagnostic: MessagevisorDiagnosticInput, sourceModuleKey?: string) {
+    const normalizedDiagnostic: MessagevisorDiagnostic = {
+      ...diagnostic,
+      details: diagnostic.details || {},
+    };
+
     this.moduleDiagnosticSubscriptions.slice().forEach((subscription) => {
       if (subscription.moduleKey === sourceModuleKey) {
         return;
       }
 
-      if (!shouldLog(subscription.logLevel, diagnostic.level)) {
+      if (!shouldLog(subscription.logLevel, normalizedDiagnostic.level)) {
         return;
       }
 
-      subscription.handler(diagnostic);
+      subscription.handler(normalizedDiagnostic);
     });
 
-    if (shouldLog(this.logLevel, diagnostic.level)) {
+    if (shouldLog(this.logLevel, normalizedDiagnostic.level)) {
       if (this.onDiagnostic) {
-        this.onDiagnostic(diagnostic);
+        this.onDiagnostic(normalizedDiagnostic);
       } else {
         const method =
-          diagnostic.level === "fatal" || diagnostic.level === "error"
+          normalizedDiagnostic.level === "fatal" || normalizedDiagnostic.level === "error"
             ? "error"
-            : diagnostic.level === "warn"
+            : normalizedDiagnostic.level === "warn"
               ? "warn"
-              : diagnostic.level === "debug"
+              : normalizedDiagnostic.level === "debug"
                 ? "debug"
                 : "info";
-        console[method](LOG_PREFIX, diagnostic.message, diagnostic);
+        console[method](LOG_PREFIX, normalizedDiagnostic.message, normalizedDiagnostic);
       }
     }
 
-    if (diagnostic.level === "error") {
-      this.emitError(diagnostic);
+    if (normalizedDiagnostic.level === "error") {
+      this.emitError(normalizedDiagnostic);
     }
   }
 
@@ -751,13 +772,15 @@ export class Messagevisor {
       const matched = matchesConditions && matchesSegments;
 
       if (matched) {
-        const diagnostic: MessagevisorDiagnostic = {
+        const diagnostic: MessagevisorDiagnosticInput = {
           level: "debug",
           code: "message_override_matched",
           message: "Message override matched",
-          locale,
-          messageKey,
-          overrideKey: override.key,
+          details: {
+            locale,
+            messageKey,
+            overrideKey: override.key,
+          },
         };
 
         this.reportDiagnostic(diagnostic);
@@ -800,10 +823,12 @@ export class Messagevisor {
       level: "warn",
       code: "deprecated_message",
       message: "Deprecated message evaluated",
-      locale,
-      messageKey,
-      deprecationWarning: message.deprecationWarning,
-      source: "translation",
+      details: {
+        locale,
+        messageKey,
+        deprecationWarning: message.deprecationWarning,
+        source: "translation",
+      },
     });
   }
 
@@ -854,9 +879,7 @@ export class Messagevisor {
         level: "error",
         code: "missing_translation",
         message: "Missing translation",
-        locale,
-        messageKey,
-        source: "translation",
+        details: { locale, messageKey, source: "translation" },
       });
     }
 
@@ -1064,8 +1087,8 @@ export class Messagevisor {
         );
       };
     };
-    const reportDiagnostic = (diagnostic: Omit<MessagevisorDiagnostic, "module">) => {
-      const moduleDiagnostic: MessagevisorDiagnostic = { ...diagnostic };
+    const reportDiagnostic = (diagnostic: MessagevisorModuleReportedDiagnostic) => {
+      const moduleDiagnostic: MessagevisorDiagnosticInput = { ...diagnostic };
 
       if (module.name) {
         moduleDiagnostic.module = module.name;
@@ -1183,10 +1206,12 @@ export class Messagevisor {
           level: "error",
           code: "invalid_message",
           message: "Unable to format message",
-          locale: payload.locale,
-          messageKey: payload.messageKey,
-          source: payload.source,
           originalError: error,
+          details: {
+            locale: payload.locale,
+            messageKey: payload.messageKey,
+            source: payload.source,
+          },
         });
 
         throw error;
@@ -1332,6 +1357,13 @@ export class Messagevisor {
         await module.close();
       } catch (error) {
         errors.push(error);
+        this.reportDiagnostic({
+          level: "error",
+          code: "module_close_error",
+          message: "Module close failed",
+          moduleName: module.name,
+          originalError: error,
+        });
       }
     }
 
@@ -1538,7 +1570,7 @@ export class Messagevisor {
         level: "warn",
         code: "unsupported_formatter",
         message: "Intl.ListFormat is not available in this environment.",
-        locale,
+        details: { locale },
       });
 
       return values.join(", ");
@@ -1565,7 +1597,7 @@ export class Messagevisor {
         level: "warn",
         code: "unsupported_formatter",
         message: "Intl.ListFormat is not available in this environment.",
-        locale,
+        details: { locale },
       });
 
       return values;
@@ -1596,7 +1628,7 @@ export class Messagevisor {
         level: "warn",
         code: "unsupported_formatter",
         message: "Intl.DisplayNames is not available in this environment.",
-        locale,
+        details: { locale },
       });
 
       return displayNameOptions && displayNameOptions.fallback === "none" ? undefined : value;

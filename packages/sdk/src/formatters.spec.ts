@@ -286,7 +286,11 @@ describe("Intl formatter helpers", function () {
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         "[Messagevisor]",
         "Intl.DisplayNames is not available in this environment.",
-        expect.objectContaining({ code: "unsupported_formatter", level: "warn", locale: "en-US" }),
+        expect.objectContaining({
+          code: "unsupported_formatter",
+          level: "warn",
+          details: { locale: "en-US" },
+        }),
       );
     } finally {
       (Intl as any).DisplayNames = originalDisplayNames;

@@ -45,11 +45,15 @@ export function createMissingTranslationsModule(
 
       onDiagnostic(
         (diagnostic) => {
-          if (diagnostic.code !== "missing_translation" || !diagnostic.messageKey) {
+          const messageKey = diagnostic.details.messageKey;
+          const diagnosticLocale = diagnostic.details.locale;
+          const source = diagnostic.details.source;
+
+          if (diagnostic.code !== "missing_translation" || typeof messageKey !== "string") {
             return;
           }
 
-          const locale = diagnostic.locale || null;
+          const locale = typeof diagnosticLocale === "string" ? diagnosticLocale : null;
           let revision: string | undefined;
 
           if (locale) {
@@ -61,10 +65,10 @@ export function createMissingTranslationsModule(
           }
 
           const payload: MissingTranslationPayload = {
-            messageKey: diagnostic.messageKey,
+            messageKey,
             locale,
             revision,
-            source: diagnostic.source,
+            source: source === "translation" || source === "formatMessage" ? source : undefined,
             diagnostic,
           };
 

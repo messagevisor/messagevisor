@@ -353,7 +353,7 @@ describe("SDK conformance scenarios", function () {
     expect(
       diagnostics
         .filter((diagnostic) => diagnostic.code === "message_override_matched")
-        .map((diagnostic) => diagnostic.overrideKey),
+        .map((diagnostic) => diagnostic.details.overrideKey),
     ).toEqual(["pro-web", "mobile", "enterprise-eu"]);
   });
 
@@ -495,7 +495,7 @@ describe("SDK conformance scenarios", function () {
     expect(
       diagnostics
         .filter((diagnostic) => diagnostic.code === "missing_translation")
-        .map((diagnostic) => diagnostic.messageKey),
+        .map((diagnostic) => diagnostic.details.messageKey),
     ).toEqual(["missing.with.default", "missing.without.default"]);
   });
 
@@ -505,8 +505,14 @@ describe("SDK conformance scenarios", function () {
     expect(m.translate("deprecated.old")).toEqual("Old welcome");
     expect(m.translate("deprecated.old")).toEqual("Old welcome");
     expect(diagnostics).toEqual([
-      expect.objectContaining({ code: "deprecated_message", messageKey: "deprecated.old" }),
-      expect.objectContaining({ code: "deprecated_message", messageKey: "deprecated.old" }),
+      expect.objectContaining({
+        code: "deprecated_message",
+        details: expect.objectContaining({ messageKey: "deprecated.old" }),
+      }),
+      expect.objectContaining({
+        code: "deprecated_message",
+        details: expect.objectContaining({ messageKey: "deprecated.old" }),
+      }),
     ]);
   });
 

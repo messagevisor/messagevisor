@@ -202,6 +202,7 @@ All `messagevisor` CLI commands are local and safe to run without confirmation. 
 | `npx messagevisor config --json --pretty` | Project configuration |
 | `npx messagevisor info` | Entity counts |
 | `npx messagevisor lint` | Validate definitions |
+| `npx messagevisor list --datafiles --json` | Generated datafile paths and sizes |
 | `npx messagevisor list --messages --target=web` | Messages in a target |
 | `npx messagevisor list --locales` | Active locales |
 | `npx messagevisor list --targets` | Active targets |

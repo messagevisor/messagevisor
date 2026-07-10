@@ -4,7 +4,7 @@ import * as path from "path";
 
 import { getProjectConfig } from "../config";
 import { Datasource } from "../datasource";
-import { listPlugin } from "./index";
+import { formatDatafileSize, listPlugin } from "./index";
 
 async function writeFile(root: string, relativePath: string, content: string) {
   const filePath = path.join(root, relativePath);
@@ -129,6 +129,10 @@ async function createProject() {
     "tests/targets/web.spec.yml",
     "target: web\nassertions:\n  - locale: en\n    expectedToIncludeMessages:\n      - common.welcome\n",
   );
+  await writeFile(root, "datafiles/messagevisor-web-en.json", "{}");
+  await writeFile(root, "datafiles/nested/messagevisor-web-en-US.json", '{"messages":{}}');
+  await writeFile(root, "datafiles/.DS_Store", "ignored");
+  await writeFile(root, "datafiles/REVISION", "ignored");
 
   return root;
 }
@@ -149,6 +153,7 @@ async function createSetsProject() {
       `sets/${set}/targets/web.yml`,
       "description: Web\nincludeMessages:\n  - common*\nlocales:\n  - en\n",
     );
+    await writeFile(root, `datafiles/${set}/messagevisor-web-en.json`, `{\"set\":\"${set}\"}`);
   }
 
   return root;
@@ -162,6 +167,39 @@ function getDatasource(root: string) {
 }
 
 describe("listPlugin", function () {
+  it("lists generated datafiles with raw and gzip sizes", async function () {
+    const root = await createProject();
+    const { datasource } = getDatasource(root);
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    await listPlugin.handler({ datasource, parsed: { datafiles: true, json: true } });
+
+    const result = JSON.parse(logSpy.mock.calls[0][0]);
+    expect(result).toEqual([
+      expect.objectContaining({ path: "messagevisor-web-en.json", size: 2 }),
+      expect.objectContaining({ path: "nested/messagevisor-web-en-US.json", size: 15 }),
+    ]);
+    expect(result.every((datafile: any) => typeof datafile.gzipSize === "number")).toBe(true);
+
+    logSpy.mockClear();
+    await listPlugin.handler({ datasource, parsed: { datafiles: true } });
+    const output = logSpy.mock.calls.map((call) => call.join(" ")).join("\n");
+    const uncoloredOutput = output.replace(/\u001b\[[0-9;]*m/g, "");
+    expect(uncoloredOutput).toContain("Datafile");
+    expect(uncoloredOutput).toContain("Size");
+    expect(uncoloredOutput).toContain("Gzip");
+    expect(uncoloredOutput).toContain("messagevisor-web-en.json");
+    expect(uncoloredOutput).toContain("nested/messagevisor-web-en-US.json");
+    expect(uncoloredOutput).toContain("Found 2 datafiles.");
+    logSpy.mockRestore();
+  });
+
+  it("formats datafile sizes with colored units", function () {
+    expect(formatDatafileSize(42)).toBe("42.00 \u001b[33mB\u001b[0m");
+    expect(formatDatafileSize(1024)).toBe("1.00 \u001b[36mkB\u001b[0m");
+    expect(formatDatafileSize(1024 * 1024)).toBe("1.00 \u001b[32mmB\u001b[0m");
+  });
+
   it("lists entity keys in plain output", async function () {
     const root = await createProject();
     const { datasource } = getDatasource(root);
@@ -333,7 +371,7 @@ describe("listPlugin", function () {
     try {
       await expect(listPlugin.handler({ datasource, parsed: {} })).resolves.toEqual(false);
       expect(errorSpy).toHaveBeenCalledWith(
-        "Nothing to list. Pass exactly one of --messages, --locales, --segments, --attributes, --targets, or --tests.",
+        "Nothing to list. Pass exactly one of --datafiles, --messages, --locales, --segments, --attributes, --targets, or --tests.",
       );
 
       errorSpy.mockClear();
@@ -348,7 +386,7 @@ describe("listPlugin", function () {
         }),
       ).resolves.toEqual(false);
       expect(errorSpy).toHaveBeenCalledWith(
-        "Pass exactly one of --messages, --locales, --segments, --attributes, --targets, or --tests.",
+        "Pass exactly one of --datafiles, --messages, --locales, --segments, --attributes, --targets, or --tests.",
       );
     } finally {
       errorSpy.mockRestore();
@@ -426,6 +464,28 @@ describe("listPlugin", function () {
 
     const result = JSON.parse(logSpy.mock.calls[0][0]);
     expect(result.map((item: any) => item.key)).toEqual(["common.welcome"]);
+    logSpy.mockRestore();
+  });
+
+  it("lists datafiles per set and requires a set for JSON output", async function () {
+    const root = await createSetsProject();
+    const { datasource } = getDatasource(root);
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    await listPlugin.handler({ datasource, parsed: { datafiles: true } });
+    const output = logSpy.mock.calls.map((call) => call[0]).join("\n");
+    expect(output).toContain('Set "dev":');
+    expect(output).toContain('Set "production":');
+    expect(output.match(/messagevisor-web-en\.json/g)).toHaveLength(2);
+
+    logSpy.mockClear();
+    await listPlugin.handler({
+      datasource,
+      parsed: { datafiles: true, json: true, set: "dev" },
+    });
+    expect(JSON.parse(logSpy.mock.calls[0][0])).toEqual([
+      expect.objectContaining({ path: "messagevisor-web-en.json" }),
+    ]);
     logSpy.mockRestore();
   });
 });

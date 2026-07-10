@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { gzipSync } from "zlib";
 
 import type { CustomParser } from "@featurevisor/parsers";
 import type {
@@ -13,7 +14,7 @@ import type {
 } from "@messagevisor/types";
 
 import { formatDatafilePath, type ProjectConfig } from "../config";
-import type { WriteDatafileOptions } from "./index";
+import type { DatafileFile, WriteDatafileOptions } from "./index";
 
 export type EntityType = "locale" | "message" | "segment" | "attribute" | "target" | "test";
 
@@ -229,6 +230,49 @@ export class FilesystemAdapter {
       datafilePath,
       options.pretty ? JSON.stringify(datafileContent, null, 2) : JSON.stringify(datafileContent),
     );
+  }
+
+  async listDatafiles(): Promise<DatafileFile[]> {
+    const directoryPath = this.config.datafilesDirectoryPath;
+
+    if (!fs.existsSync(directoryPath)) {
+      return [];
+    }
+
+    const files: string[] = [];
+
+    async function walk(currentDirectoryPath: string) {
+      const entries = await fs.promises.readdir(currentDirectoryPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const entryPath = path.join(currentDirectoryPath, entry.name);
+
+        if (entry.isDirectory()) {
+          await walk(entryPath);
+        } else if (entry.isFile()) {
+          files.push(entryPath);
+        }
+      }
+    }
+
+    await walk(directoryPath);
+
+    const datafiles = await Promise.all(
+      files
+        .filter((filePath) => path.basename(filePath) !== this.config.revisionFileName)
+        .filter((filePath) => !path.basename(filePath).startsWith("."))
+        .map(async (filePath) => {
+          const content = await fs.promises.readFile(filePath);
+
+          return {
+            path: path.relative(directoryPath, filePath).split(path.sep).join("/"),
+            size: content.length,
+            gzipSize: gzipSync(content).length,
+          };
+        }),
+    );
+
+    return datafiles.sort((a, b) => a.path.localeCompare(b.path));
   }
 
   async readDatafile(target: string, locale: string): Promise<DatafileContent> {

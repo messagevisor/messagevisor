@@ -70,9 +70,10 @@ Use it after imports, promotions, or broad file changes as a cheap sanity check.
 
 ### `list`
 
-Lists one entity class at a time:
+Lists one entity class at a time, or generated datafiles:
 
 ```bash
+npx messagevisor list --datafiles --json --pretty
 npx messagevisor list --messages
 npx messagevisor list --messages --target=web
 npx messagevisor list --messages --locale=en-US --withoutOverrides
@@ -82,6 +83,8 @@ npx messagevisor list --segments --archived=false
 npx messagevisor list --attributes --type=string
 npx messagevisor list --tests --applyMatrix --json
 ```
+
+`--datafiles` lists generated files relative to `datafiles/`, together with their raw and gzip-compressed sizes. It excludes hidden files and `REVISION`; run `build` first when you need fresh output. In a sets project, pass `--set=<name>` for JSON output or omit it to see a section for every set.
 
 Common filters:
 

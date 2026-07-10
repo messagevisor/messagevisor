@@ -15,6 +15,12 @@ export interface WriteDatafileOptions {
   pretty?: boolean;
 }
 
+export interface DatafileFile {
+  path: string;
+  size: number;
+  gzipSize: number;
+}
+
 export class Datasource {
   private adapter: FilesystemAdapter;
   private rootConfig: ProjectConfig;
@@ -55,6 +61,12 @@ export class Datasource {
 
   writeDatafile(datafileContent: DatafileContent, options: WriteDatafileOptions = {}) {
     return this.adapter.writeDatafile(datafileContent, options);
+  }
+
+  listDatafiles(): Promise<DatafileFile[]> {
+    return typeof this.adapter.listDatafiles === "function"
+      ? this.adapter.listDatafiles()
+      : Promise.resolve([]);
   }
 
   readDatafile(target: string, locale: string) {

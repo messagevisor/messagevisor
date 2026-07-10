@@ -1,7 +1,9 @@
 import type { Attribute, Locale, Message, Target, Segment, Test } from "@messagevisor/types";
 
+import type { DatafileFile } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
+import { CLI_FORMAT_GREEN, CLI_FORMAT_YELLOW, colorize } from "../tester/cliFormat";
 import {
   expandLocaleAssertions,
   expandMessageAssertions,
@@ -10,6 +12,7 @@ import {
 } from "../tester/matrix";
 
 type EntityType = "messages" | "locales" | "segments" | "attributes" | "targets" | "tests";
+type ListType = EntityType | "datafiles";
 
 type ListableEntity = Message | Locale | Segment | Attribute | Target;
 
@@ -128,20 +131,20 @@ async function getEntitiesWithTests(datasource: any): Promise<EntitiesWithTests>
   };
 }
 
-function getSelectedEntityType(options: any): EntityType {
+function getSelectedEntityType(options: any): ListType {
   const selected = (
-    ["messages", "locales", "segments", "attributes", "targets", "tests"] as EntityType[]
+    ["datafiles", "messages", "locales", "segments", "attributes", "targets", "tests"] as ListType[]
   ).filter((entityType) => Boolean(options[entityType]));
 
   if (selected.length === 0) {
     throw new MessagevisorCLIError(
-      "Nothing to list. Pass exactly one of --messages, --locales, --segments, --attributes, --targets, or --tests.",
+      "Nothing to list. Pass exactly one of --datafiles, --messages, --locales, --segments, --attributes, --targets, or --tests.",
     );
   }
 
   if (selected.length > 1) {
     throw new MessagevisorCLIError(
-      "Pass exactly one of --messages, --locales, --segments, --attributes, --targets, or --tests.",
+      "Pass exactly one of --datafiles, --messages, --locales, --segments, --attributes, --targets, or --tests.",
     );
   }
 
@@ -407,6 +410,83 @@ function printEntityList(entityType: EntityType, result: Array<{ key: string }>)
   console.log(`\nFound ${result.length} ${entityType}.`);
 }
 
+function getDatafileSizeParts(size: number): { value: string; unit: string; color: number } {
+  if (size < 1024) {
+    return { value: size.toFixed(2), unit: "B", color: 33 };
+  }
+
+  if (size < 1024 * 1024) {
+    return { value: (size / 1024).toFixed(2), unit: "kB", color: 36 };
+  }
+
+  return { value: (size / (1024 * 1024)).toFixed(2), unit: "mB", color: 32 };
+}
+
+export function formatDatafileSize(size: number): string {
+  const { value, unit, color } = getDatafileSizeParts(size);
+  return `${value} ${colorize(unit, color)}`;
+}
+
+function formatDatafileSizeColumn(size: number, valueWidth: number): string {
+  const { value, unit, color } = getDatafileSizeParts(size);
+  return `${value.padStart(valueWidth)} ${" ".repeat(2 - unit.length)}${colorize(unit, color)}`;
+}
+
+function getDatafileDirectory(datafilePath: string): string {
+  const lastSlashIndex = datafilePath.lastIndexOf("/");
+  return lastSlashIndex === -1 ? "" : datafilePath.slice(0, lastSlashIndex);
+}
+
+function printDatafiles(result: DatafileFile[], options: any) {
+  if (options.json) {
+    console.log(options.pretty ? JSON.stringify(result, null, 2) : JSON.stringify(result));
+    return;
+  }
+
+  if (result.length === 0) {
+    console.log(CLI_FORMAT_YELLOW, "No datafiles found.");
+    return;
+  }
+
+  const pathWidth = Math.max("Datafile".length, ...result.map((datafile) => datafile.path.length));
+  const sizeValueWidth = Math.max(
+    ...result.map((datafile) => getDatafileSizeParts(datafile.size).value.length),
+  );
+  const gzipSizeValueWidth = Math.max(
+    ...result.map((datafile) => getDatafileSizeParts(datafile.gzipSize).value.length),
+  );
+  const sizeWidth = Math.max("Size".length, sizeValueWidth + 3);
+  const gzipSizeWidth = Math.max("Gzip".length, gzipSizeValueWidth + 3);
+
+  console.log("");
+  console.log(
+    `  ${colorize("Datafile".padEnd(pathWidth), 36)}  ${colorize(
+      "Size".padStart(sizeWidth),
+      36,
+    )}  ${colorize("Gzip".padStart(gzipSizeWidth), 36)}`,
+  );
+  console.log(`  ${"-".repeat(pathWidth)}  ${"-".repeat(sizeWidth)}  ${"-".repeat(gzipSizeWidth)}`);
+
+  let previousDirectory: string | undefined;
+  for (const datafile of result) {
+    const directory = getDatafileDirectory(datafile.path);
+    if (previousDirectory !== undefined && directory !== previousDirectory) {
+      console.log("");
+    }
+
+    console.log(
+      `  ${datafile.path.padEnd(pathWidth)}  ${formatDatafileSizeColumn(
+        datafile.size,
+        sizeValueWidth,
+      )}  ${formatDatafileSizeColumn(datafile.gzipSize, gzipSizeValueWidth)}`,
+    );
+    previousDirectory = directory;
+  }
+
+  console.log("");
+  console.log(CLI_FORMAT_GREEN, `Found ${result.length} datafiles.`);
+}
+
 export const listPlugin = {
   command: "list",
   handler: async ({ datasource, parsed }: any) => {
@@ -419,6 +499,11 @@ export const listPlugin = {
         const executions = await getProjectSetExecutions(projectConfig, datasource, parsed.set);
 
         if (parsed.json) {
+          if (entityType === "datafiles") {
+            printDatafiles(await executions[0].datasource.listDatafiles(), parsed);
+            return;
+          }
+
           const result = await listEntities(executions[0].datasource, parsed, entityType);
           console.log(parsed.pretty ? JSON.stringify(result, null, 2) : JSON.stringify(result));
           return;
@@ -426,10 +511,21 @@ export const listPlugin = {
 
         for (const execution of executions) {
           console.log(`\nSet "${execution.set}":`);
+          if (entityType === "datafiles") {
+            printDatafiles(await execution.datasource.listDatafiles(), parsed);
+            console.log("");
+            continue;
+          }
+
           printEntityList(entityType, await listEntities(execution.datasource, parsed, entityType));
           console.log("");
         }
 
+        return;
+      }
+
+      if (entityType === "datafiles") {
+        printDatafiles(await datasource.listDatafiles(), parsed);
         return;
       }
 
@@ -450,6 +546,7 @@ export const listPlugin = {
     }
   },
   examples: [
+    { command: "list --datafiles", description: "list generated datafiles and their sizes" },
     { command: "list --messages", description: "list messages" },
     { command: "list --messages --target=web", description: "list messages covered by a target" },
     { command: "list --locales", description: "list locales" },

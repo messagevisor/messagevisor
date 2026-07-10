@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.26.0](https://github.com/messagevisor/messagevisor/compare/v0.25.0...v0.26.0) (2026-07-10)
+
+
+### Features
+
+* list datafiles ([#35](https://github.com/messagevisor/messagevisor/issues/35)) ([14bbbba](https://github.com/messagevisor/messagevisor/commit/14bbbbab1e45987997f17f1f960f9acf884c329f))
+
+
+
+
+
 # [0.25.0](https://github.com/messagevisor/messagevisor/compare/v0.24.0...v0.25.0) (2026-07-09)
 
 **Note:** Version bump only for package @messagevisor/core

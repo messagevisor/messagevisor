@@ -7,6 +7,7 @@ module.exports = {
   testRegex: undefined,
   testMatch: ["<rootDir>/src/**/*.spec.ts", "<rootDir>/src/**/*.spec.tsx"],
   moduleNameMapper: {
+    ...base.moduleNameMapper,
     "^@messagevisor/sdk$": "<rootDir>/../sdk/src/index.ts",
     "^@messagevisor/module-icu$": "<rootDir>/../module-icu/src/index.ts",
   },

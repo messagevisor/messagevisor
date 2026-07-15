@@ -19,6 +19,7 @@ import { lintProject, type LintError } from "../linter";
 import { formatProjectPath } from "../path";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN, colorize } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
+import { matchesPattern } from "../targeting";
 
 type EntityType = "locale" | "attribute" | "segment" | "target" | "message" | "test";
 type ConflictPolicy = "source" | "destination" | "fail";
@@ -259,17 +260,6 @@ function deepMergeWithPolicy(
   }
 
   return policy === "destination" ? destination : source;
-}
-
-function matchesPattern(key: string, patterns: string | string[]) {
-  if (patterns.length === 0) {
-    return false;
-  }
-
-  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`).test(key);
-  });
 }
 
 function withoutKey<T extends Record<string, unknown>>(entity: T): T {

@@ -84,6 +84,8 @@ npm install @messagevisor/react
 
 Use the provider and hooks from `@messagevisor/react`. Keep the SDK instance lifecycle stable and update datafiles intentionally when locale or target changes.
 
+The generic `change` event carries a `source` naming the specific state event. On `datafile_set`, `locale` is the affected datafile locale and `activeLocale` is the locale currently selected for evaluation.
+
 ```jsx
 import { MessagevisorProvider, useMessagevisor } from "@messagevisor/react";
 
@@ -133,6 +135,9 @@ Use this when migrating code that expects `formatMessage`, `formatNumber`, and r
 
 - Do not fetch Catalog JSON as runtime translation data.
 - Do not assume a message exists unless the active target includes it.
+- Runtime operators are type-strict: numeric, string/regex, and array operators do not coerce mismatched values. `null` counts as present for `exists`.
+- For request isolation, use `parent.spawn(context, { locale, currency, timeZone })`; children share parent datafiles, modules, and formatter caches.
+- The supported runtime entry point is `createMessagevisor()`. Treat `Messagevisor` and supporting contracts as types, not constructable runtime exports.
 - Keep module registration consistent between CLI and SDK.
 - Use default translations sparingly for app-level fallback, not as a substitute for source definitions.
 - Match locale keys exactly. `"en-US"` and `"en_US"` are different.

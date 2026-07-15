@@ -1442,50 +1442,87 @@ export function EntityDetailPage() {
 }
 
 function getTabs(type: string, baseRoute: string, duplicatesEnabled = false) {
-  const shared = [
-    { label: "Overview", to: baseRoute, end: true },
-    { label: "History", to: `${baseRoute}/history` },
-  ];
+  const overviewTab = { label: "Overview", to: baseRoute, end: true };
+  const testsTab = { label: "Tests", to: `${baseRoute}/tests` };
+  const historyTab = { label: "History", to: `${baseRoute}/history` };
 
   if (type === "locale") {
     return [
-      shared[0],
+      overviewTab,
       { label: "Formats", to: `${baseRoute}/formats` },
       { label: "Examples", to: `${baseRoute}/examples` },
       ...(duplicatesEnabled ? [{ label: "Duplicates", to: `${baseRoute}/duplicates` }] : []),
-      shared[1],
+      testsTab,
+      historyTab,
     ];
   }
 
   if (type === "message") {
     return [
-      shared[0],
+      overviewTab,
       { label: "Translations", to: `${baseRoute}/translations` },
       { label: "Overrides", to: `${baseRoute}/overrides` },
       { label: "Examples", to: `${baseRoute}/examples` },
-      shared[1],
+      testsTab,
+      historyTab,
     ];
   }
 
   if (type === "target") {
     return [
-      shared[0],
+      overviewTab,
       { label: "Formats", to: `${baseRoute}/formats`, end: false },
       { label: "Messages", to: `${baseRoute}/messages` },
-      shared[1],
+      testsTab,
+      historyTab,
     ];
   }
 
   if (type === "segment") {
     return [
-      shared[0],
+      overviewTab,
       { label: "Conditions", to: `${baseRoute}/conditions` },
       { label: "Usage", to: `${baseRoute}/usage` },
-      shared[1],
+      testsTab,
+      historyTab,
     ];
   }
 
-  return [shared[0], { label: "Usage", to: `${baseRoute}/usage` }, shared[1]];
+  return [overviewTab, { label: "Usage", to: `${baseRoute}/usage` }, historyTab];
+}
+
+export function TestsTab() {
+  const { detail } = useEntityDetail();
+  const tests = (detail.tests || []) as Array<{
+    key: string;
+    assertions: Array<Record<string, unknown>>;
+  }>;
+
+  if (tests.length === 0) return <EmptyState title="No tests found" />;
+
+  return (
+    <div className="space-y-4">
+      {tests.map((test) => (
+        <section key={test.key} className="rounded-xl border border-subtle bg-surface p-4">
+          <div className="mb-3 text-sm font-semibold">
+            <EntityKey value={test.key} />
+          </div>
+          <div className="space-y-3">
+            {test.assertions.map((assertion, index) => (
+              <div key={index} className="rounded-lg border border-subtle bg-canvas p-3">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-faint">
+                  {typeof assertion.description === "string"
+                    ? assertion.description
+                    : `Assertion ${index + 1}`}
+                </div>
+                <CodeBlock value={JSON.stringify(assertion, null, 2)} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
 }
 
 export function EntityOverviewTab() {

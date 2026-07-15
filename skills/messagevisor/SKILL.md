@@ -32,14 +32,14 @@ Then read one or two existing entity files to match local style before adding ne
 
 ## Core entities
 
-| Entity | Location | Purpose |
-| --- | --- | --- |
-| Locale | `locales/<key>.yml` | Locale metadata, direction, translation inheritance, format inheritance, examples |
-| Message | `messages/<path>.yml` | Translatable copy, translations, overrides, examples, metadata |
-| Attribute | `attributes/<key>.yml` | Schema for runtime context fields used by conditions |
-| Segment | `segments/<key>.yml` | Reusable condition tree |
-| Target | `targets/<key>.yml` | Defines one datafile family: messages, locales, context, formats, output options |
-| Test | `tests/.../*.spec.yml` | Assertions for messages, segments, locales, and targets |
+| Entity    | Location               | Purpose                                                                           |
+| --------- | ---------------------- | --------------------------------------------------------------------------------- |
+| Locale    | `locales/<key>.yml`    | Locale metadata, direction, translation inheritance, format inheritance, examples |
+| Message   | `messages/<path>.yml`  | Translatable copy, translations, overrides, examples, metadata                    |
+| Attribute | `attributes/<key>.yml` | Schema for runtime context fields used by conditions                              |
+| Segment   | `segments/<key>.yml`   | Reusable condition tree                                                           |
+| Target    | `targets/<key>.yml`    | Defines one datafile family: messages, locales, context, formats, output options  |
+| Test      | `tests/.../*.spec.yml` | Assertions for messages, segments, locales, and targets                           |
 
 Default key derivation uses `namespaceCharacter: "."`, so `messages/auth/signin.yml` becomes `auth.signin`.
 
@@ -47,26 +47,26 @@ Default key derivation uses `namespaceCharacter: "."`, so `messages/auth/signin.
 
 This file loads eagerly. The files below load only when relevant. Read them in full before authoring or debugging in that area.
 
-| Task | Read |
-| --- | --- |
-| Change or diagnose `messagevisor.config.js` | [references/configuration.md](references/configuration.md) |
-| Add or edit messages, locales, formats, inheritance | [references/authoring.md](references/authoring.md) |
-| Work with targets, datafile inclusion, target context | [references/targets.md](references/targets.md) |
-| Conditional copy: overrides, attributes, segments | [references/overrides.md](references/overrides.md) |
-| ICU plurals, selects, named formats, rich text | [references/icu.md](references/icu.md) |
-| Modules: setup, ordering, custom transforms | [references/modules.md](references/modules.md) |
-| Examples, raw message evaluation, Catalog review | [references/examples.md](references/examples.md) |
-| Write or fix test specs, run tests | [references/testing.md](references/testing.md) |
-| Fix lint errors, schema problems, invalid references | [references/linting.md](references/linting.md) |
-| Browse or host the Catalog UI | [references/catalog.md](references/catalog.md) |
-| Any CLI command, flags, scripting | [references/cli.md](references/cli.md) |
-| Wire datafiles into an application (SDK, React, Vue) | [references/sdk.md](references/sdk.md) |
-| Build, CI, CDN publishing, revisions, state files | [references/deployment.md](references/deployment.md) |
-| Sets projects, promotion flows, dev/staging/production | [references/sets.md](references/sets.md) |
-| CSV export and import for translator handoff | [references/csv.md](references/csv.md) |
-| Agent-assisted translation workflows | [references/ai-translations.md](references/ai-translations.md) |
-| Generate typed TypeScript helpers | [references/codegen.md](references/codegen.md) |
-| Feature flag or experiment conditional copy | [references/featurevisor.md](references/featurevisor.md) |
+| Task                                                   | Read                                                           |
+| ------------------------------------------------------ | -------------------------------------------------------------- |
+| Change or diagnose `messagevisor.config.js`            | [references/configuration.md](references/configuration.md)     |
+| Add or edit messages, locales, formats, inheritance    | [references/authoring.md](references/authoring.md)             |
+| Work with targets, datafile inclusion, target context  | [references/targets.md](references/targets.md)                 |
+| Conditional copy: overrides, attributes, segments      | [references/overrides.md](references/overrides.md)             |
+| ICU plurals, selects, named formats, rich text         | [references/icu.md](references/icu.md)                         |
+| Modules: setup, ordering, custom transforms            | [references/modules.md](references/modules.md)                 |
+| Examples, raw message evaluation, Catalog review       | [references/examples.md](references/examples.md)               |
+| Write or fix test specs, run tests                     | [references/testing.md](references/testing.md)                 |
+| Fix lint errors, schema problems, invalid references   | [references/linting.md](references/linting.md)                 |
+| Browse or host the Catalog UI                          | [references/catalog.md](references/catalog.md)                 |
+| Any CLI command, flags, scripting                      | [references/cli.md](references/cli.md)                         |
+| Wire datafiles into an application (SDK, React, Vue)   | [references/sdk.md](references/sdk.md)                         |
+| Build, CI, CDN publishing, revisions, state files      | [references/deployment.md](references/deployment.md)           |
+| Sets projects, promotion flows, dev/staging/production | [references/sets.md](references/sets.md)                       |
+| CSV export and import for translator handoff           | [references/csv.md](references/csv.md)                         |
+| Agent-assisted translation workflows                   | [references/ai-translations.md](references/ai-translations.md) |
+| Generate typed TypeScript helpers                      | [references/codegen.md](references/codegen.md)                 |
+| Feature flag or experiment conditional copy            | [references/featurevisor.md](references/featurevisor.md)       |
 
 Per-entity templates live in [templates/](templates/). Copy and adapt rather than writing from memory.
 
@@ -197,22 +197,23 @@ npx messagevisor lint && npx messagevisor test
 
 All `messagevisor` CLI commands are local and safe to run without confirmation. Most useful during authoring:
 
-| Command | Purpose |
-| --- | --- |
-| `npx messagevisor config --json --pretty` | Project configuration |
-| `npx messagevisor info` | Entity counts |
-| `npx messagevisor lint` | Validate definitions |
-| `npx messagevisor list --datafiles --json` | Generated datafile paths and sizes |
-| `npx messagevisor list --messages --target=web` | Messages in a target |
-| `npx messagevisor list --locales` | Active locales |
-| `npx messagevisor list --targets` | Active targets |
-| `npx messagevisor evaluate --message=<key> --locale=<locale>` | Evaluate one message |
-| `npx messagevisor evaluate --rawMessage='...' --locale=<locale>` | Evaluate raw formatting |
-| `npx messagevisor evaluate --segment=<key> --context='...'` | Test a segment |
-| `npx messagevisor test [--keyPattern=...]` | Run test specs |
-| `npx messagevisor build [--target=...] [--locale=...]` | Build datafiles |
-| `npx messagevisor catalog` | Browse Catalog in dev mode |
-| `npx messagevisor find-duplicates --locale=<locale>` | Duplicate translations |
+| Command                                                          | Purpose                            |
+| ---------------------------------------------------------------- | ---------------------------------- |
+| `npx messagevisor config --json --pretty`                        | Project configuration              |
+| `npx messagevisor info`                                          | Entity counts                      |
+| `npx messagevisor lint`                                          | Validate definitions               |
+| `npx messagevisor list --datafiles --json`                       | Generated datafile paths and sizes |
+| `npx messagevisor list --messages --target=web`                  | Messages in a target               |
+| `npx messagevisor list --locales`                                | Active locales                     |
+| `npx messagevisor list --targets`                                | Active targets                     |
+| `npx messagevisor evaluate --message=<key> --locale=<locale>`    | Evaluate one message               |
+| `npx messagevisor evaluate --rawMessage='...' --locale=<locale>` | Evaluate raw formatting            |
+| `npx messagevisor evaluate --segment=<key> --context='...'`      | Test a segment                     |
+| `npx messagevisor test [--keyPattern=...]`                       | Run test specs                     |
+| `npx messagevisor build [--target=...] [--locale=...]`           | Build datafiles                    |
+| `npx messagevisor catalog`                                       | Browse Catalog in dev mode         |
+| `npx messagevisor find-duplicates --locale=<locale>`             | Duplicate translations             |
+| `npx messagevisor find-usage --message=<key>`                    | Authored relationships              |
 
 Full command reference is in [references/cli.md](references/cli.md). Prefer CLI over grepping when answering questions about the project.
 

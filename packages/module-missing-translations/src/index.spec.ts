@@ -115,13 +115,23 @@ describe("@messagevisor/module-missing-translations", function () {
   });
 
   it("requires a handler", function () {
-    expect(() =>
-      createMessagevisor({
-        datafile,
-        logLevel: "fatal",
-        modules: [createMissingTranslationsModule({} as any)],
+    const diagnostics: any[] = [];
+    const m = createMessagevisor({
+      datafile,
+      logLevel: "error",
+      onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+      modules: [createMissingTranslationsModule({} as any)],
+    });
+
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        code: "module_setup_error",
+        originalError: expect.objectContaining({
+          message: "Missing translations module requires a handler.",
+        }),
       }),
-    ).toThrow("Missing translations module requires a handler.");
+    ]);
+    expect(m.translate("missing.key")).toEqual("missing.key");
   });
 
   it("uses a stable default module name and supports custom names", function () {

@@ -245,6 +245,19 @@ npx messagevisor import payload.json --from-json --json-path=data.translations -
 
 Import previews by default. Use `--apply` only after reviewing the plan.
 
+### `find-usage`
+
+```bash
+npx messagevisor find-usage --message=checkout.title
+npx messagevisor find-usage --segment=premium-users
+npx messagevisor find-usage --attribute=account.plan
+npx messagevisor find-usage --locale=nl-NL
+npx messagevisor find-usage --format=number.money
+npx messagevisor find-usage --message=checkout.title --set=staging
+```
+
+Pass exactly one entity query. Keys must exist and format keys use `<type>.<preset>`. Sets projects search all sets by default; use `--set=<set>` to narrow the search. JSON output in a sets project requires `--set`. Use `--json --pretty` for structured output.
+
 ### `find-duplicates`
 
 ```bash

@@ -111,6 +111,7 @@ npx messagevisor <command> [options]
 | `catalog`           | Build, serve, and watch the Catalog in dev mode                   |
 | `export` / `import` | Exchange translations through CSV or JSON                         |
 | `find-duplicates`   | Find duplicate resolved translation values                        |
+| `find-usage`        | Find authored entity and format references                        |
 | `prune`             | Remove redundant inherited translations or formats                |
 | `promote`           | Move changes between sets                                         |
 | `generate-code`     | Generate typed TypeScript helpers from message keys               |

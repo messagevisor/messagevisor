@@ -166,19 +166,19 @@ describe("condition and evaluation edge cases", function () {
     ).toEqual(true);
   });
 
-  it("uses JavaScript number coercion for numeric comparisons", function () {
+  it("requires numeric context values for numeric comparisons", function () {
     expect(
       evaluateCondition(
         { attribute: "numericString", operator: "greaterThan", value: 41 },
         { context: edgeContext },
       ),
-    ).toEqual(true);
+    ).toEqual(false);
     expect(
       evaluateCondition(
         { attribute: "numericString", operator: "lessThanOrEquals", value: 42 },
         { context: edgeContext },
       ),
-    ).toEqual(true);
+    ).toEqual(false);
     expect(
       evaluateCondition(
         { attribute: "nonNumericString", operator: "greaterThan", value: 1 },

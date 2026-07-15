@@ -14,9 +14,8 @@ import type {
 } from "@messagevisor/types";
 
 import { formatDatafilePath, type ProjectConfig } from "../config";
+import { Adapter, type EntityType } from "./adapter";
 import type { DatafileFile, WriteDatafileOptions } from "./index";
-
-export type EntityType = "locale" | "message" | "segment" | "attribute" | "target" | "test";
 
 const ENTITY_DIRECTORIES: Record<EntityType, keyof ProjectConfig> = {
   locale: "localesDirectoryPath",
@@ -28,13 +27,9 @@ const ENTITY_DIRECTORIES: Record<EntityType, keyof ProjectConfig> = {
 };
 
 const TEST_SPEC_SUFFIX = ".spec";
+let atomicWriteSequence = 0;
 
-export class FilesystemAdapter {
-  constructor(
-    private config: ProjectConfig,
-    private rootDirectoryPath?: string,
-  ) {}
-
+export class FilesystemAdapter extends Adapter {
   private get parser() {
     return this.config.parser as CustomParser;
   }
@@ -142,7 +137,22 @@ export class FilesystemAdapter {
 
   private async writeFile(filePath: string, content: unknown) {
     await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.promises.writeFile(filePath, this.parser.stringify(content, filePath));
+    await this.writeTextAtomically(filePath, this.parser.stringify(content, filePath));
+  }
+
+  private async writeTextAtomically(filePath: string, content: string | Buffer) {
+    const temporaryPath = path.join(
+      path.dirname(filePath),
+      `.${path.basename(filePath)}.${process.pid}.${Date.now()}.${atomicWriteSequence++}.tmp`,
+    );
+    await fs.promises.writeFile(temporaryPath, content);
+
+    try {
+      await fs.promises.rename(temporaryPath, filePath);
+    } catch (error) {
+      await fs.promises.rm(temporaryPath, { force: true });
+      throw error;
+    }
   }
 
   async listEntities(type: EntityType): Promise<string[]> {
@@ -194,8 +204,17 @@ export class FilesystemAdapter {
     };
   }
 
-  async writeEntity<T>(type: EntityType, key: string, entity: T): Promise<void> {
+  async writeEntity<T>(type: EntityType, key: string, entity: T): Promise<T> {
     await this.writeFile(this.getEntityWritePath(type, key), entity);
+    return entity;
+  }
+
+  async deleteEntity(type: EntityType, key: string): Promise<void> {
+    const entityPath = this.getEntityPath(type, key);
+
+    if (fs.existsSync(entityPath)) {
+      await fs.promises.unlink(entityPath);
+    }
   }
 
   async readRevision() {
@@ -213,7 +232,7 @@ export class FilesystemAdapter {
 
   async writeRevision(revision: string) {
     await fs.promises.mkdir(this.config.stateDirectoryPath, { recursive: true });
-    await fs.promises.writeFile(
+    await this.writeTextAtomically(
       path.join(this.config.stateDirectoryPath, this.config.revisionFileName),
       revision,
     );
@@ -226,7 +245,7 @@ export class FilesystemAdapter {
     );
 
     await fs.promises.mkdir(path.dirname(datafilePath), { recursive: true });
-    await fs.promises.writeFile(
+    await this.writeTextAtomically(
       datafilePath,
       options.pretty ? JSON.stringify(datafileContent, null, 2) : JSON.stringify(datafileContent),
     );

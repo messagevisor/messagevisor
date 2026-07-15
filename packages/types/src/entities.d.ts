@@ -127,6 +127,8 @@ export type Operator =
   | "notContains"
   | "startsWith"
   | "endsWith"
+  | "matches"
+  | "notMatches"
 
   // date comparisons
   | "before"
@@ -172,6 +174,8 @@ export interface AttributeCondition {
     | "notContains"
     | "startsWith"
     | "endsWith"
+    | "matches"
+    | "notMatches"
     | "before"
     | "after"
     | "includes"

@@ -82,7 +82,92 @@ describe("SDK lifecycle invariants", function () {
     ]);
   });
 
-  it("ignores state mutations and module registration after close", async function () {
+  it("rejects failed module setup, reports it, and closes partial module resources", async function () {
+    const diagnostics: any[] = [];
+    const calls: string[] = [];
+    const m = createMessagevisor({
+      datafile,
+      logLevel: "error",
+      onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+    });
+
+    m.addModule({
+      name: "broken",
+      setup() {
+        calls.push("setup");
+        throw new Error("boom");
+      },
+      transform() {
+        calls.push("transform");
+      },
+      close() {
+        calls.push("close");
+      },
+    });
+
+    await Promise.resolve();
+    expect(m.translate("hello")).toEqual("Hello");
+    expect(calls).toEqual(["setup", "close"]);
+    expect(diagnostics).toEqual([
+      expect.objectContaining({ code: "module_setup_error", moduleName: "broken" }),
+    ]);
+  });
+
+  it("isolates throwing event and diagnostic handlers", function () {
+    const m = createMessagevisor({
+      datafile,
+      logLevel: "error",
+      onDiagnostic() {
+        throw new Error("diagnostic observer");
+      },
+    });
+    const calls: string[] = [];
+    m.on("context_set", () => {
+      calls.push("first");
+      throw new Error("listener");
+    });
+    m.on("context_set", () => calls.push("second"));
+
+    expect(() => m.setContext({ plan: "pro" })).not.toThrow();
+    expect(calls).toEqual(["first", "second"]);
+    expect(() => m.translate("missing")).not.toThrow();
+  });
+
+  it("spawns request-local state while sharing parent datafiles and modules", function () {
+    const parent = createMessagevisor({
+      datafile,
+      context: { tenant: "parent", shared: "parent" },
+      modules: [{ transform: ({ translation }) => `${translation}!` }],
+      logLevel: "fatal",
+    });
+    const child = parent.spawn({ tenant: "child" }, { currency: "EUR" });
+
+    expect(child.getContext()).toEqual({ tenant: "child", shared: "parent" });
+    expect(child.getCurrency()).toEqual("EUR");
+    expect(child.translate("hello")).toEqual("Hello!");
+
+    parent.setDatafile({ ...datafile, revision: "2", translations: { hello: "Updated" } }, true);
+    expect(child.translate("hello")).toEqual("Updated!");
+    expect(parent.getContext()).toEqual({ tenant: "parent", shared: "parent" });
+  });
+
+  it("closes a dynamically registered module only once when unsubscribe is repeated", async function () {
+    const calls: string[] = [];
+    const m = createMessagevisor({ datafile, logLevel: "fatal" });
+    const unsubscribe = m.addModule({
+      name: "dynamic",
+      close() {
+        calls.push("close");
+      },
+    });
+
+    await unsubscribe();
+    await unsubscribe();
+
+    expect(calls).toEqual(["close"]);
+  });
+
+  it("closes registered modules only once", async function () {
     const calls: string[] = [];
     const module: MessagevisorModule = {
       name: "closer",
@@ -99,18 +184,7 @@ describe("SDK lifecycle invariants", function () {
     expect(calls).toEqual(["transform"]);
 
     await m.close();
-    m.addModule({
-      name: "late",
-      transform() {
-        calls.push("late-transform");
-      },
-    });
-    m.removeModule("closer");
-    const unsubscribe = m.subscribe(() => calls.push("change"));
-    unsubscribe();
-
-    m.setContext({ plan: "pro" });
-    expect(m.translate("hello")).toEqual("Hello");
+    await m.close();
     expect(calls).toEqual(["transform", "close"]);
   });
 
@@ -169,10 +243,27 @@ describe("SDK lifecycle invariants", function () {
     expect(events[0]).toEqual(
       expect.objectContaining({
         type: "datafile_set",
-        locale: "en-US",
+        locale: "nl-NL",
+        activeLocale: "en-US",
         previousLocale: "en-US",
       }),
     );
+  });
+
+  it("emits typed replacement details for datafile and context updates", function () {
+    const m = createMessagevisor({ datafile, logLevel: "fatal" });
+    const datafileEvents: boolean[] = [];
+    const contextEvents: boolean[] = [];
+
+    m.on("datafile_set", (event) => datafileEvents.push(event.replaced));
+    m.on("context_set", (event) => contextEvents.push(event.replaced));
+    m.setDatafile({ ...datafile, revision: "2" });
+    m.setDatafile({ ...datafile, revision: "3" }, true);
+    m.setContext({ plan: "free" });
+    m.setContext({ plan: "pro" }, true);
+
+    expect(datafileEvents).toEqual([false, true]);
+    expect(contextEvents).toEqual([false, true]);
   });
 
   it("emits ordered change events for repeated state updates even when values are unchanged", function () {
@@ -196,6 +287,12 @@ describe("SDK lifecycle invariants", function () {
       "change",
     ]);
     expect(changeEvents.map((event) => event.version)).toEqual([2, 3, 4, 5]);
+    expect(changeEvents.map((event) => event.source)).toEqual([
+      "currency_set",
+      "currency_set",
+      "timeZone_set",
+      "context_set",
+    ]);
     expect(detailedEvents.map((event) => event.type)).toEqual([
       "currency_set",
       "currency_set",

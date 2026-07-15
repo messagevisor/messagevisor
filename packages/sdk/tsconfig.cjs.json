@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.cjs.json",
   "compilerOptions": {
-    "outDir": "./lib",
+    "outDir": "./cjs",
     "rootDir": "./src",
     "moduleResolution": "node",
     "esModuleInterop": true,

@@ -13,6 +13,8 @@ import { examplesPlugin, resolveExamples } from "../examples";
 import { evaluatePlugin } from "../evaluate/cli";
 import { exportPlugin } from "../exporter";
 import { findDuplicateTranslations, findDuplicatesPlugin } from "../find-duplicates";
+import { findUsagePlugin } from "../find-usage";
+import { targetIncludesMessage } from "../targeting";
 import { generateCodePlugin } from "../generate-code";
 import { importPlugin } from "../importer";
 import { infoPlugin } from "../info";
@@ -22,6 +24,7 @@ import { listPlugin } from "../list";
 import { promotePlugin } from "../promoter";
 import { getProjectSetExecutions } from "../sets";
 import { testPlugin } from "../tester";
+import { expandTestAssertions } from "../tester/matrix";
 import { getMessagevisorCLIErrorMessage } from "../error";
 
 export interface ParsedOptions {
@@ -73,11 +76,14 @@ const projectBasedPlugins = [
     getProjectSetExecutions,
     resolveExamples,
     findDuplicateTranslations,
+    targetIncludesMessage,
+    expandTestAssertions,
   }),
   benchmarkPlugin,
   lintPlugin,
   listPlugin,
   findDuplicatesPlugin,
+  findUsagePlugin,
   buildPlugin,
   testPlugin,
   infoPlugin,

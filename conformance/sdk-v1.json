@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "description": "Language-neutral Messagevisor SDK behavioral contract",
+  "conditions": [
+    {
+      "name": "equals is type strict",
+      "context": { "value": "10" },
+      "condition": { "attribute": "value", "operator": "equals", "value": 10 },
+      "expected": false
+    },
+    {
+      "name": "numeric comparison accepts numbers",
+      "context": { "value": 11 },
+      "condition": { "attribute": "value", "operator": "greaterThan", "value": 10 },
+      "expected": true
+    },
+    {
+      "name": "numeric comparison rejects numeric strings",
+      "context": { "value": "11" },
+      "condition": { "attribute": "value", "operator": "greaterThan", "value": 10 },
+      "expected": false
+    },
+    {
+      "name": "string operator accepts strings",
+      "context": { "value": "messagevisor" },
+      "condition": { "attribute": "value", "operator": "startsWith", "value": "message" },
+      "expected": true
+    },
+    {
+      "name": "string operator rejects numbers",
+      "context": { "value": 123 },
+      "condition": { "attribute": "value", "operator": "contains", "value": "2" },
+      "expected": false
+    },
+    {
+      "name": "null exists",
+      "context": { "value": null },
+      "condition": { "attribute": "value", "operator": "exists" },
+      "expected": true
+    },
+    {
+      "name": "missing does not exist",
+      "context": {},
+      "condition": { "attribute": "value", "operator": "exists" },
+      "expected": false
+    },
+    {
+      "name": "negative array operator rejects non-array",
+      "context": { "value": "admin" },
+      "condition": { "attribute": "value", "operator": "notIncludes", "value": "viewer" },
+      "expected": false
+    },
+    {
+      "name": "not negates implicit and",
+      "context": { "a": true, "b": false },
+      "condition": {
+        "not": [
+          { "attribute": "a", "operator": "equals", "value": true },
+          { "attribute": "b", "operator": "equals", "value": true }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "empty not is defensively false",
+      "context": {},
+      "condition": { "not": [] },
+      "expected": false
+    },
+    {
+      "name": "regex matches",
+      "context": { "value": "Checkout-42" },
+      "condition": {
+        "attribute": "value",
+        "operator": "matches",
+        "value": "^checkout-[0-9]+$",
+        "regexFlags": "i"
+      },
+      "expected": true
+    },
+    {
+      "name": "invalid regex does not match",
+      "context": { "value": "anything" },
+      "condition": { "attribute": "value", "operator": "matches", "value": "[" },
+      "expected": false
+    }
+  ],
+  "datafiles": {
+    "storageKey": "locale",
+    "mergeByDefault": true,
+    "replaceWithSecondArgument": true,
+    "firstLoadedLocaleBecomesActive": true,
+    "loadingAnotherLocaleDoesNotChangeActiveLocale": true,
+    "invalidDatafileDiagnostic": {
+      "code": "invalid_datafile",
+      "message": "could not parse datafile"
+    }
+  },
+  "modules": {
+    "duplicateCode": "duplicate_module",
+    "setupFailureCode": "module_setup_error",
+    "closeFailureCode": "module_close_error",
+    "closeOrder": "reverse",
+    "removalClosesModule": true
+  }
+}

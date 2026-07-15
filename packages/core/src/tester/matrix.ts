@@ -104,3 +104,10 @@ export function expandLocaleAssertions(assertions: LocaleAssertion[]): ExpandedL
 export function expandTargetAssertions(assertions: TargetAssertion[]): ExpandedTargetAssertion[] {
   return expandAssertions(assertions);
 }
+
+export function expandTestAssertions(test: any): Array<Record<string, unknown>> {
+  if ("message" in test) return expandMessageAssertions(test.assertions) as any;
+  if ("segment" in test) return expandSegmentAssertions(test.assertions) as any;
+  if ("locale" in test) return expandLocaleAssertions(test.assertions) as any;
+  return expandTargetAssertions(test.assertions) as any;
+}

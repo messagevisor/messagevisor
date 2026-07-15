@@ -1,6 +1,6 @@
 import type { DatafileContent } from "@messagevisor/types";
 
-import { Messagevisor, createMessagevisor, createMessagevisorCache } from "./index";
+import { createMessagevisor, createMessagevisorCache } from "./index";
 
 type RichNode = { type: string; children: Array<string | RichNode> };
 
@@ -166,10 +166,8 @@ describe("createMessagevisor", function () {
 
   it("can be created without options and loaded with a datafile later", function () {
     const m = createMessagevisor();
-    const direct = new Messagevisor();
 
     expect(m.getLocale()).toEqual(null);
-    expect(direct.getLocale()).toEqual(null);
     expect(() => m.getDatafile()).toThrow("Datafile not found: no locale is set");
 
     m.setDatafile(datafile);
@@ -1305,7 +1303,7 @@ describe("createMessagevisor", function () {
     expect(calls).toEqual(["only"]);
   });
 
-  it("does not close modules that were removed before instance close", async function () {
+  it("closes modules when removed and does not close them again with the instance", async function () {
     const calls: string[] = [];
     const m = createMessagevisor({
       datafile,
@@ -1325,10 +1323,10 @@ describe("createMessagevisor", function () {
       ],
     });
 
-    m.removeModule("remove");
+    await m.removeModule("remove");
     await m.close();
 
-    expect(calls).toEqual(["stay"]);
+    expect(calls).toEqual(["remove", "stay"]);
   });
 
   it("reports module close failures, closes remaining modules, and rejects with an aggregate error", async function () {

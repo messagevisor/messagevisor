@@ -91,9 +91,9 @@ describe("evaluateCondition", function () {
       [{ attribute: "platform", operator: "notEquals", value: "web" }, false],
       [{ attribute: "platform", operator: "exists" }, true],
       [{ attribute: "missing", operator: "exists" }, false],
-      [{ attribute: "missingValue", operator: "exists" }, false],
+      [{ attribute: "missingValue", operator: "exists" }, true],
       [{ attribute: "missing", operator: "notExists" }, true],
-      [{ attribute: "missingValue", operator: "notExists" }, true],
+      [{ attribute: "missingValue", operator: "notExists" }, false],
       [{ attribute: "platform", operator: "notExists" }, false],
       [{ attribute: "user.company.tier", operator: "equals", value: "enterprise" }, true],
     ];
@@ -158,12 +158,12 @@ describe("evaluateCondition", function () {
       [{ attribute: "roles", operator: "includes", value: "owner" }, false],
       [{ attribute: "roles", operator: "notIncludes", value: "owner" }, true],
       [{ attribute: "roles", operator: "notIncludes", value: "admin" }, false],
-      [{ attribute: "platform", operator: "notIncludes", value: "web" }, true],
+      [{ attribute: "platform", operator: "notIncludes", value: "web" }, false],
       [{ attribute: "region", operator: "in", value: ["EU", "NA"] }, true],
       [{ attribute: "region", operator: "in", value: ["US", "NA"] }, false],
       [{ attribute: "region", operator: "notIn", value: ["US", "NA"] }, true],
       [{ attribute: "region", operator: "notIn", value: ["EU", "NA"] }, false],
-      [{ attribute: "region", operator: "notIn", value: "EU" as any }, true],
+      [{ attribute: "region", operator: "notIn", value: "EU" as any }, false],
     ];
 
     cases.forEach(([condition, expected]) => {

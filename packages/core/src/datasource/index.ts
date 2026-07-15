@@ -9,7 +9,9 @@ import type {
 } from "@messagevisor/types";
 
 import { getProjectConfigForSet, type ProjectConfig } from "../config";
-import type { FilesystemAdapter } from "./filesystemAdapter";
+import type { Adapter, EntityType } from "./adapter";
+
+export * from "./adapter";
 
 export interface WriteDatafileOptions {
   pretty?: boolean;
@@ -22,7 +24,7 @@ export interface DatafileFile {
 }
 
 export class Datasource {
-  private adapter: FilesystemAdapter;
+  private adapter: Adapter;
   private rootConfig: ProjectConfig;
 
   constructor(
@@ -51,6 +53,26 @@ export class Datasource {
     return this.adapter.listSets();
   }
 
+  listEntities(entityType: EntityType) {
+    return this.adapter.listEntities(entityType);
+  }
+
+  entityExists(entityType: EntityType, entityKey: string) {
+    return this.adapter.entityExists(entityType, entityKey);
+  }
+
+  readEntity<T>(entityType: EntityType, entityKey: string) {
+    return this.adapter.readEntity<T>(entityType, entityKey);
+  }
+
+  writeEntity<T>(entityType: EntityType, entityKey: string, entity: T) {
+    return this.adapter.writeEntity(entityType, entityKey, entity);
+  }
+
+  deleteEntity(entityType: EntityType, entityKey: string) {
+    return this.adapter.deleteEntity(entityType, entityKey);
+  }
+
   readRevision() {
     return this.adapter.readRevision();
   }
@@ -74,74 +96,122 @@ export class Datasource {
   }
 
   listLocales() {
-    return this.adapter.listLocales();
+    return this.adapter.listEntities("locale");
+  }
+
+  localeExists(localeKey: string) {
+    return this.adapter.entityExists("locale", localeKey);
   }
 
   readLocale(localeKey: string): Promise<Locale> {
-    return this.adapter.readLocale(localeKey);
+    return this.adapter.readEntity<Locale>("locale", localeKey);
   }
 
   writeLocale(localeKey: string, locale: Locale) {
-    return this.adapter.writeLocale(localeKey, locale);
+    return this.adapter.writeEntity("locale", localeKey, locale);
+  }
+
+  deleteLocale(localeKey: string) {
+    return this.adapter.deleteEntity("locale", localeKey);
   }
 
   listMessages() {
-    return this.adapter.listMessages();
+    return this.adapter.listEntities("message");
+  }
+
+  messageExists(messageKey: string) {
+    return this.adapter.entityExists("message", messageKey);
   }
 
   readMessage(messageKey: string): Promise<Message> {
-    return this.adapter.readMessage(messageKey);
+    return this.adapter.readEntity<Message>("message", messageKey);
   }
 
   writeMessage(messageKey: string, message: Message) {
-    return this.adapter.writeMessage(messageKey, message);
+    return this.adapter.writeEntity("message", messageKey, message);
+  }
+
+  deleteMessage(messageKey: string) {
+    return this.adapter.deleteEntity("message", messageKey);
   }
 
   listSegments() {
-    return this.adapter.listSegments();
+    return this.adapter.listEntities("segment");
+  }
+
+  segmentExists(segmentKey: string) {
+    return this.adapter.entityExists("segment", segmentKey);
   }
 
   readSegment(segmentKey: string): Promise<Segment> {
-    return this.adapter.readSegment(segmentKey);
+    return this.adapter.readEntity<Segment>("segment", segmentKey);
   }
 
   writeSegment(segmentKey: string, segment: Segment) {
-    return this.adapter.writeSegment(segmentKey, segment);
+    return this.adapter.writeEntity("segment", segmentKey, segment);
+  }
+
+  deleteSegment(segmentKey: string) {
+    return this.adapter.deleteEntity("segment", segmentKey);
   }
 
   listAttributes() {
-    return this.adapter.listAttributes();
+    return this.adapter.listEntities("attribute");
+  }
+
+  attributeExists(attributeKey: string) {
+    return this.adapter.entityExists("attribute", attributeKey);
   }
 
   readAttribute(attributeKey: string): Promise<Attribute> {
-    return this.adapter.readAttribute(attributeKey);
+    return this.adapter.readEntity<Attribute>("attribute", attributeKey);
   }
 
   writeAttribute(attributeKey: string, attribute: Attribute) {
-    return this.adapter.writeAttribute(attributeKey, attribute);
+    return this.adapter.writeEntity("attribute", attributeKey, attribute);
+  }
+
+  deleteAttribute(attributeKey: string) {
+    return this.adapter.deleteEntity("attribute", attributeKey);
   }
 
   listTargets() {
-    return this.adapter.listTargets();
+    return this.adapter.listEntities("target");
+  }
+
+  targetExists(targetKey: string) {
+    return this.adapter.entityExists("target", targetKey);
   }
 
   readTarget(targetKey: string): Promise<Target> {
-    return this.adapter.readTarget(targetKey);
+    return this.adapter.readEntity<Target>("target", targetKey);
   }
 
   writeTarget(targetKey: string, target: Target) {
-    return this.adapter.writeTarget(targetKey, target);
+    return this.adapter.writeEntity("target", targetKey, target);
+  }
+
+  deleteTarget(targetKey: string) {
+    return this.adapter.deleteEntity("target", targetKey);
   }
 
   listTests() {
-    return this.adapter.listTests();
+    return this.adapter.listEntities("test");
+  }
+
+  testExists(testKey: string) {
+    return this.adapter.entityExists("test", testKey);
   }
 
   readTest(testKey: string): Promise<Test> {
-    return this.adapter.readTest(testKey);
+    return this.adapter.readEntity<Test>("test", testKey);
   }
 
   writeTest(testKey: string, test: Test) {
-    return this.adapter.writeTest(testKey, test);
+    return this.adapter.writeEntity("test", testKey, test);
+  }
+
+  deleteTest(testKey: string) {
+    return this.adapter.deleteEntity("test", testKey);
   }
 }

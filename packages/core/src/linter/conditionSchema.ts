@@ -7,6 +7,7 @@ import { refineWithMessage } from "./zodHelpers";
 const commonOperators = ["equals", "notEquals"];
 const numericOperators = ["greaterThan", "greaterThanOrEquals", "lessThan", "lessThanOrEquals"];
 const stringOperators = ["contains", "notContains", "startsWith", "endsWith"];
+const regexOperators = ["matches", "notMatches"];
 const dateOperators = ["before", "after"];
 const arrayOperators = ["includes", "notIncludes"];
 const membershipOperators = ["in", "notIn"];
@@ -196,7 +197,7 @@ function validateAttributeAwareCondition(
   }
 
   if (
-    stringOperators.includes(data.operator) &&
+    [...stringOperators, ...regexOperators].includes(data.operator) &&
     !leafTypes.some((type) => ["string", "date"].includes(type))
   ) {
     addIssue(ctx, `Operator "${data.operator}" can only be used with string or date attributes.`);
@@ -266,6 +267,7 @@ export function getConditionsZodSchema(attributesByKey: Record<string, Attribute
           ...commonOperators,
           ...numericOperators,
           ...stringOperators,
+          ...regexOperators,
           ...dateOperators,
           ...arrayOperators,
           ...membershipOperators,
@@ -281,7 +283,12 @@ export function getConditionsZodSchema(attributesByKey: Record<string, Attribute
             z.null(),
           ])
           .optional(),
-        regexFlags: z.never().optional(),
+        regexFlags: z
+          .string()
+          .refine((value) => /^[gimsuy]+$/.test(value) && new Set(value).size === value.length, {
+            message: "regexFlags must contain unique characters from: g, i, m, s, u, y",
+          })
+          .optional(),
       })
       .strict()
       .superRefine((data, ctx) => {
@@ -298,10 +305,28 @@ export function getConditionsZodSchema(attributesByKey: Record<string, Attribute
         }
 
         if (
-          [...stringOperators, ...dateOperators, ...arrayOperators].includes(data.operator) &&
+          [...stringOperators, ...regexOperators, ...dateOperators, ...arrayOperators].includes(
+            data.operator,
+          ) &&
           typeof data.value !== "string"
         ) {
           addIssue(ctx, `when operator is "${data.operator}", value must be a string`);
+        }
+
+        if (!regexOperators.includes(data.operator) && typeof data.regexFlags !== "undefined") {
+          addIssue(ctx, "regexFlags is only supported by matches and notMatches", ["regexFlags"]);
+        }
+
+        if (regexOperators.includes(data.operator) && typeof data.value === "string") {
+          try {
+            new RegExp(data.value, data.regexFlags);
+          } catch (error) {
+            addIssue(
+              ctx,
+              `Invalid regular expression: ${error instanceof Error ? error.message : String(error)}`,
+              ["value"],
+            );
+          }
         }
 
         if (membershipOperators.includes(data.operator) && !Array.isArray(data.value)) {

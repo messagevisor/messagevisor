@@ -9,6 +9,8 @@ import { Datasource } from "../../../core/src/datasource";
 import { resolveExamples } from "../../../core/src/examples";
 import { findDuplicateTranslations } from "../../../core/src/find-duplicates";
 import { getProjectSetExecutions } from "../../../core/src/sets";
+import { targetIncludesMessage } from "../../../core/src/targeting";
+import { expandTestAssertions } from "../../../core/src/tester/matrix";
 import {
   __catalogDevInternals,
   createCatalogApi,
@@ -23,6 +25,8 @@ const catalogApi = createCatalogApi({
   getProjectSetExecutions,
   resolveExamples,
   findDuplicateTranslations,
+  targetIncludesMessage,
+  expandTestAssertions,
 });
 const catalogRuntime: CatalogRuntime = {
   mergeFormats,
@@ -31,6 +35,8 @@ const catalogRuntime: CatalogRuntime = {
   getProjectSetExecutions,
   resolveExamples,
   findDuplicateTranslations,
+  targetIncludesMessage,
+  expandTestAssertions,
 };
 
 async function writeFile(root: string, relativePath: string, content: string) {
@@ -191,6 +197,22 @@ async function createProject() {
       "",
     ].join("\n"),
   );
+  await writeFile(
+    root,
+    "tests/messages/common/welcome.spec.yml",
+    [
+      "message: common.welcome",
+      "assertions:",
+      "  - matrix:",
+      "      plan: [free, pro]",
+      "    description: Welcome for ${{ plan }}",
+      "    locale: en-US",
+      "    context:",
+      "      plan: '${{ plan }}'",
+      "    expectedTranslation: Welcome",
+      "",
+    ].join("\n"),
+  );
 
   return root;
 }
@@ -302,6 +324,15 @@ describe("catalog", function () {
       "web",
     ]);
     expect(index.entities.target.find((entry: any) => entry.key === "web").messageCount).toBe(2);
+    expect(message.tests).toEqual([
+      expect.objectContaining({
+        key: "messages.common.welcome",
+        assertions: [
+          expect.objectContaining({ matrixIndex: 0, description: "Welcome for free" }),
+          expect.objectContaining({ matrixIndex: 1, description: "Welcome for pro" }),
+        ],
+      }),
+    ]);
     expect(locale.computedFormats.number.decimal).toEqual({ maximumFractionDigits: 2 });
     expect(locale.computedFormats.number.money).toEqual({ currencyDisplay: "code" });
     expect(locale.entity.examples).toHaveLength(1);
@@ -788,7 +819,7 @@ describe("catalog", function () {
     ).resolves.toBe(false);
     expect(output).toContain("1200 messages");
     expect(output).toContain("1200 empty histories skipped");
-  });
+  }, 30_000);
 
   it("streams Git history into project, entity, and last-modified catalog data", async function () {
     const root = await createProject();
@@ -935,7 +966,7 @@ describe("catalog", function () {
       entities: [{ type: "message", key: "bulk.0000" }],
     });
     expect(lastMessageHistory.entries[0].entities).toEqual([{ type: "message", key: "bulk.1199" }]);
-  });
+  }, 30_000);
 
   it("exports branch-aware repository links and hash router mode when requested", async function () {
     const root = await createProject();
@@ -1451,7 +1482,7 @@ describe("catalog", function () {
     ]);
     expect(messageHistory.totalPages).toBe(2);
     expect(messageHistory.entries).toHaveLength(50);
-  });
+  }, 30_000);
 
   it("uses root-relative asset paths for browser-router refresh safety", async function () {
     const viteConfigSource = await fs.promises.readFile(

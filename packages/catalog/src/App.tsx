@@ -18,6 +18,7 @@ import {
   SegmentConditionsTab,
   TargetMessagesTab,
   UsageTab,
+  TestsTab,
 } from "./pages/EntityDetailPage";
 
 function EntityRoutes(props: { prefix?: string } = {}) {
@@ -35,6 +36,7 @@ function EntityRoutes(props: { prefix?: string } = {}) {
       <Route path="usage" element={<UsageTab />} />
       <Route path="messages" element={<TargetMessagesTab />} />
       <Route path="history" element={<EntityHistoryTab />} />
+      <Route path="tests" element={<TestsTab />} />
       <Route path="*" element={<Navigate to="." replace />} />
     </Route>
   );

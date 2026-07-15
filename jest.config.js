@@ -27,6 +27,9 @@ module.exports = {
   },
   testRegex: "\\.spec\\.(ts|tsx)$",
   moduleFileExtensions: ["ts", "tsx", "js", "json", "node"],
+  moduleNameMapper: {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+  },
   collectCoverage: false,
   bail: true,
 };

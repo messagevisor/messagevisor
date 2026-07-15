@@ -15,6 +15,7 @@ import type { Datasource } from "../datasource";
 import { mergeFormatPresets } from "../formats";
 import { formatProjectPath } from "../path";
 import { getProjectSetExecutions } from "../sets";
+import { matchesPattern, targetIncludesMessage } from "../targeting";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 
 type PruneTarget = "translations" | "formats";
@@ -70,17 +71,6 @@ function withoutKey<T extends Record<string, unknown>>(entity: T): T {
 
 function cloneWithoutKey<T extends Record<string, unknown>>(entity: T): T {
   return JSON.parse(JSON.stringify(withoutKey(entity)));
-}
-
-function matchesPattern(key: string, patterns?: string | string[]) {
-  if (!patterns || patterns.length === 0) {
-    return false;
-  }
-
-  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`).test(key);
-  });
 }
 
 function assertKnownValues(label: string, requested: string[], available: string[]) {
@@ -289,17 +279,8 @@ async function getSelectedMessageKeys(
   const selected = new Set<string>();
 
   for (const targetKey of requestedTargets) {
-    const includePatterns =
-      typeof targets[targetKey].includeMessages === "undefined"
-        ? ["*"]
-        : targets[targetKey].includeMessages;
-    const excludePatterns = targets[targetKey].excludeMessages || [];
-
     for (const messageKey of messageKeys) {
-      if (
-        matchesPattern(messageKey, includePatterns) &&
-        !matchesPattern(messageKey, excludePatterns)
-      ) {
+      if (targetIncludesMessage(targets[targetKey], messageKey)) {
         selected.add(messageKey);
       }
     }

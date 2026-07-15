@@ -15,6 +15,7 @@ import type {
   Override,
   Target,
   Segment,
+  Test,
 } from "@messagevisor/types";
 
 import { attachFormatExamplePreviews } from "./formatExamplePreview";
@@ -198,6 +199,8 @@ export interface CatalogRuntime {
     projectConfig: any,
     datasource: any,
   ) => Promise<CatalogDuplicateTranslationsResult>;
+  targetIncludesMessage: (target: Target | undefined, messageKey: string) => boolean;
+  expandTestAssertions: (test: Test) => Array<Record<string, unknown>>;
 }
 
 export const CATALOG_SCHEMA_VERSION = "1";
@@ -444,17 +447,6 @@ function encodeKey(key: string) {
   return encodeURIComponent(key);
 }
 
-function matchesPattern(key: string, patterns?: string | string[]) {
-  if (!patterns || patterns.length === 0) {
-    return false;
-  }
-
-  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`).test(key);
-  });
-}
-
 async function readAll<T>(keys: string[], read: (key: string) => Promise<T>) {
   const result: Record<string, T> = {};
 
@@ -551,17 +543,8 @@ function collectSegmentKeys(
   }
 }
 
-function getTargetMessageKeys(target: Target, messageKeys: string[]) {
-  const includeMessages =
-    typeof target.includeMessages === "undefined" ? ["*"] : target.includeMessages;
-  const excludeMessages = target.excludeMessages || [];
-
-  return messageKeys
-    .filter(
-      (messageKey) =>
-        matchesPattern(messageKey, includeMessages) && !matchesPattern(messageKey, excludeMessages),
-    )
-    .sort();
+function getTargetMessageKeys(runtime: CatalogRuntime, target: Target, messageKeys: string[]) {
+  return messageKeys.filter((key) => runtime.targetIncludesMessage(target, key)).sort();
 }
 
 function getHistoryEntityKey(type: CatalogEntityType | "test", key: string, set?: string) {
@@ -1407,19 +1390,22 @@ async function buildSetCatalog(
   const outputDirectoryPath = path.join(context.dataDirectoryPath, outputRelativeDirectory);
   const setStartedAt = context.progress.setStart(set);
   const entitiesStartedAt = context.progress.step("Processing entities");
-  const [localeKeys, messageKeys, attributeKeys, segmentKeys, targetKeys] = (await Promise.all([
-    datasource.listLocales(),
-    datasource.listMessages(),
-    datasource.listAttributes(),
-    datasource.listSegments(),
-    datasource.listTargets(),
-  ])) as [string[], string[], string[], string[], string[]];
-  const [locales, messages, attributes, segments, targets] = await Promise.all([
+  const [localeKeys, messageKeys, attributeKeys, segmentKeys, targetKeys, testKeys] =
+    (await Promise.all([
+      datasource.listLocales(),
+      datasource.listMessages(),
+      datasource.listAttributes(),
+      datasource.listSegments(),
+      datasource.listTargets(),
+      datasource.listTests(),
+    ])) as [string[], string[], string[], string[], string[], string[]];
+  const [locales, messages, attributes, segments, targets, tests] = await Promise.all([
     readAll<Locale>(localeKeys, (key) => datasource.readLocale(key)),
     readAll<Message>(messageKeys, (key) => datasource.readMessage(key)),
     readAll<Attribute>(attributeKeys, (key) => datasource.readAttribute(key)),
     readAll<Segment>(segmentKeys, (key) => datasource.readSegment(key)),
     readAll<Target>(targetKeys, (key) => datasource.readTarget(key)),
+    readAll<Test>(testKeys, (key) => datasource.readTest(key)),
   ]);
   context.progress.done(
     entitiesStartedAt,
@@ -1441,9 +1427,38 @@ async function buildSetCatalog(
   const attributesUsedInSegments: Record<string, Set<string>> = {};
   const attributesUsedInMessages: Record<string, Set<string>> = {};
   const segmentsUsedInMessages: Record<string, Set<string>> = {};
+  const testsByEntity: Record<string, Array<Record<string, unknown>>> = {};
+
+  for (const testKey of testKeys) {
+    const test = tests[testKey];
+    const entityType =
+      "message" in test
+        ? "message"
+        : "segment" in test
+          ? "segment"
+          : "locale" in test
+            ? "locale"
+            : "target" in test
+              ? "target"
+              : undefined;
+    if (!entityType || !Array.isArray((test as any).assertions)) continue;
+    const entityKey = (test as any)[entityType];
+    const relationshipKey = `${entityType}:${entityKey}`;
+    if (!testsByEntity[relationshipKey]) testsByEntity[relationshipKey] = [];
+    testsByEntity[relationshipKey].push({
+      key: testKey,
+      entityType,
+      entityKey,
+      assertions: context.runtime.expandTestAssertions(test),
+    });
+  }
 
   for (const targetKey of targetKeys) {
-    targetMessages[targetKey] = getTargetMessageKeys(targets[targetKey], messageKeys);
+    targetMessages[targetKey] = getTargetMessageKeys(
+      context.runtime,
+      targets[targetKey],
+      messageKeys,
+    );
     const targetLocaleKeys = targets[targetKey].locales?.length
       ? targets[targetKey].locales
       : localeKeys;
@@ -1643,6 +1658,7 @@ async function buildSetCatalog(
         ]),
       ),
       targets: sortStrings(Array.from(localeTargets[localeKey] || [])),
+      tests: testsByEntity[`locale:${localeKey}`] || [],
       lastModified: getLastModified(context.historyIndex, "locale", localeKey, set || undefined),
     };
 
@@ -1733,6 +1749,7 @@ async function buildSetCatalog(
         resolveTranslationRow(message.translations, localeKey, locales),
       ),
       evaluatedExamples: evaluatedMessageExamplesByKey[messageKey] || [],
+      tests: testsByEntity[`message:${messageKey}`] || [],
       overrideTranslations: overrides.map((override) => ({
         key: override.key,
         rows: localeKeys.map((localeKey) =>
@@ -1914,6 +1931,7 @@ async function buildSetCatalog(
         messages: sortStrings(Array.from(segmentsUsedInMessages[segmentKey] || [])),
       },
       targets: sortStrings(Array.from(segmentTargets[segmentKey] || [])),
+      tests: testsByEntity[`segment:${segmentKey}`] || [],
       lastModified: getLastModified(context.historyIndex, "segment", segmentKey, set || undefined),
     };
 
@@ -1986,6 +2004,7 @@ async function buildSetCatalog(
       formatsByLocale,
       formatRowsByLocale,
       messages: targetMessages[targetKey],
+      tests: testsByEntity[`target:${targetKey}`] || [],
       lastModified: getLastModified(context.historyIndex, "target", targetKey, set || undefined),
     };
 
@@ -2353,7 +2372,7 @@ async function tryRebuildCatalogMessage(
   const targetMessages = Object.fromEntries(
     targetKeys.map((targetKey) => [
       targetKey,
-      getTargetMessageKeys(targets[targetKey], messageKeys),
+      getTargetMessageKeys(runtime, targets[targetKey], messageKeys),
     ]),
   ) as Record<string, string[]>;
   const writer = new CatalogJsonWriter();

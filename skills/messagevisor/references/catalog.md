@@ -26,6 +26,8 @@ npx messagevisor catalog serve --port=3100
 
 `catalog serve` does not build optional indexes. It only reflects what was generated.
 
+Entity detail pages show related authored test specifications in a **Tests** tab. Matrix assertions appear as their expanded test-runner cases.
+
 ## Sets
 
 In `sets: true` projects, Catalog includes all sets by default.

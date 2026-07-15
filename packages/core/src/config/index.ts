@@ -6,6 +6,7 @@ import type { MessagevisorModule } from "@messagevisor/sdk";
 
 import { FilesystemAdapter } from "../datasource/filesystemAdapter";
 import type { Plugin } from "../cli";
+import type { AdapterConstructor } from "../datasource/adapter";
 
 export const LOCALES_DIRECTORY_NAME = "locales";
 export const MESSAGES_DIRECTORY_NAME = "messages";
@@ -54,7 +55,7 @@ export interface ProjectConfig {
   catalogDirectoryPath: string;
   datafileNamePattern: string;
   revisionFileName: string;
-  adapter: any;
+  adapter: AdapterConstructor;
   plugins: Plugin[];
   parser: Parser;
 }

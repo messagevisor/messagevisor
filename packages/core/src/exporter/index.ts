@@ -7,6 +7,7 @@ import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import { getProjectSetExecutions } from "../sets";
+import { matchesPattern, targetIncludesMessage } from "../targeting";
 
 export interface ExportProjectOptions {
   set?: string | string[];
@@ -57,17 +58,6 @@ export interface ExportProjectResult {
 function toArray(value?: string | string[]): string[] {
   if (typeof value === "undefined") return [];
   return Array.isArray(value) ? value : [value];
-}
-
-function matchesPattern(key: string, patterns?: string | string[]) {
-  if (!patterns || patterns.length === 0) {
-    return false;
-  }
-
-  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`).test(key);
-  });
 }
 
 async function readAll<T>(
@@ -300,9 +290,6 @@ async function collectRows(
   if (requestedTargets.length > 0) {
     for (const targetKey of requestedTargets) {
       const target = targets[targetKey];
-      const targetIncludeMessages =
-        typeof target.includeMessages === "undefined" ? ["*"] : target.includeMessages;
-      const targetExcludeMessages = target.excludeMessages || [];
       const targetLocales = target.locales?.length ? target.locales : localeKeys;
 
       for (const locale of targetLocales) {
@@ -312,10 +299,7 @@ async function collectRows(
       }
 
       for (const messageKey of messageKeys) {
-        if (
-          matchesPattern(messageKey, targetIncludeMessages) &&
-          !matchesPattern(messageKey, targetExcludeMessages)
-        ) {
+        if (targetIncludesMessage(target, messageKey)) {
           selectedMessageKeys.add(messageKey);
         }
       }

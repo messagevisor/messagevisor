@@ -2490,9 +2490,7 @@ describe("createMessagevisor", function () {
     expect(Object.keys(cache.numberFormat).length).toBeGreaterThan(0);
 
     expect(m.getRawTranslation("missing.message")).toEqual("missing.message");
-    expect(diagnostics.some((diagnostic) => diagnostic.code === "missing_translation")).toEqual(
-      true,
-    );
+    expect(diagnostics.some((diagnostic) => diagnostic.code === "missing_datafile")).toEqual(true);
   });
 
   it("uses locale-keyed default translations only when the active locale datafile misses the key", function () {

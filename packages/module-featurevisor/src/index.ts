@@ -1,11 +1,11 @@
 // exports
-import type { Context as FeaturevisorContext, FeaturevisorInstance } from "@featurevisor/sdk";
+import type { Context as FeaturevisorContext, Featurevisor } from "@featurevisor/sdk";
 import type { MessagevisorModule } from "@messagevisor/sdk";
 import type { Context } from "@messagevisor/types";
 
 export interface FeaturevisorModuleOptions {
   name?: string;
-  instance: FeaturevisorInstance;
+  instance: Featurevisor;
   passContext?: boolean;
 }
 

@@ -510,8 +510,11 @@ const EntityListSearchControls = React.memo(function EntityListSearchControls({
 
   const commitAfterBrowserWork = React.useCallback(
     (value: string) => {
-      if ("requestIdleCallback" in window) {
-        idleRef.current = window.requestIdleCallback(
+      const requestIdleCallback = (
+        window as Window & { requestIdleCallback?: Window["requestIdleCallback"] }
+      ).requestIdleCallback;
+      if (typeof requestIdleCallback === "function") {
+        idleRef.current = requestIdleCallback(
           () => {
             idleRef.current = null;
             onQueryCommit(value);
@@ -521,7 +524,7 @@ const EntityListSearchControls = React.memo(function EntityListSearchControls({
         return;
       }
 
-      animationFrameRef.current = window.requestAnimationFrame(() => {
+      animationFrameRef.current = requestAnimationFrame(() => {
         animationFrameRef.current = null;
         postPaintTimeoutRef.current = setTimeout(() => {
           postPaintTimeoutRef.current = null;

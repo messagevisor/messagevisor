@@ -11,6 +11,7 @@
     "build": "lerna run build",
     "test": "lerna run test",
     "bundle-sizes": "node scripts/bundle-sizes.mjs",
+    "test:packages": "npm run build && node scripts/package-smoke.mjs",
     "typecheck": "lerna run typecheck"
   },
   "author": {

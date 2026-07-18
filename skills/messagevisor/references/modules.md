@@ -61,6 +61,7 @@ Module order matters.
 - Give custom modules stable names if they need diagnostics, `removeModule(name)`, or name-keyed `moduleOptions`.
 - `addModule()` returns an async removal function. `removeModule(name)` is async; removal clears diagnostic subscriptions and closes the module.
 - Failed setup reports `module_setup_error`, does not register the module, and closes partial resources.
+- Resolver registrations belong to the module that installed them. Failed setup or removal restores the previous resolver; spawned instances observe the parent's current resolver dynamically.
 - Event and diagnostic observers are isolated; one throwing observer must not interrupt SDK behavior.
 
 ## Per-call options

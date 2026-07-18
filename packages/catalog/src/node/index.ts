@@ -17,6 +17,7 @@ import type {
   Segment,
   Test,
 } from "@messagevisor/types";
+import { resolveTranslationRow, type ResolvedTranslationRow } from "./resolveTranslationRow";
 
 import { attachFormatExamplePreviews } from "./formatExamplePreview";
 
@@ -261,12 +262,7 @@ interface CatalogFormatRow {
   examplePreview?: string;
 }
 
-interface CatalogTranslationRow {
-  locale: string;
-  value: string;
-  source: CatalogValueSource;
-  from?: string;
-}
+type CatalogTranslationRow = ResolvedTranslationRow;
 
 interface CatalogEvaluatedMessageExample {
   set?: string;
@@ -696,39 +692,6 @@ function getFormatRows(
   });
 
   return attachFormatExamplePreviews(localeKey, effectiveFormats, rows);
-}
-
-function resolveTranslationRow(
-  translations: Record<string, string> | undefined,
-  localeKey: string,
-  locales: Record<string, Locale>,
-): CatalogTranslationRow {
-  if (typeof translations?.[localeKey] !== "undefined") {
-    return {
-      locale: localeKey,
-      value: translations[localeKey],
-      source: "direct",
-    };
-  }
-
-  const chain = resolveLocaleChain(localeKey, locales, "inheritTranslationsFrom").reverse();
-
-  for (const candidate of chain) {
-    if (candidate !== localeKey && typeof translations?.[candidate] !== "undefined") {
-      return {
-        locale: localeKey,
-        value: translations[candidate],
-        source: "inherited",
-        from: candidate,
-      };
-    }
-  }
-
-  return {
-    locale: localeKey,
-    value: "",
-    source: "missing",
-  };
 }
 
 function getDuplicateSetKey(set: string | null | undefined) {
@@ -1746,14 +1709,20 @@ async function buildSetCatalog(
       localeKeys,
       localeDirections,
       translations: localeKeys.map((localeKey) =>
-        resolveTranslationRow(message.translations, localeKey, locales),
+        resolveTranslationRow(message.translations, localeKey, locales, {
+          states: message.translationStates,
+          sourceLocale: projectConfig.sourceLocale,
+        }),
       ),
       evaluatedExamples: evaluatedMessageExamplesByKey[messageKey] || [],
       tests: testsByEntity[`message:${messageKey}`] || [],
-      overrideTranslations: overrides.map((override) => ({
+      overrideTranslations: overrides.map((override: Override) => ({
         key: override.key,
         rows: localeKeys.map((localeKey) =>
-          resolveTranslationRow(override.translations, localeKey, locales),
+          resolveTranslationRow(override.translations, localeKey, locales, {
+            states: override.translationStates,
+            sourceLocale: projectConfig.sourceLocale,
+          }),
         ),
       })),
       lastModified: getLastModified(context.historyIndex, "message", messageKey, set || undefined),
@@ -2447,13 +2416,19 @@ async function tryRebuildCatalogMessage(
       localeKeys,
       localeDirections,
       translations: localeKeys.map((localeKey) =>
-        resolveTranslationRow(message.translations, localeKey, locales),
+        resolveTranslationRow(message.translations, localeKey, locales, {
+          states: message.translationStates,
+          sourceLocale: projectConfig.sourceLocale,
+        }),
       ),
       evaluatedExamples: examples.messages,
-      overrideTranslations: overrides.map((override) => ({
+      overrideTranslations: overrides.map((override: Override) => ({
         key: override.key,
         rows: localeKeys.map((localeKey) =>
-          resolveTranslationRow(override.translations, localeKey, locales),
+          resolveTranslationRow(override.translations, localeKey, locales, {
+            states: override.translationStates,
+            sourceLocale: projectConfig.sourceLocale,
+          }),
         ),
       })),
       lastModified: getLastModified(session.historyIndex, "message", messageKey, request.set),

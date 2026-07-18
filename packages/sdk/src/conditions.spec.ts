@@ -144,12 +144,28 @@ describe("evaluateCondition", function () {
       [{ attribute: "createdAt", operator: "after", value: "2025-01-01T00:00:00Z" }, true],
       [{ attribute: "createdAt", operator: "after", value: "2025-01-03T00:00:00Z" }, false],
       [{ attribute: "createdAt", operator: "before", value: "not-a-date" }, false],
+      [{ attribute: "createdAt", operator: "before", value: "2025-01-03" }, false],
       [{ attribute: "missing", operator: "after", value: "2025-01-01T00:00:00Z" }, false],
     ];
 
     cases.forEach(([condition, expected]) => {
       expect(evaluateCondition(condition, { context })).toEqual(expected);
     });
+  });
+
+  it("rejects stateful or non-portable regular-expression flags", function () {
+    expect(
+      evaluateCondition(
+        { attribute: "email", operator: "matches", value: "example", regexFlags: "g" },
+        { context },
+      ),
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { attribute: "email", operator: "matches", value: "EXAMPLE", regexFlags: "i" },
+        { context },
+      ),
+    ).toBe(true);
   });
 
   it("evaluates array and membership operators", function () {

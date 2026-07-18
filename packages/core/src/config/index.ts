@@ -32,6 +32,7 @@ export const DEFAULT_SETS = false;
 export const SCHEMA_VERSION = "1";
 
 export interface ProjectConfig {
+  sourceLocale?: string;
   promotionFlows?: Array<{
     from: string;
     to: string;
@@ -62,6 +63,7 @@ export interface ProjectConfig {
 
 export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
   const baseConfig: ProjectConfig = {
+    sourceLocale: undefined,
     namespaceCharacter: DEFAULT_NAMESPACE_CHARACTER,
     exportOverrideKeySeparator: DEFAULT_EXPORT_OVERRIDE_KEY_SEPARATOR,
     lintIcu: DEFAULT_LINT_ICU,
@@ -135,6 +137,15 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
 
   if (typeof finalConfig.lintIcu !== "boolean") {
     throw new Error(`Invalid lintIcu: ${finalConfig.lintIcu}. It must be a boolean.`);
+  }
+
+  if (
+    typeof finalConfig.sourceLocale !== "undefined" &&
+    (typeof finalConfig.sourceLocale !== "string" || finalConfig.sourceLocale.length === 0)
+  ) {
+    throw new Error(
+      `Invalid sourceLocale: ${finalConfig.sourceLocale}. It must be a non-empty string.`,
+    );
   }
 
   if (!Array.isArray(finalConfig.modules)) {

@@ -63,8 +63,9 @@ export function createTargetContextSpecializer(
   const segmentResults: Record<string, TargetedResult<Condition | Condition[]>> = {};
 
   function applyContextToCondition(
-    condition: Condition | Condition[],
+    condition: Condition | Condition[] | "*",
   ): TargetedResult<Condition | Condition[]> {
+    if (condition === "*") return { state: "true" };
     if (Array.isArray(condition)) {
       return simplifyAnd(condition.map(applyContextToCondition), (items) => items as Condition[]);
     }

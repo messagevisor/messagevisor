@@ -4,7 +4,7 @@ assertions:
   - description: "reengagement-window matches older iOS users with push enabled"
     segment: reengagement-window
     context:
-      signupDate: 2025-12-01
+      signupDate: 2025-12-01T00:00:00Z
       platform: ios
       permissions:
         - push-enabled
@@ -14,7 +14,7 @@ assertions:
   - description: "reengagement-window matches web users in the later window"
     segment: reengagement-window
     context:
-      signupDate: 2026-04-10
+      signupDate: 2026-04-10T00:00:00Z
       platform: web
       permissions:
         - marketing
@@ -23,7 +23,7 @@ assertions:
   - description: "reengagement-window rejects suspended users"
     segment: reengagement-window
     context:
-      signupDate: 2025-12-01
+      signupDate: 2025-12-01T00:00:00Z
       platform: ios
       permissions:
         - push-enabled

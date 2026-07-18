@@ -3,7 +3,6 @@
   "version": "0.26.0",
   "description": "CLI package of Messagevisor",
   "main": "bin.js",
-  "types": "lib/index.d.ts",
   "bin": {
     "messagevisor": "bin.js"
   },

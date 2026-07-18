@@ -52,5 +52,31 @@ describe("condition schema regex operators", function () {
         regexFlags: "ii",
       }).success,
     ).toBe(false);
+    expect(
+      schema.safeParse({
+        attribute: "code",
+        operator: "matches",
+        value: "x",
+        regexFlags: "g",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires portable timezone-qualified ISO date-time values", function () {
+    const dateSchema = getConditionsZodSchema({ createdAt: { type: "date" } });
+    expect(
+      dateSchema.safeParse({
+        attribute: "createdAt",
+        operator: "before",
+        value: "2026-01-01T00:00:00Z",
+      }).success,
+    ).toBe(true);
+    expect(
+      dateSchema.safeParse({
+        attribute: "createdAt",
+        operator: "before",
+        value: "2026-01-01",
+      }).success,
+    ).toBe(false);
   });
 });

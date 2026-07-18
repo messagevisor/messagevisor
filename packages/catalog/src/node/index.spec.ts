@@ -843,7 +843,7 @@ describe("catalog", function () {
     );
     await writeFile(
       root,
-      "messages/common/with space.yml",
+      "messages/common/with-space.yml",
       "description: With space\ntranslations:\n  en: Spaced\n",
     );
     git(root, ["add", "."]);
@@ -867,7 +867,7 @@ describe("catalog", function () {
     );
     const spacedMessageHistory = await readJson<any>(
       root,
-      "catalog-out/data/root/history/message/common.with%20space/page-1.json",
+      "catalog-out/data/root/history/message/common.with-space/page-1.json",
     );
     const index = await readJson<any>(root, "catalog-out/data/root/index.json");
     const message = await readJson<any>(
@@ -879,7 +879,7 @@ describe("catalog", function () {
     expect(projectHistory.entries[0].entities).toEqual(
       expect.arrayContaining([
         { type: "message", key: "common.welcome" },
-        { type: "message", key: "common.with space" },
+        { type: "message", key: "common.with-space" },
       ]),
     );
     expect(projectHistory.entries).not.toEqual(
@@ -894,7 +894,7 @@ describe("catalog", function () {
       { type: "message", key: "common.welcome" },
     ]);
     expect(spacedMessageHistory.entries[0].entities).toEqual([
-      { type: "message", key: "common.with space" },
+      { type: "message", key: "common.with-space" },
     ]);
     expect(message.lastModified).toMatchObject({
       author: "Catalog Tester",
@@ -1440,7 +1440,7 @@ describe("catalog", function () {
     );
     await writeFile(
       root,
-      "messages/common/with space.yml",
+      "messages/common/with-space.yml",
       "description: With space\ntranslations:\n  en: Spaced\n",
     );
 

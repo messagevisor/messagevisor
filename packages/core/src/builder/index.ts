@@ -35,6 +35,15 @@ interface TargetDatafileOptions {
 type FormatPatterns = Partial<Record<keyof FormatPresets, string | string[]>>;
 type UsedFormatPatterns = Partial<Record<keyof FormatPresets, string[]>>;
 
+export function getMessagevisorVersion(): string {
+  try {
+    const cliPackage = require(require.resolve("@messagevisor/cli/package.json"));
+    return cliPackage.version;
+  } catch {
+    return "unknown";
+  }
+}
+
 export interface BuildProjectOptions {
   target?: string;
   locale?: string;
@@ -454,7 +463,7 @@ async function buildDatafileFromMessageKeys(
 
   return {
     schemaVersion: SCHEMA_VERSION,
-    messagevisorVersion: "0.0.1",
+    messagevisorVersion: getMessagevisorVersion(),
     revision,
     target: targetKey || "",
     locale: localeKey,

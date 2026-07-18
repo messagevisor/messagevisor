@@ -183,7 +183,7 @@ export interface AttributeCondition {
     | "in"
     | "notIn";
   value?: ConditionValue; // for all operators, except for "exists" and "notExists"
-  regexFlags?: string; // for regex operators only (matches, notMatches)
+  regexFlags?: string; // unique portable flags: i, m, s, u; regex operators only
 }
 
 export interface FeatureCondition {
@@ -248,6 +248,16 @@ export type AndOrNotGroupSegment = AndGroupSegment | OrGroupSegment | NotGroupSe
 // group of segment keys with and/or conditions, or just string
 export type GroupSegment = PlainGroupSegment | AndOrNotGroupSegment;
 
+export type TranslationStatus = "draft" | "translated" | "reviewed";
+
+export interface TranslationState {
+  status: TranslationStatus;
+  /** SHA-256 hash of the source-locale text this translation was based on. */
+  sourceHash?: string;
+}
+
+export type TranslationStates = Partial<Record<LocaleKey, TranslationState>>;
+
 /**
  * Overrides
  */
@@ -264,6 +274,7 @@ export interface Override {
   translations: {
     [locale: LocaleKey]: Translation;
   };
+  translationStates?: TranslationStates;
 }
 
 /**
@@ -295,6 +306,7 @@ export interface Message {
   translations: {
     [locale: LocaleKey]: Translation;
   };
+  translationStates?: TranslationStates;
   overrides?: Override[];
 }
 
@@ -307,6 +319,7 @@ export type TargetFormatPatterns = Partial<Record<keyof FormatPresets, string | 
 
 export interface Target {
   key?: TargetKey;
+  description?: string;
   promotable?: boolean;
   stringify?: boolean;
   pretty?: boolean;

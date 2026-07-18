@@ -25,7 +25,7 @@ import { promotePlugin } from "../promoter";
 import { getProjectSetExecutions } from "../sets";
 import { testPlugin } from "../tester";
 import { expandTestAssertions } from "../tester/matrix";
-import { getMessagevisorCLIErrorMessage } from "../error";
+import { formatMessagevisorCLIError, getMessagevisorCLIErrorMessage } from "../error";
 
 export interface ParsedOptions {
   _: string[];
@@ -123,7 +123,9 @@ export async function runCLI(runnerOptions: RunnerOptions) {
             process.exit(1);
           }
         } catch (error) {
-          console.error(getCLIErrorOutput(error));
+          console.error(
+            formatMessagevisorCLIError(error, { json: parsed.json, pretty: parsed.pretty }),
+          );
           process.exit(1);
         }
       },

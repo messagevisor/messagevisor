@@ -1,4 +1,4 @@
-.PHONY: install build test typecheck bundle-sizes lint check
+.PHONY: install build test test-packages typecheck bundle-sizes lint check
 
 install:
 	npm ci
@@ -8,6 +8,9 @@ build:
 
 test:
 	npm test
+
+test-packages:
+	npm run test:packages
 
 typecheck:
 	npm run typecheck
@@ -27,5 +30,6 @@ format:
 check:
 	make build
 	make test
+	make test-packages
 	make lint
 	make typecheck

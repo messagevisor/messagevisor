@@ -22,17 +22,19 @@ translations:
 
 Useful fields:
 
-| Field | Use |
-| --- | --- |
-| `description` | Human context shown in Catalog and exports |
-| `summary` | Shorter context for compact output |
-| `translations` | Locale to string map |
-| `overrides` | Conditional translations |
-| `meta` | Arbitrary runtime metadata |
-| `examples` | Example evaluations shown by CLI and Catalog |
-| `deprecated` | Keep active but emit runtime diagnostics |
-| `archived` | Remove from active output |
-| `promotable` | Set `false` to exclude from `promote` |
+| Field                | Use                                                                                |
+| -------------------- | ---------------------------------------------------------------------------------- |
+| `description`        | Human context shown in Catalog and exports                                         |
+| `summary`            | Shorter context for compact output                                                 |
+| `translations`       | Locale to string map                                                               |
+| `translationStates`  | Per-locale `draft`, `translated`, or `reviewed` workflow state and source hash     |
+| `overrides`          | Conditional translations                                                           |
+| `meta`               | Arbitrary runtime metadata                                                         |
+| `examples`           | Example evaluations shown by CLI and Catalog                                       |
+| `deprecated`         | Keep active but emit runtime `deprecated_message` diagnostics                      |
+| `deprecationWarning` | Human guidance shown in the runtime diagnostic (what to use instead, removal date) |
+| `archived`           | Remove from active output                                                          |
+| `promotable`         | Set `false` to exclude from `promote`                                              |
 
 Example with metadata and examples:
 
@@ -75,7 +77,7 @@ formats:
       currencyDisplay: symbol
 ```
 
-`direction` is metadata. The application applies layout direction itself.
+`direction` is metadata carried into datafiles — apps read it via `getDirection()` / React `useDirection()` and apply layout direction themselves (`rtl` for Arabic, Hebrew, Persian). `mergeExamplesFrom: <locale>` additionally pulls a base locale's examples into this locale's Catalog and `examples` output.
 
 ## Inheritance
 
@@ -115,6 +117,19 @@ formats:
 
 The child still inherits `number.decimal`, but `number.money` is exactly the child object. Repeat the full intended style object when overriding an inherited style.
 
+## Translation workflow state
+
+When the project config declares `sourceLocale`, messages and overrides may track `translationStates` per translated locale:
+
+```yml
+translationStates:
+  nl-NL:
+    status: reviewed
+    sourceHash: <sha256-of-source-translation>
+```
+
+The source locale is required for every base or override translation group. Lint compares ICU arguments and rich-text tags with the source and uses `sourceHash` to detect copy that needs retranslation or review.
+
 ## Archival and deprecation
 
 Use `deprecated: true` for a transition period before removing a widely used key. The SDK emits diagnostics for deprecated messages.
@@ -124,7 +139,7 @@ Use `archived: true` when removing a key from active output. Archived entities a
 ## Authoring checklist
 
 - Add examples when copy has interpolation, ICU, overrides, or tricky formatting.
-- Keep keys stable. For renames, move the file and update app references.
+- Keep keys stable — apps and codegen depend on them. Run `npx messagevisor find-usage --message=<key>` before any rename. For a coordinated rename, move the file and update app references in the same release; for widely used keys, prefer adding the new key, migrating apps, then deprecating and archiving the old one.
 - Use `deprecated: true` for a transition period before deleting widely used keys.
 - Use `archived: true` when removing from active output while keeping history.
 - Open `npx messagevisor catalog` for review while editing.

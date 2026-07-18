@@ -6,6 +6,7 @@ const segments: Record<string, Segment> = {
   web: { conditions: { attribute: "platform", operator: "equals", value: "web" } },
   premium: { conditions: { attribute: "plan", operator: "equals", value: "pro" } },
   archived: { archived: true, conditions: "*" },
+  everyone: { conditions: "*" },
 };
 
 describe("target context specialization", function () {
@@ -49,5 +50,10 @@ describe("target context specialization", function () {
     const specializer = createTargetContextSpecializer(segments);
     expect(specializer.applyContextToGroupSegment("missing")).toEqual({ state: "false" });
     expect(specializer.applyContextToGroupSegment("archived")).toEqual({ state: "false" });
+  });
+
+  it("preserves wildcard segment truth while specializing target context", function () {
+    const specializer = createTargetContextSpecializer(segments, { platform: "web" });
+    expect(specializer.applyContextToGroupSegment("everyone")).toEqual({ state: "true" });
   });
 });

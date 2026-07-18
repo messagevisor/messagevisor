@@ -150,7 +150,7 @@ Common operators:
 
 Operators do not coerce runtime values. Numeric operators require numbers, string and regex operators require strings, and array operators require arrays. `null` is present for `exists`.
 
-`regexFlags` is valid only for `matches` and `notMatches`, using unique flags from `g`, `i`, `m`, `s`, `u`, and `y`.
+`regexFlags` is valid only for `matches` and `notMatches`, using unique portable flags from `i`, `m`, `s`, and `u`. Date comparisons require a complete ISO 8601 date-time with a timezone, such as `2026-01-01T00:00:00Z`.
 
 ## Verification
 

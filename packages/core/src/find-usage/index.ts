@@ -1,5 +1,6 @@
 import type {
   Condition,
+  FormatPresets,
   GroupSegment,
   Locale,
   Message,
@@ -11,7 +12,7 @@ import type { Datasource } from "../datasource";
 import { extractIcuStyleReferences } from "../icuStyleReferences";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
-import { targetIncludesMessage } from "../targeting";
+import { matchesPattern, targetIncludesMessage } from "../targeting";
 
 export interface UsageReference {
   type: "message" | "segment" | "locale" | "target" | "test";
@@ -134,21 +135,26 @@ export async function findUsage(
 
     if (formatKey) {
       const [type, style] = formatKey;
-      const translations = [
-        ...Object.values(message.translations || {}),
-        ...(message.overrides || []).flatMap((override) =>
-          Object.values(override.translations || {}),
-        ),
-      ];
-      if (
-        translations.some((translation) =>
+      for (const [locale, translation] of Object.entries(message.translations || {})) {
+        if (
           extractIcuStyleReferences(translation).some(
             (ref) => ref.type === type && ref.style === style,
-          ),
-        )
-      ) {
-        add("message", key, "translations");
+          )
+        ) {
+          add("message", key, `translations.${locale}`);
+        }
       }
+      (message.overrides || []).forEach((override, overrideIndex) => {
+        for (const [locale, translation] of Object.entries(override.translations || {})) {
+          if (
+            extractIcuStyleReferences(translation).some(
+              (ref) => ref.type === type && ref.style === style,
+            )
+          ) {
+            add("message", key, `overrides.${overrideIndex}.translations.${locale}`);
+          }
+        }
+      });
     }
   });
 
@@ -169,10 +175,26 @@ export async function findUsage(
     if (
       query.locale &&
       (locale.inheritTranslationsFrom === query.locale ||
-        locale.inheritFormatsFrom === query.locale)
+        locale.inheritFormatsFrom === query.locale ||
+        locale.mergeExamplesFrom === query.locale)
     ) {
       add("locale", key, "inheritance");
     }
+    (locale.examples || []).forEach((example, exampleIndex) => {
+      if (query.message && example.message === query.message) {
+        add("locale", key, `examples.${exampleIndex}.message`);
+      }
+      if (formatKey && typeof example.rawMessage === "string") {
+        const [type, style] = formatKey;
+        if (
+          extractIcuStyleReferences(example.rawMessage).some(
+            (reference) => reference.type === type && reference.style === style,
+          )
+        ) {
+          add("locale", key, `examples.${exampleIndex}.rawMessage`);
+        }
+      }
+    });
     if (formatKey) {
       const [type, style] = formatKey;
       if ((locale.formats as any)?.[type]?.[style]) add("locale", key, `formats.${type}.${style}`);
@@ -185,10 +207,26 @@ export async function findUsage(
       add("target", key, "messages");
     if (query.locale && (!target.locales || target.locales.includes(query.locale)))
       add("target", key, "locales");
+    if (query.locale && target.formats?.[query.locale]) {
+      add("target", key, `formats.${query.locale}`);
+    }
+    if (query.attribute) {
+      const rootAttribute = query.attribute.split(".")[0];
+      if (Object.prototype.hasOwnProperty.call(target.context || {}, rootAttribute)) {
+        add("target", key, `context.${rootAttribute}`);
+      }
+    }
     if (formatKey) {
       const [type, style] = formatKey;
       if (Object.values(target.formats || {}).some((formats: any) => formats?.[type]?.[style])) {
         add("target", key, `formats.${type}.${style}`);
+      }
+      for (const field of ["includeFormats", "excludeFormats"] as const) {
+        const patterns = target[field]?.[type as keyof FormatPresets];
+        const values = typeof patterns === "string" ? [patterns] : patterns || [];
+        if (values.some((pattern: string) => matchesPattern(style, pattern))) {
+          add("target", key, `${field}.${type}`);
+        }
       }
     }
   });

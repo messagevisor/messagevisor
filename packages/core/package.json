@@ -30,7 +30,7 @@
   "license": "MIT",
   "dependencies": {
     "@featurevisor/parsers": "^2.24.0",
-    "@featurevisor/sdk": "^2.23.0",
+    "@featurevisor/sdk": "^3.0.1",
     "@messagevisor/catalog": "0.26.0",
     "@messagevisor/sdk": "0.26.0",
     "@messagevisor/types": "0.26.0",

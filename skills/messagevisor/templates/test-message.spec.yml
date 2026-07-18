@@ -22,3 +22,13 @@ assertions:
     values:
       name: Ada
     expectedTranslation: Welcome back, Ada
+
+  # Feature-flag / experiment variant assertions (see references/testing.md):
+  # - description: Treatment copy in the CTA experiment
+  #   locale: en
+  #   target: web
+  #   withVariations:
+  #     cta-copy-test: treatment
+  #   withFlags:
+  #     new-billing-ui: true
+  #   expectedTranslation: Get started

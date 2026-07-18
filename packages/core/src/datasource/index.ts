@@ -9,7 +9,7 @@ import type {
 } from "@messagevisor/types";
 
 import { getProjectConfigForSet, type ProjectConfig } from "../config";
-import type { Adapter, EntityType } from "./adapter";
+import type { Adapter, ApplyEntityMutationsOptions, EntityMutation, EntityType } from "./adapter";
 
 export * from "./adapter";
 
@@ -65,12 +65,20 @@ export class Datasource {
     return this.adapter.readEntity<T>(entityType, entityKey);
   }
 
+  readEntityDocument<T>(entityType: EntityType, entityKey: string) {
+    return this.adapter.readEntityDocument<T>(entityType, entityKey);
+  }
+
   writeEntity<T>(entityType: EntityType, entityKey: string, entity: T) {
     return this.adapter.writeEntity(entityType, entityKey, entity);
   }
 
   deleteEntity(entityType: EntityType, entityKey: string) {
     return this.adapter.deleteEntity(entityType, entityKey);
+  }
+
+  applyEntityMutations(mutations: EntityMutation[], options?: ApplyEntityMutationsOptions) {
+    return this.adapter.applyEntityMutations(mutations, options);
   }
 
   readRevision() {

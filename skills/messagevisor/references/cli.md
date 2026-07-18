@@ -10,6 +10,8 @@ The global `--rootDirectoryPath=/absolute/path` option makes the CLI resolve the
 
 Use `--json --pretty` for machine-readable output when a command supports it. Many commands also support `--set=<name>` in `sets: true` projects.
 
+With `--json`, command failures use a stable `error` envelope containing `code`, `message`, and optional `details`. Inspect those fields instead of parsing terminal prose.
+
 ## Quick loop while editing
 
 ```bash
@@ -283,12 +285,17 @@ Preview first.
 
 ```bash
 npx messagevisor promote --from=dev --to=staging
+npx messagevisor promote --from=dev --to=staging --showUnchanged
 npx messagevisor promote --from=dev --to=staging --apply
+npx messagevisor promote --from=dev --to=staging --includeMessages='checkout*' --apply
+npx messagevisor promote --from=dev --to=staging --locale=nl-NL --apply
+npx messagevisor promote --from=staging --to=production --target=web --apply
+npx messagevisor promote --from=staging --to=production --excludeOverrides --apply
 npx messagevisor promote --from=dev --to=staging --conflicts=fail
 npx messagevisor promote --from=dev --to=staging --apply --audit=markdown
 ```
 
-Promotion previews by default. `--apply` writes destination files.
+Promotion previews by default. `--apply` writes destination files. Conflict modes: `source`, `destination`, `fail` (use `fail` in automation). Entities with `promotable: false` are skipped. After applying, lint/test/build the destination set. A clean preview doubles as an "are these sets in sync?" check.
 
 ## Troubleshooting
 

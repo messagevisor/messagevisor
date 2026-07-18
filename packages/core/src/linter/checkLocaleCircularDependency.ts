@@ -35,7 +35,7 @@ export function checkLocaleCircularDependency(
         break;
       }
 
-      const locale = localesByKey[currentKey];
+      const locale: Locale | undefined = localesByKey[currentKey];
 
       if (!locale) {
         break;

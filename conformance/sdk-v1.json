@@ -83,6 +83,100 @@
       "context": { "value": "anything" },
       "condition": { "attribute": "value", "operator": "matches", "value": "[" },
       "expected": false
+    },
+    {
+      "name": "ISO date before comparison",
+      "context": { "value": "2026-01-01T00:00:00.000Z" },
+      "condition": {
+        "attribute": "value",
+        "operator": "before",
+        "value": "2026-02-01T00:00:00.000Z"
+      },
+      "expected": true
+    },
+    {
+      "name": "negative membership rejects a non-array expectation",
+      "context": { "value": "admin" },
+      "condition": { "attribute": "value", "operator": "notIn", "value": "viewer" },
+      "expected": false
+    }
+  ],
+  "segments": [
+    {
+      "name": "wildcard segment conditions match",
+      "segment": "everyone",
+      "context": {},
+      "segments": { "everyone": { "conditions": "*" } },
+      "expected": true
+    },
+    {
+      "name": "missing segments do not match",
+      "segment": "missing",
+      "context": {},
+      "segments": {},
+      "expected": false
+    },
+    {
+      "name": "archived segments do not match",
+      "segment": "archived",
+      "context": {},
+      "segments": { "archived": { "archived": true, "conditions": "*" } },
+      "expected": false
+    },
+    {
+      "name": "segment not negates implicit and",
+      "group": { "not": ["web", "pro"] },
+      "context": { "platform": "web", "plan": "free" },
+      "segments": {
+        "web": { "conditions": { "attribute": "platform", "operator": "equals", "value": "web" } },
+        "pro": { "conditions": { "attribute": "plan", "operator": "equals", "value": "pro" } }
+      },
+      "expected": true
+    }
+  ],
+  "translations": [
+    {
+      "name": "first matching override wins",
+      "message": "welcome",
+      "context": { "plan": "pro" },
+      "expected": "First",
+      "datafile": {
+        "schemaVersion": "1",
+        "messagevisorVersion": "fixture",
+        "revision": "1",
+        "target": "web",
+        "locale": "en",
+        "segments": {},
+        "messages": {
+          "welcome": {
+            "overrides": [
+              {
+                "key": "first",
+                "conditions": { "attribute": "plan", "operator": "equals", "value": "pro" },
+                "translation": "First"
+              },
+              { "key": "second", "conditions": "*", "translation": "Second" }
+            ]
+          }
+        },
+        "translations": { "welcome": "Base" }
+      }
+    },
+    {
+      "name": "empty translation is preserved",
+      "message": "empty",
+      "context": {},
+      "expected": "",
+      "datafile": {
+        "schemaVersion": "1",
+        "messagevisorVersion": "fixture",
+        "revision": "1",
+        "target": "web",
+        "locale": "en",
+        "segments": {},
+        "messages": {},
+        "translations": { "empty": "" }
+      }
     }
   ],
   "datafiles": {
@@ -101,6 +195,15 @@
     "setupFailureCode": "module_setup_error",
     "closeFailureCode": "module_close_error",
     "closeOrder": "reverse",
-    "removalClosesModule": true
+    "removalClosesModule": true,
+    "removalRestoresPreviousResolvers": true,
+    "failedSetupRestoresPreviousResolvers": true,
+    "removalIsIdempotent": true
+  },
+  "diagnostics": {
+    "detailsAlwaysPresent": true,
+    "missingLocaleDatafileCode": "missing_datafile",
+    "missingFormatCode": "missing_format",
+    "invalidFormatCode": "invalid_format"
   }
 }

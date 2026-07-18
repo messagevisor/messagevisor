@@ -5,6 +5,39 @@ import type { DatafileFile, WriteDatafileOptions } from "./index";
 
 export type EntityType = "locale" | "message" | "segment" | "attribute" | "target" | "test";
 
+export interface EntityDocument<T> {
+  type: EntityType;
+  key: string;
+  entity: T;
+  version: string;
+}
+
+export type EntityMutation =
+  | {
+      operation: "write";
+      type: EntityType;
+      key: string;
+      entity: unknown;
+      expectedVersion?: string | null;
+    }
+  | {
+      operation: "delete";
+      type: EntityType;
+      key: string;
+      expectedVersion?: string | null;
+    };
+
+export interface EntityMutationResult {
+  type: EntityType;
+  key: string;
+  operation: EntityMutation["operation"];
+  version: string | null;
+}
+
+export interface ApplyEntityMutationsOptions {
+  dryRun?: boolean;
+}
+
 /**
  * Storage boundary for Messagevisor projects.
  *
@@ -22,8 +55,13 @@ export abstract class Adapter {
   abstract listEntities(type: EntityType): Promise<string[]>;
   abstract entityExists(type: EntityType, key: string): Promise<boolean> | boolean;
   abstract readEntity<T>(type: EntityType, key: string): Promise<T>;
+  abstract readEntityDocument<T>(type: EntityType, key: string): Promise<EntityDocument<T>>;
   abstract writeEntity<T>(type: EntityType, key: string, entity: T): Promise<T>;
   abstract deleteEntity(type: EntityType, key: string): Promise<void>;
+  abstract applyEntityMutations(
+    mutations: EntityMutation[],
+    options?: ApplyEntityMutationsOptions,
+  ): Promise<EntityMutationResult[]>;
 
   abstract readRevision(): Promise<string>;
   abstract writeRevision(revision: string): Promise<void>;

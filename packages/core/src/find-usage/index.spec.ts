@@ -88,14 +88,14 @@ describe("find usage", function () {
     expect(await findUsage(datasource, { format: "number.money" })).toEqual(
       expect.arrayContaining([
         { type: "locale", key: "en", path: "formats.number.money" },
-        { type: "message", key: "checkout.title", path: "translations" },
+        { type: "message", key: "checkout.title", path: "translations.en" },
         { type: "test", key: "targets.web", path: "assertions.0.rawMessage" },
       ]),
     );
     expect(await findUsage(datasource, { format: "number.money.compact" })).toEqual(
       expect.arrayContaining([
         { type: "locale", key: "en", path: "formats.number.money.compact" },
-        { type: "message", key: "checkout.title", path: "translations" },
+        { type: "message", key: "checkout.title", path: "translations.en" },
       ]),
     );
   });

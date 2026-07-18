@@ -20,11 +20,27 @@ function getContextValue(context: Context | undefined, attribute: string) {
     );
 }
 
-function compareDate(value: unknown, expected: unknown, operator: "before" | "after") {
-  const valueTime = new Date(value as any).getTime();
-  const expectedTime = new Date(expected as any).getTime();
+const isoDatePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
 
-  if (isNaN(valueTime) || isNaN(expectedTime)) {
+function getPortableDateTime(value: unknown) {
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return isNaN(time) ? undefined : time;
+  }
+
+  if (typeof value !== "string" || !isoDatePattern.test(value)) {
+    return undefined;
+  }
+
+  const time = new Date(value).getTime();
+  return isNaN(time) ? undefined : time;
+}
+
+function compareDate(value: unknown, expected: unknown, operator: "before" | "after") {
+  const valueTime = getPortableDateTime(value);
+  const expectedTime = getPortableDateTime(expected);
+
+  if (typeof valueTime === "undefined" || typeof expectedTime === "undefined") {
     return false;
   }
 
@@ -156,6 +172,7 @@ export function evaluateCondition(
     case "matches":
     case "notMatches": {
       if (typeof value !== "string" || typeof expected !== "string") return false;
+      if (condition.regexFlags && !/^[imsu]+$/.test(condition.regexFlags)) return false;
       try {
         const matched = new RegExp(expected, condition.regexFlags || "").test(value);
         return condition.operator === "matches" ? matched : !matched;

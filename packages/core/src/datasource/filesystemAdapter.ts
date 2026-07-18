@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import * as crypto from "crypto";
 import { gzipSync } from "zlib";
 
 import type { CustomParser } from "@featurevisor/parsers";
@@ -14,7 +15,15 @@ import type {
 } from "@messagevisor/types";
 
 import { formatDatafilePath, type ProjectConfig } from "../config";
-import { Adapter, type EntityType } from "./adapter";
+import {
+  Adapter,
+  type ApplyEntityMutationsOptions,
+  type EntityDocument,
+  type EntityMutation,
+  type EntityMutationResult,
+  type EntityType,
+} from "./adapter";
+import { assertPathWithinDirectory, assertValidEntityKey, omitDerivedEntityKey } from "./entityKey";
 import type { DatafileFile, WriteDatafileOptions } from "./index";
 
 const ENTITY_DIRECTORIES: Record<EntityType, keyof ProjectConfig> = {
@@ -54,10 +63,12 @@ export class FilesystemAdapter extends Adapter {
   }
 
   private getEntityPath(type: EntityType, key: string) {
+    const segments = assertValidEntityKey(this.config, key);
     const extension = `.${this.parser.extension}`;
-    const basePath = path.join(
-      this.getEntityDirectory(type),
-      ...key.split(this.config.namespaceCharacter),
+    const directoryPath = this.getEntityDirectory(type);
+    const basePath = assertPathWithinDirectory(
+      directoryPath,
+      path.join(directoryPath, ...segments),
     );
 
     if (type === "test") {
@@ -80,9 +91,12 @@ export class FilesystemAdapter extends Adapter {
   }
 
   private getEntityWritePath(type: EntityType, key: string) {
-    return (
-      path.join(this.getEntityDirectory(type), ...key.split(this.config.namespaceCharacter)) +
-      `${type === "test" ? TEST_SPEC_SUFFIX : ""}.${this.parser.extension}`
+    const directoryPath = this.getEntityDirectory(type);
+    const segments = assertValidEntityKey(this.config, key);
+    return assertPathWithinDirectory(
+      directoryPath,
+      path.join(directoryPath, ...segments) +
+        `${type === "test" ? TEST_SPEC_SUFFIX : ""}.${this.parser.extension}`,
     );
   }
 
@@ -133,6 +147,19 @@ export class FilesystemAdapter extends Adapter {
   private async readFile<T>(filePath: string): Promise<T> {
     const content = await fs.promises.readFile(filePath, "utf8");
     return this.parser.parse<T>(content, filePath);
+  }
+
+  private getContentVersion(content: string | Buffer) {
+    return crypto.createHash("sha256").update(content).digest("hex");
+  }
+
+  private async getFileVersion(filePath: string): Promise<string | null> {
+    try {
+      return this.getContentVersion(await fs.promises.readFile(filePath));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
   }
 
   private async writeFile(filePath: string, content: unknown) {
@@ -198,15 +225,26 @@ export class FilesystemAdapter extends Adapter {
   async readEntity<T>(type: EntityType, key: string): Promise<T> {
     const entity = await this.readFile<T>(this.getEntityPath(type, key));
 
+    return { ...(entity as Record<string, unknown>), key } as T;
+  }
+
+  async readEntityDocument<T>(type: EntityType, key: string): Promise<EntityDocument<T>> {
+    const filePath = this.getEntityPath(type, key);
+    const content = await fs.promises.readFile(filePath, "utf8");
+    const entity = this.parser.parse<T>(content, filePath);
+
     return {
+      type,
       key,
-      ...entity,
+      entity: { ...(entity as Record<string, unknown>), key } as T,
+      version: this.getContentVersion(content),
     };
   }
 
   async writeEntity<T>(type: EntityType, key: string, entity: T): Promise<T> {
-    await this.writeFile(this.getEntityWritePath(type, key), entity);
-    return entity;
+    const persistedEntity = omitDerivedEntityKey(entity);
+    await this.writeFile(this.getEntityWritePath(type, key), persistedEntity);
+    return { ...(persistedEntity as Record<string, unknown>), key } as T;
   }
 
   async deleteEntity(type: EntityType, key: string): Promise<void> {
@@ -215,6 +253,81 @@ export class FilesystemAdapter extends Adapter {
     if (fs.existsSync(entityPath)) {
       await fs.promises.unlink(entityPath);
     }
+  }
+
+  async applyEntityMutations(
+    mutations: EntityMutation[],
+    options: ApplyEntityMutationsOptions = {},
+  ): Promise<EntityMutationResult[]> {
+    const identities = mutations.map((mutation) => `${mutation.type}\0${mutation.key}`);
+    if (new Set(identities).size !== identities.length) {
+      throw new Error("A mutation batch cannot contain the same entity more than once.");
+    }
+    const snapshots = new Map<string, Buffer | null>();
+    const paths = mutations.map((mutation) => this.getEntityWritePath(mutation.type, mutation.key));
+
+    for (let index = 0; index < mutations.length; index++) {
+      const mutation = mutations[index];
+      const filePath = paths[index];
+      const version = await this.getFileVersion(filePath);
+
+      if (typeof mutation.expectedVersion !== "undefined" && mutation.expectedVersion !== version) {
+        throw new Error(
+          `Entity conflict for ${mutation.type} "${mutation.key}": expected version ${mutation.expectedVersion ?? "missing"}, found ${version ?? "missing"}.`,
+        );
+      }
+
+      if (!snapshots.has(filePath)) {
+        snapshots.set(filePath, version === null ? null : await fs.promises.readFile(filePath));
+      }
+    }
+
+    if (options.dryRun) {
+      return mutations.map((mutation, index) => {
+        if (mutation.operation === "delete") {
+          return { type: mutation.type, key: mutation.key, operation: "delete", version: null };
+        }
+        const content = this.parser.stringify(omitDerivedEntityKey(mutation.entity), paths[index]);
+        return {
+          type: mutation.type,
+          key: mutation.key,
+          operation: "write",
+          version: this.getContentVersion(content),
+        };
+      });
+    }
+
+    const results: EntityMutationResult[] = [];
+
+    try {
+      for (let index = 0; index < mutations.length; index++) {
+        const mutation = mutations[index];
+        const filePath = paths[index];
+
+        if (mutation.operation === "delete") {
+          await fs.promises.rm(filePath, { force: true });
+          results.push({ ...mutation, version: null });
+          continue;
+        }
+
+        const persisted = omitDerivedEntityKey(mutation.entity);
+        await this.writeFile(filePath, persisted);
+        results.push({
+          type: mutation.type,
+          key: mutation.key,
+          operation: mutation.operation,
+          version: await this.getFileVersion(filePath),
+        });
+      }
+    } catch (error) {
+      for (const [filePath, content] of Array.from(snapshots.entries()).reverse()) {
+        if (content === null) await fs.promises.rm(filePath, { force: true });
+        else await this.writeTextAtomically(filePath, content);
+      }
+      throw error;
+    }
+
+    return results;
   }
 
   async readRevision() {

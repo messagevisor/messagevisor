@@ -363,7 +363,7 @@ function mergeMessage(
       policy,
       overrideConflicts,
       ["overrides", sourceOverride.key],
-    ) as Message["overrides"][number];
+    ) as NonNullable<Message["overrides"]>[number];
 
     conflicts.push(
       ...overrideConflicts.map((conflict) => ({

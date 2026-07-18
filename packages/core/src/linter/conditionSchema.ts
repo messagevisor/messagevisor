@@ -134,14 +134,27 @@ function matchesSchemaValue(schema: SchemaNode, value: unknown): boolean {
   }
 
   if (schema.type === "array") {
-    return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+    return (
+      Array.isArray(value) &&
+      value.every((entry) =>
+        schema.items ? matchesSchemaValue(schema.items as SchemaNode, entry) : true,
+      )
+    );
   }
 
   if (schema.type === "object") {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+    return Object.entries(value as Record<string, unknown>).every(([key, entry]) => {
+      const child = schema.properties?.[key] || schema.additionalProperties;
+      return child ? matchesSchemaValue(child, entry) : !schema.properties;
+    });
   }
 
   return true;
+}
+
+export function contextValueMatchesAttribute(attribute: Attribute, value: unknown): boolean {
+  return matchesSchemaValue(attribute as SchemaNode, value);
 }
 
 function matchesLeafValue(leaf: ResolvedLeaf, value: unknown): boolean {
@@ -285,8 +298,8 @@ export function getConditionsZodSchema(attributesByKey: Record<string, Attribute
           .optional(),
         regexFlags: z
           .string()
-          .refine((value) => /^[gimsuy]+$/.test(value) && new Set(value).size === value.length, {
-            message: "regexFlags must contain unique characters from: g, i, m, s, u, y",
+          .refine((value) => /^[imsu]+$/.test(value) && new Set(value).size === value.length, {
+            message: "regexFlags must contain unique characters from: i, m, s, u",
           })
           .optional(),
       })
@@ -315,6 +328,21 @@ export function getConditionsZodSchema(attributesByKey: Record<string, Attribute
 
         if (!regexOperators.includes(data.operator) && typeof data.regexFlags !== "undefined") {
           addIssue(ctx, "regexFlags is only supported by matches and notMatches", ["regexFlags"]);
+        }
+
+        if (
+          dateOperators.includes(data.operator) &&
+          !(data.value instanceof Date) &&
+          (typeof data.value !== "string" ||
+            !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(
+              data.value,
+            ))
+        ) {
+          addIssue(
+            ctx,
+            `when operator is "${data.operator}", value must be a portable ISO 8601 date-time with a timezone`,
+            ["value"],
+          );
         }
 
         if (regexOperators.includes(data.operator) && typeof data.value === "string") {

@@ -8,6 +8,7 @@ export * from "./datasource";
 export * from "./examples";
 export * from "./prune";
 export * from "./evaluate";
+export * from "./editorial";
 export * from "./exporter";
 export * from "./find-duplicates";
 export * from "./find-usage";

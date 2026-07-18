@@ -122,6 +122,8 @@ export type MessagevisorDiagnosticCode =
   | "invalid_datafile"
   | "invalid_message"
   | "unsupported_formatter"
+  | "missing_format"
+  | "invalid_format"
   | "message_override_matched"
   | "deprecated_message"
   | "duplicate_module"
@@ -403,6 +405,16 @@ export class Messagevisor {
   private timeZone?: string;
   private resolveFlag?: (featureKey: string, context?: Context) => boolean;
   private resolveVariation?: (experimentKey: string, context?: Context) => string | null;
+  private hasOwnFlagResolver = false;
+  private hasOwnVariationResolver = false;
+  private moduleFlagResolvers: Array<{
+    moduleKey: string;
+    resolver: (featureKey: string, context?: Context) => boolean;
+  }> = [];
+  private moduleVariationResolvers: Array<{
+    moduleKey: string;
+    resolver: (experimentKey: string, context?: Context) => string | null;
+  }> = [];
   private onDiagnostic?: MessagevisorDiagnosticHandler;
   private logLevel: MessagevisorLogLevel = "info";
   private cache: MessagevisorCache;
@@ -431,14 +443,13 @@ export class Messagevisor {
     this.currency = options.currency;
     this.timeZone = options.timeZone;
     this.context = options.context || {};
-    this.resolveFlag = options.resolveFlag || parent?.resolveFlag;
-    this.resolveVariation = options.resolveVariation || parent?.resolveVariation;
+    this.resolveFlag = options.resolveFlag;
+    this.resolveVariation = options.resolveVariation;
+    this.hasOwnFlagResolver = typeof options.resolveFlag !== "undefined";
+    this.hasOwnVariationResolver = typeof options.resolveVariation !== "undefined";
     this.logLevel = options.logLevel || "info";
     this.onDiagnostic = options.onDiagnostic;
     this.cache = parent?.cache || options.cache || createMessagevisorCache();
-    this.setFlagResolver(this.resolveFlag);
-    this.setVariationResolver(this.resolveVariation);
-
     (options.modules || []).forEach((module) => {
       this.addModule(module);
     });
@@ -594,10 +605,29 @@ export class Messagevisor {
 
   setFlagResolver(resolver?: (featureKey: string, context?: Context) => boolean) {
     this.resolveFlag = resolver;
+    this.hasOwnFlagResolver = true;
   }
 
   setVariationResolver(resolver?: (experimentKey: string, context?: Context) => string | null) {
     this.resolveVariation = resolver;
+    this.hasOwnVariationResolver = true;
+  }
+
+  private getFlagResolver(): ((featureKey: string, context?: Context) => boolean) | undefined {
+    const moduleResolver = this.moduleFlagResolvers[this.moduleFlagResolvers.length - 1]?.resolver;
+    if (moduleResolver) return moduleResolver;
+    if (this.hasOwnFlagResolver) return this.resolveFlag;
+    return this.parent?.getFlagResolver();
+  }
+
+  private getVariationResolver():
+    | ((experimentKey: string, context?: Context) => string | null)
+    | undefined {
+    const moduleResolver =
+      this.moduleVariationResolvers[this.moduleVariationResolvers.length - 1]?.resolver;
+    if (moduleResolver) return moduleResolver;
+    if (this.hasOwnVariationResolver) return this.resolveVariation;
+    return this.parent?.getVariationResolver();
   }
 
   setCurrency(currency: string) {
@@ -876,14 +906,14 @@ export class Messagevisor {
       const matchesConditions = evaluateCondition(override.conditions, {
         context: evaluationContext,
         segments: datafile.segments,
-        resolveFlag: this.resolveFlag,
-        resolveVariation: this.resolveVariation,
+        resolveFlag: this.getFlagResolver(),
+        resolveVariation: this.getVariationResolver(),
       });
       const matchesSegments = evaluateGroupSegment(override.segments, {
         context: evaluationContext,
         segments: datafile.segments,
-        resolveFlag: this.resolveFlag,
-        resolveVariation: this.resolveVariation,
+        resolveFlag: this.getFlagResolver(),
+        resolveVariation: this.getVariationResolver(),
       });
       const matched = matchesConditions && matchesSegments;
 
@@ -991,12 +1021,22 @@ export class Messagevisor {
     }
 
     if (messageKey) {
-      this.reportDiagnostic({
-        level: "error",
-        code: "missing_translation",
-        message: "Missing translation",
-        details: { locale, messageKey, source: "translation" },
-      });
+      const hasDatafile = Boolean(this.datafiles[locale]);
+      this.reportDiagnostic(
+        hasDatafile
+          ? {
+              level: "error",
+              code: "missing_translation",
+              message: "Missing translation",
+              details: { locale, messageKey, source: "translation" },
+            }
+          : {
+              level: "error",
+              code: "missing_datafile",
+              message: "Datafile not found for locale",
+              details: { locale, messageKey, source: "translation" },
+            },
+      );
     }
 
     if (typeof defaultTranslation === "string") {
@@ -1146,7 +1186,18 @@ export class Messagevisor {
     });
 
     if (!this.cache.numberFormat[cacheKey]) {
-      this.cache.numberFormat[cacheKey] = new Intl.NumberFormat(locale, options);
+      try {
+        this.cache.numberFormat[cacheKey] = new Intl.NumberFormat(locale, options);
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid number format options",
+          originalError: error,
+          details: { locale, options },
+        });
+        throw error;
+      }
     }
 
     return this.cache.numberFormat[cacheKey];
@@ -1159,7 +1210,18 @@ export class Messagevisor {
     });
 
     if (!this.cache.dateTimeFormat[cacheKey]) {
-      this.cache.dateTimeFormat[cacheKey] = new Intl.DateTimeFormat(locale, options);
+      try {
+        this.cache.dateTimeFormat[cacheKey] = new Intl.DateTimeFormat(locale, options);
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid date/time format options",
+          originalError: error,
+          details: { locale, options },
+        });
+        throw error;
+      }
     }
 
     return this.cache.dateTimeFormat[cacheKey];
@@ -1175,21 +1237,56 @@ export class Messagevisor {
     });
 
     if (!this.cache.relativeTimeFormat[cacheKey]) {
-      this.cache.relativeTimeFormat[cacheKey] = new Intl.RelativeTimeFormat(locale, options);
+      try {
+        this.cache.relativeTimeFormat[cacheKey] = new Intl.RelativeTimeFormat(locale, options);
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid relative-time format options",
+          originalError: error,
+          details: { locale, options },
+        });
+        throw error;
+      }
     }
 
     return this.cache.relativeTimeFormat[cacheKey];
   }
 
+  private getNamedFormat<T>(
+    locale: LocaleKey,
+    type: keyof FormatPresets,
+    preset: string,
+    presets: Record<string, T> | undefined,
+  ): T | undefined {
+    const format = presets?.[preset];
+    if (typeof format === "undefined") {
+      this.reportDiagnostic({
+        level: "error",
+        code: "missing_format",
+        message: "Named format preset not found",
+        details: { locale, type, preset },
+      });
+    }
+    return format;
+  }
+
   private createModuleApi(module: MessagevisorModule): MessagevisorModuleApi {
     const moduleKey = this.getModuleApiKey(module);
     const setFlagResolver = (resolver?: (featureKey: string, context?: Context) => boolean) => {
-      this.setFlagResolver(resolver);
+      this.moduleFlagResolvers = this.moduleFlagResolvers.filter(
+        (registration) => registration.moduleKey !== moduleKey,
+      );
+      if (resolver) this.moduleFlagResolvers.push({ moduleKey, resolver });
     };
     const setVariationResolver = (
       resolver?: (experimentKey: string, context?: Context) => string | null,
     ) => {
-      this.setVariationResolver(resolver);
+      this.moduleVariationResolvers = this.moduleVariationResolvers.filter(
+        (registration) => registration.moduleKey !== moduleKey,
+      );
+      if (resolver) this.moduleVariationResolvers.push({ moduleKey, resolver });
     };
     const getRevision = (locale?: LocaleKey) => {
       return this.getRevision(locale);
@@ -1273,6 +1370,12 @@ export class Messagevisor {
 
     this.moduleDiagnosticSubscriptions = this.moduleDiagnosticSubscriptions.filter(
       (subscription) => subscription.moduleKey !== moduleKey,
+    );
+    this.moduleFlagResolvers = this.moduleFlagResolvers.filter(
+      (registration) => registration.moduleKey !== moduleKey,
+    );
+    this.moduleVariationResolvers = this.moduleVariationResolvers.filter(
+      (registration) => registration.moduleKey !== moduleKey,
     );
 
     delete this.moduleApis[moduleKey];
@@ -1532,7 +1635,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.number?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "number", presetOrOptions, evaluationFormats.number)
         : presetOrOptions;
     const finalOptions = { ...(formatOptions || {}) } as Intl.NumberFormatOptions;
 
@@ -1556,7 +1659,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.number?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "number", presetOrOptions, evaluationFormats.number)
         : presetOrOptions;
     const finalOptions = { ...(formatOptions || {}) } as Intl.NumberFormatOptions;
 
@@ -1580,7 +1683,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.date?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "date", presetOrOptions, evaluationFormats.date)
         : presetOrOptions;
 
     return this.getCachedDateTimeFormat(
@@ -1598,7 +1701,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.date?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "date", presetOrOptions, evaluationFormats.date)
         : presetOrOptions;
 
     return this.getCachedDateTimeFormat(
@@ -1616,7 +1719,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.time?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "time", presetOrOptions, evaluationFormats.time)
         : presetOrOptions;
 
     return this.getCachedDateTimeFormat(
@@ -1634,7 +1737,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.time?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "time", presetOrOptions, evaluationFormats.time)
         : presetOrOptions;
 
     return this.getCachedDateTimeFormat(
@@ -1653,7 +1756,12 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.dateTimeRange?.[presetOrOptions]
+        ? this.getNamedFormat(
+            locale,
+            "dateTimeRange",
+            presetOrOptions,
+            evaluationFormats.dateTimeRange,
+          )
         : presetOrOptions;
     const formatter = this.getCachedDateTimeFormat(
       locale,
@@ -1681,7 +1789,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.relative?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "relative", presetOrOptions, evaluationFormats.relative)
         : presetOrOptions;
 
     return this.getCachedRelativeTimeFormat(locale, formatOptions).format(value, unit);
@@ -1699,7 +1807,18 @@ export class Messagevisor {
     });
 
     if (!this.cache.pluralRules[cacheKey]) {
-      this.cache.pluralRules[cacheKey] = new Intl.PluralRules(locale, pluralOptions);
+      try {
+        this.cache.pluralRules[cacheKey] = new Intl.PluralRules(locale, pluralOptions);
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid plural format options",
+          originalError: error,
+          details: { locale, options: pluralOptions },
+        });
+        throw error;
+      }
     }
 
     return this.cache.pluralRules[cacheKey].select(value);
@@ -1726,7 +1845,18 @@ export class Messagevisor {
     }
 
     if (!this.cache.listFormat[cacheKey]) {
-      this.cache.listFormat[cacheKey] = new ListFormat(locale, listOptions);
+      try {
+        this.cache.listFormat[cacheKey] = new ListFormat(locale, listOptions);
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid list format options",
+          originalError: error,
+          details: { locale, options: listOptions },
+        });
+        throw error;
+      }
     }
 
     return this.cache.listFormat[cacheKey].format(values);
@@ -1753,7 +1883,18 @@ export class Messagevisor {
     }
 
     if (!this.cache.listFormat[cacheKey]) {
-      this.cache.listFormat[cacheKey] = new ListFormat(locale, listOptions);
+      try {
+        this.cache.listFormat[cacheKey] = new ListFormat(locale, listOptions);
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid list format options",
+          originalError: error,
+          details: { locale, options: listOptions },
+        });
+        throw error;
+      }
     }
 
     if (typeof this.cache.listFormat[cacheKey].formatToParts !== "function") {
@@ -1784,7 +1925,18 @@ export class Messagevisor {
     }
 
     if (!this.cache.displayNames[cacheKey]) {
-      this.cache.displayNames[cacheKey] = new DisplayNames(locale, displayNameOptions);
+      try {
+        this.cache.displayNames[cacheKey] = new DisplayNames(locale, displayNameOptions);
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid display-name format options",
+          originalError: error,
+          details: { locale, options: displayNameOptions },
+        });
+        throw error;
+      }
     }
 
     return this.cache.displayNames[cacheKey].of(value);

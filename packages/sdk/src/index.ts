@@ -1,4 +1,6 @@
 export { createMessagevisor, createMessagevisorCache } from "./instance.js";
+export { evaluateCondition, evaluateGroupSegment, evaluateSegment } from "./conditions.js";
+export type { EvaluateOptions as MessagevisorEvaluationDataProvider } from "./conditions.js";
 
 // `createMessagevisor()` is the primary runtime API. Keep the rest type-only so
 // internal implementation helpers do not accidentally become public contracts.

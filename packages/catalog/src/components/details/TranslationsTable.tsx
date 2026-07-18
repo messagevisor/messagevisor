@@ -4,6 +4,7 @@ import * as React from "react";
 import type { TranslationRow } from "../../types";
 import { getEntityRoute } from "../../entityTypes";
 import { useEntityDetail } from "../../pages/EntityDetailPage";
+import { Badge } from "../ui/Badge";
 
 function getDirectionClassName(direction?: string) {
   return direction === "rtl" ? "text-right" : "";
@@ -56,6 +57,7 @@ export function TranslationsTable(props: {
         .map(([locale, value]) => ({ locale, value, source: "direct" as const }));
   const [expandedRowKeys, setExpandedRowKeys] = React.useState<string[]>([]);
   const [lastOpenedRowFragmentId, setLastOpenedRowFragmentId] = React.useState<string | null>(null);
+  const showWorkflow = entries.some((entry) => entry.status || entry.stale);
 
   if (entries.length === 0) {
     return <p className="text-sm text-muted">No translations found.</p>;
@@ -105,7 +107,11 @@ export function TranslationsTable(props: {
   }, [lastOpenedRowFragmentId]);
 
   const columnCount =
-    2 + (props.comparisonLabel ? 1 : 0) + (props.renderMetaCell ? 1 : 0) + (showSource ? 1 : 0);
+    2 +
+    (props.comparisonLabel ? 1 : 0) +
+    (props.renderMetaCell ? 1 : 0) +
+    (showWorkflow ? 1 : 0) +
+    (showSource ? 1 : 0);
 
   return (
     <div className="overflow-hidden rounded border border-border">
@@ -123,6 +129,9 @@ export function TranslationsTable(props: {
             )}
             {props.renderMetaCell && (
               <th className="border-b border-border px-3 py-2 font-semibold" />
+            )}
+            {showWorkflow && (
+              <th className="border-b border-border px-3 py-2 font-semibold">Workflow</th>
             )}
             {showSource && (
               <th className="border-b border-border px-3 py-2 font-semibold">Source</th>
@@ -224,6 +233,14 @@ export function TranslationsTable(props: {
                   {props.renderMetaCell && (
                     <td className="border-b border-border px-3 py-2">
                       {props.renderMetaCell(entry)}
+                    </td>
+                  )}
+                  {showWorkflow && (
+                    <td className="border-b border-border px-3 py-2">
+                      <div className="flex flex-wrap gap-1">
+                        {entry.status && <Badge>{entry.status}</Badge>}
+                        {entry.stale && <Badge tone="warning">stale</Badge>}
+                      </div>
                     </td>
                   )}
                   {showSource && (

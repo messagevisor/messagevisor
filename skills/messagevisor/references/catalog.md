@@ -18,11 +18,11 @@ npx messagevisor catalog serve
 npx messagevisor catalog serve --port=3100
 ```
 
-| Command | Use |
-| --- | --- |
-| `catalog` | Dev mode: build, serve, watch inputs, live reload |
+| Command          | Use                                               |
+| ---------------- | ------------------------------------------------- |
+| `catalog`        | Dev mode: build, serve, watch inputs, live reload |
 | `catalog export` | Static export for CI artifacts or private hosting |
-| `catalog serve` | Serve an already generated catalog |
+| `catalog serve`  | Serve an already generated catalog                |
 
 `catalog serve` does not build optional indexes. It only reflects what was generated.
 

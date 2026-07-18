@@ -27,6 +27,18 @@ describe("getProjectConfig", function () {
     expect(projectConfig.lintIcu).toEqual(false);
   });
 
+  it("accepts an optional non-empty sourceLocale", async function () {
+    expect(
+      getProjectConfig(await createProject("module.exports = {};\n")).sourceLocale,
+    ).toBeUndefined();
+    expect(
+      getProjectConfig(await createProject('module.exports = { sourceLocale: "en" };\n'))
+        .sourceLocale,
+    ).toBe("en");
+    const invalidRoot = await createProject('module.exports = { sourceLocale: "" };\n');
+    expect(() => getProjectConfig(invalidRoot)).toThrow(/Invalid sourceLocale/);
+  });
+
   it("rejects invalid lintIcu values", async function () {
     const invalidConfigs = [
       {

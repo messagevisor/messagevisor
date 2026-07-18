@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import type { Message, TranslationState } from "@messagevisor/types";
+import type { Locale, Message, TranslationState } from "@messagevisor/types";
 
 import type { Plugin } from "../cli";
 import { getProjectConfig, type ProjectConfig } from "../config";
@@ -26,10 +26,40 @@ export interface MessageDiffChange {
   afterState?: TranslationState;
 }
 
+export type MessageRoutingDiffKind =
+  | "override_added"
+  | "override_removed"
+  | "override_order"
+  | "conditions"
+  | "segments";
+
+export interface MessageRoutingDiffChange {
+  set?: string;
+  message: string;
+  override?: string;
+  kind: MessageRoutingDiffKind;
+  before?: unknown;
+  after?: unknown;
+}
+
+export interface ResolvedMessageDiffChange {
+  set?: string;
+  message: string;
+  override?: string;
+  locale: string;
+  kind: Exclude<MessageDiffKind, "workflow">;
+  before?: string;
+  after?: string;
+  beforeSourceLocale?: string;
+  afterSourceLocale?: string;
+}
+
 export interface MessageDiffResult {
   from: string;
   to: string;
   changes: MessageDiffChange[];
+  routingChanges: MessageRoutingDiffChange[];
+  resolvedChanges?: ResolvedMessageDiffChange[];
   summary: Record<MessageDiffKind, number> & { total: number };
 }
 
@@ -46,6 +76,7 @@ interface DiffProjectOptions {
   from?: string;
   to?: string;
   sets?: string[];
+  resolved?: boolean;
 }
 
 function toArray(value: unknown): string[] {
@@ -211,6 +242,14 @@ async function readMessages(view: ProjectView, set: string) {
   return messages;
 }
 
+async function readLocales(view: ProjectView, set: string) {
+  const datasource = set ? view.datasource.forSet(set) : view.datasource;
+  const locales = new Map<string, Locale>();
+  for (const key of await datasource.listLocales())
+    locales.set(key, await datasource.readLocale(key));
+  return locales;
+}
+
 function equalState(a?: TranslationState, b?: TranslationState) {
   return a?.status === b?.status && a?.sourceHash === b?.sourceHash;
 }
@@ -261,6 +300,7 @@ function addTranslationChanges(
 
 function compareMessage(
   changes: MessageDiffChange[],
+  routingChanges: MessageRoutingDiffChange[],
   set: string,
   messageKey: string,
   before?: Message,
@@ -286,9 +326,42 @@ function compareMessage(
     new Set([...Array.from(beforeOverrides.keys()), ...Array.from(afterOverrides.keys())]),
   ).sort();
 
+  const beforeOrder = (before?.overrides || []).map(({ key }) => key);
+  const afterOrder = (after?.overrides || []).map(({ key }) => key);
+  const commonKeys = new Set(beforeOrder.filter((key) => afterOverrides.has(key)));
+  const beforeCommonOrder = beforeOrder.filter((key) => commonKeys.has(key));
+  const afterCommonOrder = afterOrder.filter((key) => commonKeys.has(key));
+  if (JSON.stringify(beforeCommonOrder) !== JSON.stringify(afterCommonOrder)) {
+    routingChanges.push({
+      ...identity,
+      kind: "override_order",
+      before: beforeCommonOrder,
+      after: afterCommonOrder,
+    });
+  }
+
   for (const override of overrideKeys) {
     const beforeOverride = beforeOverrides.get(override);
     const afterOverride = afterOverrides.get(override);
+    if (!beforeOverride || !afterOverride) {
+      routingChanges.push({
+        ...identity,
+        override,
+        kind: beforeOverride ? "override_removed" : "override_added",
+      });
+    } else {
+      for (const field of ["conditions", "segments"] as const) {
+        if (canonicalJson(beforeOverride[field]) !== canonicalJson(afterOverride[field])) {
+          routingChanges.push({
+            ...identity,
+            override,
+            kind: field,
+            before: beforeOverride[field],
+            after: afterOverride[field],
+          });
+        }
+      }
+    }
     addTranslationChanges(
       changes,
       { ...identity, override },
@@ -296,6 +369,107 @@ function compareMessage(
       afterOverride?.translations,
       beforeOverride?.translationStates,
       afterOverride?.translationStates,
+    );
+  }
+}
+
+function canonicalJson(value: unknown): string {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      return canonicalJson(JSON.parse(trimmed));
+    } catch {
+      // Segment keys and non-JSON strings are compared as authored values.
+    }
+  }
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map(
+        (key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`,
+      )
+      .join(",")}}`;
+  }
+  return typeof value === "undefined" ? "undefined" : JSON.stringify(value);
+}
+
+function resolveTranslation(
+  translations: Record<string, string> | undefined,
+  localeKey: string,
+  locales: Map<string, Locale>,
+) {
+  const seen = new Set<string>();
+  let current: string | undefined = localeKey;
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    if (typeof translations?.[current] !== "undefined") {
+      return { value: translations[current], sourceLocale: current };
+    }
+    current = locales.get(current)?.inheritTranslationsFrom;
+  }
+  return undefined;
+}
+
+function addResolvedTranslationChanges(
+  changes: ResolvedMessageDiffChange[],
+  identity: { set?: string; message: string; override?: string },
+  beforeTranslations: Record<string, string> | undefined,
+  afterTranslations: Record<string, string> | undefined,
+  beforeLocales: Map<string, Locale>,
+  afterLocales: Map<string, Locale>,
+) {
+  const localeKeys = Array.from(
+    new Set([...Array.from(beforeLocales.keys()), ...Array.from(afterLocales.keys())]),
+  ).sort();
+  for (const locale of localeKeys) {
+    const before = resolveTranslation(beforeTranslations, locale, beforeLocales);
+    const after = resolveTranslation(afterTranslations, locale, afterLocales);
+    if (before?.value === after?.value) continue;
+    changes.push({
+      ...identity,
+      locale,
+      kind: !before ? "added" : !after ? "removed" : "modified",
+      ...(before ? { before: before.value, beforeSourceLocale: before.sourceLocale } : {}),
+      ...(after ? { after: after.value, afterSourceLocale: after.sourceLocale } : {}),
+    });
+  }
+}
+
+function compareResolvedMessage(
+  changes: ResolvedMessageDiffChange[],
+  set: string,
+  messageKey: string,
+  beforeLocales: Map<string, Locale>,
+  afterLocales: Map<string, Locale>,
+  before?: Message,
+  after?: Message,
+) {
+  const identity = { ...(set ? { set } : {}), message: messageKey };
+  addResolvedTranslationChanges(
+    changes,
+    identity,
+    before?.translations,
+    after?.translations,
+    beforeLocales,
+    afterLocales,
+  );
+  const beforeOverrides = new Map(
+    (before?.overrides || []).map((override) => [override.key, override]),
+  );
+  const afterOverrides = new Map(
+    (after?.overrides || []).map((override) => [override.key, override]),
+  );
+  for (const override of Array.from(
+    new Set([...Array.from(beforeOverrides.keys()), ...Array.from(afterOverrides.keys())]),
+  ).sort()) {
+    addResolvedTranslationChanges(
+      changes,
+      { ...identity, override },
+      beforeOverrides.get(override)?.translations,
+      afterOverrides.get(override)?.translations,
+      beforeLocales,
+      afterLocales,
     );
   }
 }
@@ -337,6 +511,8 @@ export async function diffProject(options: DiffProjectOptions): Promise<MessageD
     }
 
     const changes: MessageDiffChange[] = [];
+    const routingChanges: MessageRoutingDiffChange[] = [];
+    const resolvedChanges: ResolvedMessageDiffChange[] = [];
     for (const set of sets) {
       const beforeMessages = fromSets.includes(set)
         ? await readMessages(fromView, set)
@@ -344,17 +520,50 @@ export async function diffProject(options: DiffProjectOptions): Promise<MessageD
       const afterMessages = toSets.includes(set)
         ? await readMessages(toView, set)
         : new Map<string, Message>();
+      const beforeLocales =
+        options.resolved && fromSets.includes(set)
+          ? await readLocales(fromView, set)
+          : new Map<string, Locale>();
+      const afterLocales =
+        options.resolved && toSets.includes(set)
+          ? await readLocales(toView, set)
+          : new Map<string, Locale>();
       const messageKeys = Array.from(
         new Set([...Array.from(beforeMessages.keys()), ...Array.from(afterMessages.keys())]),
       ).sort();
       for (const key of messageKeys) {
-        compareMessage(changes, set, key, beforeMessages.get(key), afterMessages.get(key));
+        compareMessage(
+          changes,
+          routingChanges,
+          set,
+          key,
+          beforeMessages.get(key),
+          afterMessages.get(key),
+        );
+        if (options.resolved) {
+          compareResolvedMessage(
+            resolvedChanges,
+            set,
+            key,
+            beforeLocales,
+            afterLocales,
+            beforeMessages.get(key),
+            afterMessages.get(key),
+          );
+        }
       }
     }
 
     const summary = { added: 0, removed: 0, modified: 0, workflow: 0, total: changes.length };
     for (const change of changes) summary[change.kind] += 1;
-    return { from, to, changes, summary };
+    return {
+      from,
+      to,
+      changes,
+      routingChanges,
+      ...(options.resolved ? { resolvedChanges } : {}),
+      summary,
+    };
   } finally {
     if (fromView !== currentView) await fromView.cleanup?.();
     if (toView !== currentView && toView !== fromView) await toView.cleanup?.();
@@ -375,27 +584,69 @@ export function formatMessageDiffMarkdown(result: MessageDiffResult) {
   const lines = [
     `# Messagevisor copy diff`,
     "",
-    `Comparing \`${result.from}\` → \`${result.to}\` (${result.summary.total} change${result.summary.total === 1 ? "" : "s"}).`,
+    `Comparing \`${result.from}\` → \`${result.to}\`.`,
     "",
   ];
-  if (!result.changes.length) return `${lines.join("\n")}No translation or workflow changes.\n`;
-
-  lines.push(
-    "| Set | Message | Override | Locale | Change | Before | After | Workflow |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- |",
-  );
-  for (const change of result.changes) {
+  if (result.changes.length) {
     lines.push(
-      `| ${escapeMarkdown(change.set)} | ${escapeMarkdown(change.message)} | ${escapeMarkdown(change.override)} | ${escapeMarkdown(change.locale)} | ${change.kind} | ${escapeMarkdown(change.before)} | ${escapeMarkdown(change.after)} | ${escapeMarkdown(stateLabel(change.beforeState))} → ${escapeMarkdown(stateLabel(change.afterState))} |`,
+      "## Authored copy",
+      "",
+      "| Set | Message | Override | Locale | Change | Before | After | Workflow |",
+      "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    );
+    for (const change of result.changes) {
+      lines.push(
+        `| ${escapeMarkdown(change.set)} | ${escapeMarkdown(change.message)} | ${escapeMarkdown(change.override)} | ${escapeMarkdown(change.locale)} | ${change.kind} | ${escapeMarkdown(change.before)} | ${escapeMarkdown(change.after)} | ${escapeMarkdown(stateLabel(change.beforeState))} → ${escapeMarkdown(stateLabel(change.afterState))} |`,
+      );
+    }
+    lines.push("");
+  }
+  if (result.routingChanges.length) {
+    lines.push(
+      "## Override routing",
+      "",
+      "| Set | Message | Override | Change | Before | After |",
+      "| --- | --- | --- | --- | --- | --- |",
+    );
+    for (const change of result.routingChanges) {
+      lines.push(
+        `| ${escapeMarkdown(change.set)} | ${escapeMarkdown(change.message)} | ${escapeMarkdown(change.override)} | ${change.kind} | ${escapeMarkdown(renderValue(change.before))} | ${escapeMarkdown(renderValue(change.after))} |`,
+      );
+    }
+    lines.push("");
+  }
+  if (result.resolvedChanges) {
+    lines.push(
+      "## Resolved copy",
+      "",
+      ...(result.resolvedChanges.length
+        ? [
+            "| Set | Message | Override | Locale | Change | Before | After |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
+            ...result.resolvedChanges.map(
+              (change) =>
+                `| ${escapeMarkdown(change.set)} | ${escapeMarkdown(change.message)} | ${escapeMarkdown(change.override)} | ${escapeMarkdown(change.locale)} | ${change.kind} | ${escapeMarkdown(resolvedValue(change.before, change.beforeSourceLocale))} | ${escapeMarkdown(resolvedValue(change.after, change.afterSourceLocale))} |`,
+            ),
+          ]
+        : ["No resolved copy changes."]),
+      "",
     );
   }
+  if (!result.changes.length && !result.routingChanges.length && !result.resolvedChanges?.length)
+    lines.push("No authored copy, workflow, override routing, or resolved copy changes.", "");
   return `${lines.join("\n")}\n`;
+}
+
+function renderValue(value: unknown) {
+  return typeof value === "undefined" ? undefined : JSON.stringify(value);
+}
+
+function resolvedValue(value: string | undefined, sourceLocale: string | undefined) {
+  return typeof value === "undefined" ? undefined : `${value} (${sourceLocale})`;
 }
 
 export function formatMessageDiffTerminal(result: MessageDiffResult) {
   const lines = [`Comparing ${result.from} → ${result.to}`, ""];
-  if (!result.changes.length) return `${lines.join("\n")}No translation or workflow changes.\n`;
-
   for (const change of result.changes) {
     const location = [
       change.set ? `[${change.set}]` : "",
@@ -417,8 +668,39 @@ export function formatMessageDiffTerminal(result: MessageDiffResult) {
     }
     lines.push("");
   }
+  for (const change of result.routingChanges) {
+    const location = [change.set ? `[${change.set}]` : "", change.message, change.override]
+      .filter(Boolean)
+      .join(" · ");
+    lines.push(`ROUTING ${location} · ${change.kind}`);
+    if (typeof change.before !== "undefined") lines.push(`- ${renderValue(change.before)}`);
+    if (typeof change.after !== "undefined") lines.push(`+ ${renderValue(change.after)}`);
+    lines.push("");
+  }
+  for (const change of result.resolvedChanges || []) {
+    const location = [
+      change.set ? `[${change.set}]` : "",
+      change.message,
+      change.override ? `override:${change.override}` : "base",
+      change.locale,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    lines.push(`RESOLVED ${change.kind.toUpperCase()} ${location}`);
+    lines.push(`- ${resolvedValue(change.before, change.beforeSourceLocale) || "∅"}`);
+    lines.push(`+ ${resolvedValue(change.after, change.afterSourceLocale) || "∅"}`, "");
+  }
+  if (!result.changes.length && !result.routingChanges.length && !result.resolvedChanges?.length) {
+    lines.push("No authored copy, workflow, override routing, or resolved copy changes.", "");
+  }
   lines.push(
-    `${result.summary.total} change${result.summary.total === 1 ? "" : "s"}: ${result.summary.added} added, ${result.summary.removed} removed, ${result.summary.modified} modified, ${result.summary.workflow} workflow`,
+    `${result.summary.total} authored change${result.summary.total === 1 ? "" : "s"}: ${result.summary.added} added, ${result.summary.removed} removed, ${result.summary.modified} modified, ${result.summary.workflow} workflow`,
+    `${result.routingChanges.length} override routing change${result.routingChanges.length === 1 ? "" : "s"}`,
+    ...(result.resolvedChanges
+      ? [
+          `${result.resolvedChanges.length} resolved copy change${result.resolvedChanges.length === 1 ? "" : "s"}`,
+        ]
+      : []),
   );
   return `${lines.join("\n")}\n`;
 }
@@ -437,6 +719,7 @@ export const diffPlugin: Plugin = {
       from: parsed.from,
       to: parsed.to,
       sets: toArray(parsed.set),
+      resolved: parsed.resolved === true,
     });
     console.log(
       format === "json"
@@ -453,5 +736,6 @@ export const diffPlugin: Plugin = {
       description: "render a PR-friendly copy diff",
     },
     { command: "diff --from=release --to=feature", description: "compare two branches or refs" },
+    { command: "diff --resolved", description: "include inherited resolved-copy impact" },
   ],
 };

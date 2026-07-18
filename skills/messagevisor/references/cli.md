@@ -268,10 +268,11 @@ npx messagevisor diff --format=markdown
 npx messagevisor diff --from=main --format=markdown
 npx messagevisor diff --from=release --to=feature
 npx messagevisor diff --set=staging --set=production
+npx messagevisor diff --resolved
 npx messagevisor diff --json --pretty
 ```
 
-Use `diff` when humans need to review authored copy rather than YAML structure. With uncommitted project changes it compares `HEAD` to the working tree. When clean it compares `main` or `master` to the current branch. `--from` and `--to` accept explicit branches, tags, commits, remote-tracking refs, or `working-tree`. The report includes base copy, override copy, and translation workflow-state changes. Markdown is suitable for pull requests; JSON is suitable for automation.
+Use `diff` when humans need to review copy and override behavior rather than YAML structure. With uncommitted project changes it compares `HEAD` to the working tree. When clean it compares `main` or `master` to the current branch. `--from` and `--to` accept explicit branches, tags, commits, remote-tracking refs, or `working-tree`. The report includes base copy, override copy, translation workflow-state changes, and override additions/removals/order/condition/segment changes. Add `--resolved` to show effective downstream copy after locale inheritance, including each value's source locale. Markdown is suitable for pull requests; JSON is suitable for automation.
 
 ### `find-duplicates`
 

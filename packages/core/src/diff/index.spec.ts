@@ -141,6 +141,13 @@ describe("diffProject", function () {
         }),
       ]),
     );
+    expect(result.routingChanges).toContainEqual(
+      expect.objectContaining({
+        message: "greeting",
+        override: "formal",
+        kind: "override_removed",
+      }),
+    );
     await fs.promises.rm(root, { recursive: true, force: true });
   });
 
@@ -157,6 +164,152 @@ describe("diffProject", function () {
     expect(result.to).toEqual("release");
     expect(result.changes[0]).toEqual(
       expect.objectContaining({ message: "greeting", before: "Hello", after: "Released copy" }),
+    );
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
+  it("reports override additions, removals, routing expressions, and meaningful order changes", async function () {
+    const root = await createProject();
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello",
+        "overrides:",
+        "  - key: casual",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Hi",
+        "  - key: formal",
+        "    segments:",
+        "      - premium",
+        "    translations:",
+        "      en: Good day",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await diffProject(runtime(root));
+
+    expect(result.routingChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "greeting",
+          override: "casual",
+          kind: "override_added",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          override: "formal",
+          kind: "conditions",
+          before: "*",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          override: "formal",
+          kind: "segments",
+          after: ["premium"],
+        }),
+      ]),
+    );
+    // Adding an override does not count as reordering the overrides that existed on both sides.
+    expect(result.routingChanges).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: "override_order" })]),
+    );
+
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello",
+        "overrides:",
+        "  - key: second",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Second",
+        "  - key: formal",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Good day",
+        "",
+      ].join("\n"),
+    );
+    git(root, "add", ".");
+    git(root, "commit", "-m", "add second override");
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello",
+        "overrides:",
+        "  - key: formal",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Good day",
+        "  - key: second",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Second",
+        "",
+      ].join("\n"),
+    );
+    const reordered = await diffProject(runtime(root));
+    expect(reordered.routingChanges).toContainEqual(
+      expect.objectContaining({
+        kind: "override_order",
+        before: ["second", "formal"],
+        after: ["formal", "second"],
+      }),
+    );
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
+  it("optionally reports downstream resolved-copy changes caused by locale inheritance", async function () {
+    const root = await createProject();
+    await write(root, "locales/en-US.yml", "inheritTranslationsFrom: en\n");
+    git(root, "add", ".");
+    git(root, "commit", "-m", "add inherited locale");
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello there",
+        "overrides:",
+        "  - key: formal",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Greetings",
+        "",
+      ].join("\n"),
+    );
+
+    const authoredOnly = await diffProject(runtime(root));
+    expect(authoredOnly.resolvedChanges).toBeUndefined();
+
+    const result = await diffProject({ ...runtime(root), resolved: true });
+    expect(result.resolvedChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "greeting",
+          locale: "en-US",
+          kind: "modified",
+          before: "Hello",
+          after: "Hello there",
+          beforeSourceLocale: "en",
+          afterSourceLocale: "en",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          override: "formal",
+          locale: "en-US",
+          before: "Good day",
+          after: "Greetings",
+        }),
+      ]),
     );
     await fs.promises.rm(root, { recursive: true, force: true });
   });
@@ -195,6 +348,26 @@ describe("message diff formatting", function () {
     from: "main",
     to: "working-tree",
     summary: { added: 0, removed: 0, modified: 1, workflow: 0, total: 1 },
+    routingChanges: [
+      {
+        message: "checkout.title",
+        override: "returning",
+        kind: "conditions" as const,
+        before: "*",
+        after: [{ attribute: "plan", operator: "equals", value: "pro" }],
+      },
+    ],
+    resolvedChanges: [
+      {
+        message: "checkout.title",
+        locale: "en-US",
+        kind: "modified" as const,
+        before: "Old copy",
+        after: "New copy",
+        beforeSourceLocale: "en",
+        afterSourceLocale: "en",
+      },
+    ],
     changes: [
       {
         message: "checkout.title",
@@ -212,6 +385,12 @@ describe("message diff formatting", function () {
       "MODIFIED checkout.title · override:returning · en",
     );
     expect(formatMessageDiffTerminal(result)).toContain("- Old | copy");
+    expect(formatMessageDiffTerminal(result)).toContain(
+      "ROUTING checkout.title · returning · conditions",
+    );
+    expect(formatMessageDiffTerminal(result)).toContain(
+      "RESOLVED MODIFIED checkout.title · base · en-US",
+    );
   });
 
   it("renders an escaped PR-friendly Markdown table", function () {
@@ -219,5 +398,8 @@ describe("message diff formatting", function () {
     expect(output).toContain("| checkout.title | returning | en | modified |");
     expect(output).toContain("Old \\| copy");
     expect(output).toContain("New<br>copy");
+    expect(output).toContain("## Override routing");
+    expect(output).toContain("## Resolved copy");
+    expect(output).toContain("New copy (en)");
   });
 });

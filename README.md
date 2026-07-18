@@ -124,9 +124,10 @@ npx messagevisor lint
 npx messagevisor evaluate --message=<key> --locale=<locale> --target=<target>
 npx messagevisor test --keyPattern=<key>
 npx messagevisor diff
+npx messagevisor diff --resolved
 ```
 
-`diff` compares `HEAD` with a dirty working tree, or `main`/`master` with the current branch when clean. Use `--from` and `--to` for explicit refs and `--format=markdown` for a PR-friendly translation table.
+`diff` compares `HEAD` with a dirty working tree, or `main`/`master` with the current branch when clean. Use `--from` and `--to` for explicit refs and `--format=markdown` for a PR-friendly report. It reports authored copy, workflow, and override routing changes; add `--resolved` to include downstream locale-inheritance impact.
 
 ## Catalog
 

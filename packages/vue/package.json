@@ -36,12 +36,14 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@messagevisor/sdk": "0.26.0"
+    "@messagevisor/types": "0.26.0"
   },
   "peerDependencies": {
+    "@messagevisor/sdk": ">=0.26.0 <2",
     "vue": ">=3.3.0"
   },
   "devDependencies": {
+    "@messagevisor/sdk": "0.26.0",
     "@vue/test-utils": "^2.4.6",
     "vue": "^3.5.13"
   }

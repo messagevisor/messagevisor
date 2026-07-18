@@ -26,7 +26,6 @@ export interface MessagevisorOptions {
   resolveVariation?: (experimentKey: string, context?: Context) => string | null;
   onDiagnostic?: MessagevisorDiagnosticHandler;
   logLevel?: MessagevisorLogLevel;
-  cache?: MessagevisorCache;
   modules?: MessagevisorModule[];
 }
 
@@ -170,7 +169,7 @@ interface MessagevisorModuleDiagnosticSubscription {
   logLevel: MessagevisorLogLevel;
 }
 
-export interface MessagevisorCache {
+interface MessagevisorCache {
   numberFormat: Record<string, Intl.NumberFormat>;
   dateTimeFormat: Record<string, Intl.DateTimeFormat>;
   relativeTimeFormat: Record<string, Intl.RelativeTimeFormat>;
@@ -290,7 +289,7 @@ function createEmptyRecord<T>() {
   return {} as Record<string, T>;
 }
 
-export function createMessagevisorCache(): MessagevisorCache {
+function createMessagevisorCache(): MessagevisorCache {
   return {
     numberFormat: createEmptyRecord<Intl.NumberFormat>(),
     dateTimeFormat: createEmptyRecord<Intl.DateTimeFormat>(),
@@ -449,7 +448,7 @@ export class Messagevisor {
     this.hasOwnVariationResolver = typeof options.resolveVariation !== "undefined";
     this.logLevel = options.logLevel || "info";
     this.onDiagnostic = options.onDiagnostic;
-    this.cache = parent?.cache || options.cache || createMessagevisorCache();
+    this.cache = parent?.cache || createMessagevisorCache();
     (options.modules || []).forEach((module) => {
       this.addModule(module);
     });

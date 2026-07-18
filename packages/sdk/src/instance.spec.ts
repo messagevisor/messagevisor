@@ -1,6 +1,6 @@
 import type { DatafileContent } from "@messagevisor/types";
 
-import { createMessagevisor, createMessagevisorCache } from "./index";
+import { createMessagevisor } from "./index";
 
 type RichNode = { type: string; children: Array<string | RichNode> };
 
@@ -293,7 +293,6 @@ describe("createMessagevisor", function () {
   });
 
   it("uses per-call locale for defaults and direct formatters before datafiles arrive", function () {
-    const cache = createMessagevisorCache();
     const m = createMessagevisor({
       locale: "en-US",
       defaultTranslations: {
@@ -322,7 +321,6 @@ describe("createMessagevisor", function () {
           },
         },
       },
-      cache,
       logLevel: "fatal",
     });
 
@@ -339,7 +337,6 @@ describe("createMessagevisor", function () {
     expect(m.formatPlural(0, { locale: "ar" })).toEqual("zero");
     expect(m.formatList(["A", "B"], { locale: "nl-NL" })).toContain(" en ");
     expect(m.formatDisplayName("NL", { locale: "nl-NL", type: "region" })).toEqual("Nederland");
-    expect(Object.keys(cache.numberFormat)).toHaveLength(2);
     expect(m.getLocale()).toEqual("en-US");
   });
 
@@ -2446,9 +2443,8 @@ describe("createMessagevisor", function () {
     expect(m.translate("experimentGate")).toEqual("Experiment B");
   });
 
-  it("supports messages catalogs, diagnostics, caching, and formatter parity helpers", function () {
+  it("supports message catalogs, diagnostics, and formatter parity helpers", function () {
     const diagnostics: any[] = [];
-    const cache = createMessagevisorCache();
     const m = createMessagevisor({
       locale: "en-US",
       defaultTranslations: {
@@ -2470,7 +2466,6 @@ describe("createMessagevisor", function () {
         },
       },
       onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
-      cache,
     });
 
     expect(m.formatMessage(m.getRawTranslation("total"), { amount: 1200 })).toEqual(
@@ -2487,8 +2482,6 @@ describe("createMessagevisor", function () {
     expect(m.formatList(["A", "B", "C"])).toContain("A");
     expect(m.formatListToParts(["A", "B"]).length).toBeGreaterThan(0);
     expect(typeof m.formatDisplayName("USD", { type: "currency" })).toBeTruthy();
-    expect(Object.keys(cache.numberFormat).length).toBeGreaterThan(0);
-
     expect(m.getRawTranslation("missing.message")).toEqual("missing.message");
     expect(diagnostics.some((diagnostic) => diagnostic.code === "missing_datafile")).toEqual(true);
   });

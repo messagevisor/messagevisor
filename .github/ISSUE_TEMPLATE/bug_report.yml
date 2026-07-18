@@ -1,0 +1,54 @@
+name: Bug report
+description: Report reproducible incorrect behavior in Messagevisor
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Please use the Security tab instead for vulnerabilities.
+  - type: input
+    id: version
+    attributes:
+      label: Messagevisor version
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - CLI/core
+        - JavaScript SDK
+        - Framework integration
+        - Catalog
+        - Modules
+        - Types
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide a minimal project, repository, or exact commands and definitions.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js/browser/runtime version, package manager, and relevant framework versions.

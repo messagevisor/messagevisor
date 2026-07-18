@@ -5,6 +5,7 @@ export * from "./cli";
 export * from "./config";
 export * from "./create";
 export * from "./datasource";
+export * from "./diff";
 export * from "./examples";
 export * from "./prune";
 export * from "./evaluate";

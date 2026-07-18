@@ -32,7 +32,11 @@ interface Fixture {
     message: string;
     context: Context;
     expected: string;
-    datafile: DatafileContent;
+    datafile?: DatafileContent;
+    locale?: string;
+    defaultTranslations?: Record<string, Record<string, string>>;
+    defaultTranslation?: string;
+    expectedDiagnosticCodes?: string[];
   }>;
   datafiles: {
     invalidDatafileDiagnostic: { code: string; message: string };
@@ -50,6 +54,12 @@ interface Fixture {
     missingLocaleDatafileCode: string;
     missingFormatCode: string;
     invalidFormatCode: string;
+  };
+  events: {
+    stateEventBeforeChange: boolean;
+    changeSources: Array<
+      "datafile_set" | "locale_set" | "context_set" | "currency_set" | "timeZone_set"
+    >;
   };
 }
 
@@ -71,11 +81,33 @@ describe("portable SDK conformance", function () {
     ).toBe(expected);
   });
 
-  test.each(fixture.translations)("$name", function ({ message, context, expected, datafile }) {
-    expect(createMessagevisor({ datafile, context, logLevel: "fatal" }).translate(message)).toBe(
+  test.each(fixture.translations)(
+    "$name",
+    function ({
+      message,
+      context,
       expected,
-    );
-  });
+      datafile,
+      locale,
+      defaultTranslations,
+      defaultTranslation,
+      expectedDiagnosticCodes,
+    }) {
+      const diagnostics: any[] = [];
+      const m = createMessagevisor({
+        datafile,
+        context,
+        locale,
+        defaultTranslations,
+        logLevel: "debug",
+        onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
+      });
+      expect(m.translate(message, undefined, { defaultTranslation })).toBe(expected);
+      for (const code of expectedDiagnosticCodes || []) {
+        expect(diagnostics.map((diagnostic) => diagnostic.code)).toContain(code);
+      }
+    },
+  );
 
   it("executes the portable datafile storage contract", function () {
     const diagnostics: any[] = [];
@@ -225,6 +257,49 @@ describe("portable SDK conformance", function () {
           (diagnostic) => diagnostic.details && typeof diagnostic.details === "object",
         ),
       ).toBe(true);
+    }
+  });
+
+  it("executes the portable state-event ordering and source contract", function () {
+    const m = createMessagevisor({ logLevel: "fatal" });
+    const observed: string[] = [];
+    for (const source of fixture.events.changeSources) {
+      m.on(source, () => observed.push(source));
+    }
+    m.on("change", (event) => observed.push(`change:${event.source}`));
+
+    const datafile: DatafileContent = {
+      schemaVersion: "1",
+      messagevisorVersion: "fixture",
+      revision: "1",
+      target: "web",
+      locale: "en",
+      segments: {},
+      messages: {},
+      translations: {},
+    };
+    m.setDatafile(datafile);
+    m.setDatafile({ ...datafile, locale: "nl", revision: "2" });
+    m.setLocale("nl");
+    m.setContext({ plan: "pro" });
+    m.setCurrency("EUR");
+    m.setTimeZone("UTC");
+
+    if (fixture.events.stateEventBeforeChange) {
+      expect(observed).toEqual([
+        "datafile_set",
+        "change:datafile_set",
+        "datafile_set",
+        "change:datafile_set",
+        "locale_set",
+        "change:locale_set",
+        "context_set",
+        "change:context_set",
+        "currency_set",
+        "change:currency_set",
+        "timeZone_set",
+        "change:timeZone_set",
+      ]);
     }
   });
 });

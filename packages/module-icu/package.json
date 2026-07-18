@@ -36,7 +36,12 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@messagevisor/sdk": "0.26.0",
     "intl-messageformat": "^10.7.16"
+  },
+  "peerDependencies": {
+    "@messagevisor/sdk": ">=0.26.0 <2"
+  },
+  "devDependencies": {
+    "@messagevisor/sdk": "0.26.0"
   }
 }

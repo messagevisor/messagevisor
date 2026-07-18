@@ -35,7 +35,10 @@
     "url": "https://github.com/messagevisor/messagevisor/issues"
   },
   "license": "MIT",
-  "dependencies": {
+  "peerDependencies": {
+    "@messagevisor/sdk": ">=0.26.0 <2"
+  },
+  "devDependencies": {
     "@messagevisor/sdk": "0.26.0"
   }
 }

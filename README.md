@@ -104,6 +104,7 @@ npx messagevisor <command> [options]
 | `info`              | Show entity counts                                                |
 | `lint`              | Validate project definitions                                      |
 | `list`              | Query messages, locales, targets, attributes, segments, and tests |
+| `diff`              | Review authored copy changes between Git states                   |
 | `evaluate`          | Debug one message, raw ICU string, or segment quickly             |
 | `examples`          | Resolve authored message and locale examples                      |
 | `test`              | Run Messagevisor test specs                                       |
@@ -122,7 +123,10 @@ See the [CLI docs](https://messagevisor.com/docs/cli) for all options. The faste
 npx messagevisor lint
 npx messagevisor evaluate --message=<key> --locale=<locale> --target=<target>
 npx messagevisor test --keyPattern=<key>
+npx messagevisor diff
 ```
+
+`diff` compares `HEAD` with a dirty working tree, or `main`/`master` with the current branch when clean. Use `--from` and `--to` for explicit refs and `--format=markdown` for a PR-friendly translation table.
 
 ## Catalog
 

@@ -36,12 +36,14 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@messagevisor/sdk": "0.26.0"
+    "@messagevisor/types": "0.26.0"
   },
   "peerDependencies": {
+    "@messagevisor/sdk": ">=0.26.0 <2",
     "react": ">=16.8.0"
   },
   "devDependencies": {
+    "@messagevisor/sdk": "0.26.0",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "react": "^19.0.0",

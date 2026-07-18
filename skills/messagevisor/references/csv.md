@@ -2,6 +2,8 @@
 
 Messagevisor source stays in Git, but CSV and JSON import/export support work with translators and vendors.
 
+Native XLIFF is not currently built in. If a TMS requires XLIFF, use a project CLI plugin that preserves message/override identity, ICU and rich-text inline content, notes, locale state, and preview-before-apply behavior. Prefer XLIFF 2.0 for new adapters and treat 1.2 as a distinct compatibility format; do not flatten protected placeholders into ordinary text.
+
 ## Safe round trip
 
 ```bash

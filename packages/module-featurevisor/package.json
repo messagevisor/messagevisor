@@ -36,12 +36,14 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@messagevisor/sdk": "0.26.0"
+    "@messagevisor/types": "0.26.0"
   },
   "peerDependencies": {
-    "@featurevisor/sdk": ">=3.0.0 <4"
+    "@featurevisor/sdk": ">=3.0.0 <4",
+    "@messagevisor/sdk": ">=0.26.0 <2"
   },
   "devDependencies": {
-    "@featurevisor/sdk": "^3.0.1"
+    "@featurevisor/sdk": "^3.0.1",
+    "@messagevisor/sdk": "0.26.0"
   }
 }

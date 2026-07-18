@@ -1,6 +1,14 @@
 {
   "version": 1,
   "description": "Language-neutral Messagevisor SDK behavioral contract",
+  "runtimeVariability": {
+    "notGuaranteed": [
+      "locale-specific punctuation and spacing",
+      "localized names and relative-time wording",
+      "CLDR-dependent date, time, number, list, and plural output"
+    ],
+    "policy": "Assert semantic behavior portably; use runtime-specific expectations for legitimate host ICU or CLDR output differences."
+  },
   "conditions": [
     {
       "name": "equals is type strict",
@@ -177,6 +185,80 @@
         "messages": {},
         "translations": { "empty": "" }
       }
+    },
+    {
+      "name": "conditions and segments must both match",
+      "message": "welcome",
+      "context": { "plan": "pro", "platform": "mobile" },
+      "expected": "Base",
+      "datafile": {
+        "schemaVersion": "1",
+        "messagevisorVersion": "fixture",
+        "revision": "1",
+        "target": "web",
+        "locale": "en",
+        "segments": {
+          "web": {
+            "conditions": { "attribute": "platform", "operator": "equals", "value": "web" }
+          }
+        },
+        "messages": {
+          "welcome": {
+            "overrides": [
+              {
+                "key": "pro-web",
+                "conditions": { "attribute": "plan", "operator": "equals", "value": "pro" },
+                "segments": "web",
+                "translation": "Pro web"
+              }
+            ]
+          }
+        },
+        "translations": { "welcome": "Base" }
+      }
+    },
+    {
+      "name": "locale defaults precede the per-call default",
+      "message": "welcome",
+      "context": {},
+      "locale": "en",
+      "defaultTranslations": { "en": { "welcome": "Configured default" } },
+      "defaultTranslation": "Per-call default",
+      "expected": "Configured default"
+    },
+    {
+      "name": "per-call default precedes the message key",
+      "message": "missing",
+      "context": {},
+      "locale": "en",
+      "defaultTranslation": "Per-call default",
+      "expected": "Per-call default",
+      "expectedDiagnosticCodes": ["missing_datafile"]
+    },
+    {
+      "name": "message key is the final fallback",
+      "message": "missing",
+      "context": {},
+      "locale": "en",
+      "expected": "missing",
+      "expectedDiagnosticCodes": ["missing_datafile"]
+    },
+    {
+      "name": "deprecated messages emit a diagnostic",
+      "message": "legacy",
+      "context": {},
+      "expected": "Legacy",
+      "expectedDiagnosticCodes": ["deprecated_message"],
+      "datafile": {
+        "schemaVersion": "1",
+        "messagevisorVersion": "fixture",
+        "revision": "1",
+        "target": "web",
+        "locale": "en",
+        "segments": {},
+        "messages": { "legacy": { "deprecated": true } },
+        "translations": { "legacy": "Legacy" }
+      }
     }
   ],
   "datafiles": {
@@ -205,5 +287,15 @@
     "missingLocaleDatafileCode": "missing_datafile",
     "missingFormatCode": "missing_format",
     "invalidFormatCode": "invalid_format"
+  },
+  "events": {
+    "stateEventBeforeChange": true,
+    "changeSources": [
+      "datafile_set",
+      "locale_set",
+      "context_set",
+      "currency_set",
+      "timeZone_set"
+    ]
   }
 }

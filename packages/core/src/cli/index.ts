@@ -8,6 +8,7 @@ import { benchmarkPlugin } from "../benchmark";
 import { mergeFormats, resolveFormats } from "../builder";
 import { configPlugin } from "../config";
 import { createPlugin } from "../create";
+import { diffPlugin } from "../diff";
 import { prunePlugin } from "../prune";
 import { examplesPlugin, resolveExamples } from "../examples";
 import { evaluatePlugin } from "../evaluate/cli";
@@ -67,6 +68,7 @@ export function getCLIErrorOutput(error: unknown) {
 const projectBasedPlugins = [
   configPlugin,
   createPlugin,
+  diffPlugin,
   prunePlugin,
   examplesPlugin,
   createCatalogPlugin({

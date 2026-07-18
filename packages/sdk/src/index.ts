@@ -1,4 +1,4 @@
-export { createMessagevisor, createMessagevisorCache } from "./instance.js";
+export { createMessagevisor } from "./instance.js";
 export { evaluateCondition, evaluateGroupSegment, evaluateSegment } from "./conditions.js";
 export type { EvaluateOptions as MessagevisorEvaluationDataProvider } from "./conditions.js";
 
@@ -17,7 +17,6 @@ export type {
   MessageValue,
   MessageValues,
   Messagevisor,
-  MessagevisorCache,
   MessagevisorChild,
   MessagevisorDiagnostic,
   MessagevisorDiagnosticCode,

@@ -274,6 +274,7 @@ All `messagevisor` CLI commands are local and safe to run without confirmation. 
 | `npx messagevisor list --locales` / `--targets` / `--segments`   | Other entity lists                          |
 | `npx messagevisor list --datafiles --json`                       | Generated datafile paths and sizes          |
 | `npx messagevisor find-usage --message=<key>`                    | Who references this before rename/removal   |
+| `npx messagevisor diff --format=markdown`                        | Human-readable Git copy review              |
 | `npx messagevisor evaluate --message=<key> --locale=<locale>`    | Evaluate one message end to end             |
 | `npx messagevisor evaluate --rawMessage='...' --locale=<locale>` | Evaluate raw formatting                     |
 | `npx messagevisor evaluate --segment=<key> --context='...'`      | Test a segment                              |

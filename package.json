@@ -19,6 +19,9 @@
     "url": "https://fahad19.com"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@swc/core": "^1.13.5",

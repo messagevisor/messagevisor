@@ -32,6 +32,8 @@ For set projects:
 npx messagevisor generate-code --language typescript --out-dir src/generated --set=production
 ```
 
+Messagevisor does not yet ship an application source extractor. For a lightweight CI check, regenerate committed typed keys, search literal `t("...")`/`translate("...")` calls using the application's actual wrapper names, and compare them with `npx messagevisor list --messages --json`. Report dynamic calls as unknown rather than declaring their possible keys unused. Runtime `deprecated_message` diagnostics remain useful evidence when retiring keys.
+
 ## When to use
 
 Use codegen when:

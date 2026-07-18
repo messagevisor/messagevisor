@@ -28,6 +28,9 @@
     "url": "https://github.com/messagevisor/messagevisor/issues"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "@featurevisor/parsers": "^2.24.0",
     "@featurevisor/sdk": "^3.0.1",

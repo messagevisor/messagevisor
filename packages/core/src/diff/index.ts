@@ -3,12 +3,13 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import type { Locale, Message, TranslationState } from "@messagevisor/types";
+import type { GroupSegment, Locale, Message, Segment, TranslationState } from "@messagevisor/types";
 
 import type { Plugin } from "../cli";
 import { getProjectConfig, type ProjectConfig } from "../config";
 import { Datasource } from "../datasource";
 import { MessagevisorCLIError } from "../error";
+import { resolveLocaleValue } from "../localeResolution";
 
 const tar: any = require("tar");
 
@@ -31,12 +32,15 @@ export type MessageRoutingDiffKind =
   | "override_removed"
   | "override_order"
   | "conditions"
-  | "segments";
+  | "segments"
+  | "segment_definition"
+  | "deprecation";
 
 export interface MessageRoutingDiffChange {
   set?: string;
   message: string;
   override?: string;
+  segment?: string;
   kind: MessageRoutingDiffKind;
   before?: unknown;
   after?: unknown;
@@ -124,6 +128,13 @@ async function refExists(gitRoot: string, ref: string) {
   );
 }
 
+async function isShallowRepository(gitRoot: string) {
+  const result = await run("git", ["rev-parse", "--is-shallow-repository"], gitRoot, {
+    allowFailure: true,
+  });
+  return result.stdout === "true";
+}
+
 async function getDefaultBranchRef(gitRoot: string) {
   for (const ref of ["main", "master", "origin/main", "origin/master"]) {
     if (await refExists(gitRoot, ref)) return ref;
@@ -190,7 +201,12 @@ async function createGitProjectView(
   ref: string,
 ): Promise<ProjectView> {
   if (!(await refExists(gitRoot, ref))) {
-    throw new MessagevisorCLIError(`Unknown Git branch or ref "${ref}".`);
+    const shallowHint = (await isShallowRepository(gitRoot))
+      ? " This is a shallow checkout; fetch the required ref and history first (for GitHub Actions, use checkout with fetch-depth: 0)."
+      : "";
+    throw new MessagevisorCLIError(
+      `Git branch or ref "${ref}" is not available in this checkout.${shallowHint}`,
+    );
   }
 
   const tempRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-diff-"));
@@ -244,10 +260,17 @@ async function readMessages(view: ProjectView, set: string) {
 
 async function readLocales(view: ProjectView, set: string) {
   const datasource = set ? view.datasource.forSet(set) : view.datasource;
-  const locales = new Map<string, Locale>();
-  for (const key of await datasource.listLocales())
-    locales.set(key, await datasource.readLocale(key));
+  const locales: Record<string, Locale> = {};
+  for (const key of await datasource.listLocales()) locales[key] = await datasource.readLocale(key);
   return locales;
+}
+
+async function readSegments(view: ProjectView, set: string) {
+  const datasource = set ? view.datasource.forSet(set) : view.datasource;
+  const segments = new Map<string, Segment>();
+  for (const key of await datasource.listSegments())
+    segments.set(key, await datasource.readSegment(key));
+  return segments;
 }
 
 function equalState(a?: TranslationState, b?: TranslationState) {
@@ -298,6 +321,36 @@ function addTranslationChanges(
   }
 }
 
+function collectReferencedSegmentKeys(
+  expression: GroupSegment | GroupSegment[] | "*" | undefined,
+  result = new Set<string>(),
+) {
+  if (!expression || expression === "*") return result;
+  if (typeof expression === "string") {
+    const trimmed = expression.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        return collectReferencedSegmentKeys(JSON.parse(trimmed), result);
+      } catch {
+        // Treat invalid/string segment expressions as authored segment keys.
+      }
+    }
+    result.add(expression);
+    return result;
+  }
+  if (Array.isArray(expression)) {
+    for (const child of expression) collectReferencedSegmentKeys(child, result);
+    return result;
+  }
+  for (const operator of ["and", "or", "not"] as const) {
+    const children = (expression as unknown as Record<string, GroupSegment[]>)[operator];
+    if (children) {
+      for (const child of children) collectReferencedSegmentKeys(child, result);
+    }
+  }
+  return result;
+}
+
 function compareMessage(
   changes: MessageDiffChange[],
   routingChanges: MessageRoutingDiffChange[],
@@ -305,6 +358,9 @@ function compareMessage(
   messageKey: string,
   before?: Message,
   after?: Message,
+  changedSegments: Set<string> = new Set(),
+  beforeSegments: Map<string, Segment> = new Map(),
+  afterSegments: Map<string, Segment> = new Map(),
 ) {
   const identity = { ...(set ? { set } : {}), message: messageKey };
   addTranslationChanges(
@@ -315,6 +371,23 @@ function compareMessage(
     before?.translationStates,
     after?.translationStates,
   );
+
+  const beforeDeprecation = {
+    deprecated: before?.deprecated,
+    deprecationWarning: before?.deprecationWarning,
+  };
+  const afterDeprecation = {
+    deprecated: after?.deprecated,
+    deprecationWarning: after?.deprecationWarning,
+  };
+  if (canonicalJson(beforeDeprecation) !== canonicalJson(afterDeprecation)) {
+    routingChanges.push({
+      ...identity,
+      kind: "deprecation",
+      before: beforeDeprecation,
+      after: afterDeprecation,
+    });
+  }
 
   const beforeOverrides = new Map(
     (before?.overrides || []).map((override) => [override.key, override]),
@@ -362,6 +435,22 @@ function compareMessage(
         }
       }
     }
+
+    const referencedSegments = new Set([
+      ...Array.from(collectReferencedSegmentKeys(beforeOverride?.segments)),
+      ...Array.from(collectReferencedSegmentKeys(afterOverride?.segments)),
+    ]);
+    for (const segment of Array.from(referencedSegments).sort()) {
+      if (!changedSegments.has(segment)) continue;
+      routingChanges.push({
+        ...identity,
+        override,
+        segment,
+        kind: "segment_definition",
+        before: beforeSegments.get(segment),
+        after: afterSegments.get(segment),
+      });
+    }
     addTranslationChanges(
       changes,
       { ...identity, override },
@@ -394,37 +483,20 @@ function canonicalJson(value: unknown): string {
   return typeof value === "undefined" ? "undefined" : JSON.stringify(value);
 }
 
-function resolveTranslation(
-  translations: Record<string, string> | undefined,
-  localeKey: string,
-  locales: Map<string, Locale>,
-) {
-  const seen = new Set<string>();
-  let current: string | undefined = localeKey;
-  while (current && !seen.has(current)) {
-    seen.add(current);
-    if (typeof translations?.[current] !== "undefined") {
-      return { value: translations[current], sourceLocale: current };
-    }
-    current = locales.get(current)?.inheritTranslationsFrom;
-  }
-  return undefined;
-}
-
 function addResolvedTranslationChanges(
   changes: ResolvedMessageDiffChange[],
   identity: { set?: string; message: string; override?: string },
   beforeTranslations: Record<string, string> | undefined,
   afterTranslations: Record<string, string> | undefined,
-  beforeLocales: Map<string, Locale>,
-  afterLocales: Map<string, Locale>,
+  beforeLocales: Record<string, Locale>,
+  afterLocales: Record<string, Locale>,
 ) {
   const localeKeys = Array.from(
-    new Set([...Array.from(beforeLocales.keys()), ...Array.from(afterLocales.keys())]),
+    new Set([...Object.keys(beforeLocales), ...Object.keys(afterLocales)]),
   ).sort();
   for (const locale of localeKeys) {
-    const before = resolveTranslation(beforeTranslations, locale, beforeLocales);
-    const after = resolveTranslation(afterTranslations, locale, afterLocales);
+    const before = resolveLocaleValue(beforeTranslations, locale, beforeLocales);
+    const after = resolveLocaleValue(afterTranslations, locale, afterLocales);
     if (before?.value === after?.value) continue;
     changes.push({
       ...identity,
@@ -440,8 +512,8 @@ function compareResolvedMessage(
   changes: ResolvedMessageDiffChange[],
   set: string,
   messageKey: string,
-  beforeLocales: Map<string, Locale>,
-  afterLocales: Map<string, Locale>,
+  beforeLocales: Record<string, Locale>,
+  afterLocales: Record<string, Locale>,
   before?: Message,
   after?: Message,
 ) {
@@ -521,13 +593,24 @@ export async function diffProject(options: DiffProjectOptions): Promise<MessageD
         ? await readMessages(toView, set)
         : new Map<string, Message>();
       const beforeLocales =
-        options.resolved && fromSets.includes(set)
-          ? await readLocales(fromView, set)
-          : new Map<string, Locale>();
+        options.resolved && fromSets.includes(set) ? await readLocales(fromView, set) : {};
       const afterLocales =
-        options.resolved && toSets.includes(set)
-          ? await readLocales(toView, set)
-          : new Map<string, Locale>();
+        options.resolved && toSets.includes(set) ? await readLocales(toView, set) : {};
+      const beforeSegments = fromSets.includes(set)
+        ? await readSegments(fromView, set)
+        : new Map<string, Segment>();
+      const afterSegments = toSets.includes(set)
+        ? await readSegments(toView, set)
+        : new Map<string, Segment>();
+      const segmentKeys = new Set([
+        ...Array.from(beforeSegments.keys()),
+        ...Array.from(afterSegments.keys()),
+      ]);
+      const changedSegments = new Set(
+        Array.from(segmentKeys).filter(
+          (key) => canonicalJson(beforeSegments.get(key)) !== canonicalJson(afterSegments.get(key)),
+        ),
+      );
       const messageKeys = Array.from(
         new Set([...Array.from(beforeMessages.keys()), ...Array.from(afterMessages.keys())]),
       ).sort();
@@ -539,6 +622,9 @@ export async function diffProject(options: DiffProjectOptions): Promise<MessageD
           key,
           beforeMessages.get(key),
           afterMessages.get(key),
+          changedSegments,
+          beforeSegments,
+          afterSegments,
         );
         if (options.resolved) {
           compareResolvedMessage(
@@ -605,12 +691,12 @@ export function formatMessageDiffMarkdown(result: MessageDiffResult) {
     lines.push(
       "## Override routing",
       "",
-      "| Set | Message | Override | Change | Before | After |",
-      "| --- | --- | --- | --- | --- | --- |",
+      "| Set | Message | Override | Segment | Change | Before | After |",
+      "| --- | --- | --- | --- | --- | --- | --- |",
     );
     for (const change of result.routingChanges) {
       lines.push(
-        `| ${escapeMarkdown(change.set)} | ${escapeMarkdown(change.message)} | ${escapeMarkdown(change.override)} | ${change.kind} | ${escapeMarkdown(renderValue(change.before))} | ${escapeMarkdown(renderValue(change.after))} |`,
+        `| ${escapeMarkdown(change.set)} | ${escapeMarkdown(change.message)} | ${escapeMarkdown(change.override)} | ${escapeMarkdown(change.segment)} | ${change.kind} | ${escapeMarkdown(renderValue(change.before))} | ${escapeMarkdown(renderValue(change.after))} |`,
       );
     }
     lines.push("");
@@ -669,7 +755,12 @@ export function formatMessageDiffTerminal(result: MessageDiffResult) {
     lines.push("");
   }
   for (const change of result.routingChanges) {
-    const location = [change.set ? `[${change.set}]` : "", change.message, change.override]
+    const location = [
+      change.set ? `[${change.set}]` : "",
+      change.message,
+      change.override,
+      change.segment ? `segment:${change.segment}` : "",
+    ]
       .filter(Boolean)
       .join(" · ");
     lines.push(`ROUTING ${location} · ${change.kind}`);

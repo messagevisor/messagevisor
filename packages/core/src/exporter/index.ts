@@ -6,6 +6,7 @@ import type { Locale, Message, Target, Translation } from "@messagevisor/types";
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
+import { resolveLocaleValue } from "../localeResolution";
 import { getProjectSetExecutions } from "../sets";
 import { matchesPattern, targetIncludesMessage } from "../targeting";
 
@@ -72,20 +73,6 @@ function isAvailable(message: Message) {
   return !message.archived;
 }
 
-function resolveLocaleChain(localeKey: string, locales: Record<string, Locale>) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.inheritTranslationsFrom;
-  }
-
-  return chain;
-}
-
 function resolveTranslationStatus(
   translations: Record<string, Translation> | undefined,
   localeKey: string,
@@ -94,22 +81,10 @@ function resolveTranslationStatus(
   value: string;
   status: TranslationStatus;
 } {
-  if (typeof translations?.[localeKey] !== "undefined") {
-    return {
-      value: translations[localeKey],
-      status: "direct",
-    };
-  }
+  const resolved = resolveLocaleValue(translations, localeKey, locales);
 
-  const candidates = resolveLocaleChain(localeKey, locales).reverse();
-
-  for (const candidate of candidates) {
-    if (translations && typeof translations[candidate] !== "undefined") {
-      return {
-        value: translations[candidate],
-        status: "inherited",
-      };
-    }
+  if (resolved) {
+    return { value: resolved.value, status: resolved.direct ? "direct" : "inherited" };
   }
 
   return {

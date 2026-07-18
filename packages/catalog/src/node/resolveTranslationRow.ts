@@ -12,14 +12,18 @@ export interface ResolvedTranslationRow {
   stale?: boolean;
 }
 
-function resolveLocaleChain(localeKey: string, locales: Record<string, Locale>) {
+export function resolveLocaleChain(
+  localeKey: string,
+  locales: Record<string, Locale>,
+  field: "inheritFormatsFrom" | "inheritTranslationsFrom" = "inheritTranslationsFrom",
+) {
   const chain: string[] = [];
   const seen = new Set<string>();
   let currentKey: string | undefined = localeKey;
   while (currentKey && !seen.has(currentKey)) {
     seen.add(currentKey);
     chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.inheritTranslationsFrom;
+    currentKey = locales[currentKey]?.[field];
   }
   return chain;
 }

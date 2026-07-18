@@ -2,6 +2,8 @@
 
 Messagevisor project configuration lives in `messagevisor.config.js` at the project root. Read it before changing source files, because it controls where the CLI looks, how files are parsed, which modules run, whether sets are enabled, and how keys are derived.
 
+Configuration keys are strict: unsupported or misspelled keys are errors, not ignored metadata.
+
 ## Inspect first
 
 ```bash
@@ -28,7 +30,7 @@ npx messagevisor --rootDirectoryPath=/absolute/path/to/project info
 | `sourceLocale`               | Locale used as the authoring source for translation contract and staleness checks.                                                        |
 | `lintIcu`                    | Enables ICU syntax and named format reference validation during linting. Default is `true`.                                               |
 | `icuSkeleton`                | Allows inline ICU skeleton styles during linting when `true`.                                                                             |
-| `plugins`                    | Extra project-specific CLI commands (`{command, handler}`) appended to the built-ins — for vendor exports, custom reports, publish steps. |
+| `plugins`                    | Extra project-specific CLI commands (`{command, options, handler}`) appended to the built-ins — declare every accepted option in `options`. |
 
 Directory options: `localesDirectoryPath`, `messagesDirectoryPath`, `attributesDirectoryPath`, `segmentsDirectoryPath`, `targetsDirectoryPath`, `testsDirectoryPath`, `datafilesDirectoryPath`, `catalogDirectoryPath`, `exportsDirectoryPath`.
 

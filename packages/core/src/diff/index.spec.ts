@@ -314,6 +314,87 @@ describe("diffProject", function () {
     await fs.promises.rm(root, { recursive: true, force: true });
   });
 
+  it("reports deprecation metadata and referenced segment definition changes", async function () {
+    const root = await createProject();
+    await write(root, "segments/premium.yml", "conditions: '*'\n");
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello",
+        "overrides:",
+        "  - key: formal",
+        "    segments:",
+        "      - premium",
+        "    translations:",
+        "      en: Good day",
+        "",
+      ].join("\n"),
+    );
+    git(root, "add", ".");
+    git(root, "commit", "-m", "add segment routing");
+
+    await write(
+      root,
+      "segments/premium.yml",
+      "conditions:\n  - attribute: plan\n    operator: equals\n    value: premium\n",
+    );
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "deprecated: true",
+        "deprecationWarning: Use greeting.v2",
+        "translations:",
+        "  en: Hello",
+        "overrides:",
+        "  - key: formal",
+        "    segments:",
+        "      - premium",
+        "    translations:",
+        "      en: Good day",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await diffProject(runtime(root));
+
+    expect(result.routingChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "greeting",
+          override: "formal",
+          segment: "premium",
+          kind: "segment_definition",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          kind: "deprecation",
+          after: { deprecated: true, deprecationWarning: "Use greeting.v2" },
+        }),
+      ]),
+    );
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
+  it("explains missing refs in shallow checkouts", async function () {
+    const source = await createProject();
+    await write(source, "messages/greeting.yml", "translations:\n  en: Updated\n");
+    git(source, "add", ".");
+    git(source, "commit", "-m", "second commit");
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-shallow-"));
+    execFileSync("git", ["clone", "--depth=1", `file://${source}`, root], {
+      encoding: "utf8",
+    });
+
+    await expect(diffProject({ ...runtime(root), from: "HEAD~1" })).rejects.toThrow(
+      /shallow checkout.*fetch-depth: 0/,
+    );
+    await fs.promises.rm(source, { recursive: true, force: true });
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
   it("limits a sets project to repeatable selected sets", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-diff-sets-"));
     await write(root, "messagevisor.config.js", "module.exports = { sets: true };\n");

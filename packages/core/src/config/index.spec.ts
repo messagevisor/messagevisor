@@ -27,6 +27,24 @@ describe("getProjectConfig", function () {
     expect(projectConfig.lintIcu).toEqual(false);
   });
 
+  it("rejects unknown configuration options", async function () {
+    const root = await createProject(
+      "module.exports = { unknownOption: true, anotherUnknownOption: false };\n",
+    );
+
+    expect(() => getProjectConfig(root)).toThrow(
+      "Unknown Messagevisor configuration options: anotherUnknownOption, unknownOption.",
+    );
+  });
+
+  it("rejects non-object configuration exports", async function () {
+    const root = await createProject('module.exports = "invalid";\n');
+
+    expect(() => getProjectConfig(root)).toThrow(
+      "Invalid Messagevisor configuration: expected an object export.",
+    );
+  });
+
   it("accepts an optional non-empty sourceLocale", async function () {
     expect(
       getProjectConfig(await createProject("module.exports = {};\n")).sourceLocale,

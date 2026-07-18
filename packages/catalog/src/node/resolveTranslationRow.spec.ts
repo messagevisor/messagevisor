@@ -1,6 +1,6 @@
 import * as crypto from "crypto";
 
-import { resolveTranslationRow } from "./resolveTranslationRow";
+import { resolveLocaleChain, resolveTranslationRow } from "./resolveTranslationRow";
 
 describe("resolveTranslationRow", function () {
   const locales = {
@@ -38,5 +38,25 @@ describe("resolveTranslationRow", function () {
         states: { nl: { status: "reviewed", sourceHash } },
       }),
     ).toEqual(expect.objectContaining({ stale: true }));
+  });
+
+  it("shares cycle-safe inheritance chains for translations and formats", function () {
+    const inheritedLocales = {
+      en: {},
+      "en-GB": { inheritTranslationsFrom: "en", inheritFormatsFrom: "en" },
+      product: { inheritTranslationsFrom: "en-GB", inheritFormatsFrom: "en" },
+    };
+
+    expect(resolveLocaleChain("product", inheritedLocales)).toEqual(["en", "en-GB", "product"]);
+    expect(resolveLocaleChain("product", inheritedLocales, "inheritFormatsFrom")).toEqual([
+      "en",
+      "product",
+    ]);
+    expect(
+      resolveLocaleChain("a", {
+        a: { inheritTranslationsFrom: "b" },
+        b: { inheritTranslationsFrom: "a" },
+      }),
+    ).toEqual(["b", "a"]);
   });
 });

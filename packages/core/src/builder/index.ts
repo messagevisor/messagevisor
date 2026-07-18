@@ -19,6 +19,7 @@ import { SCHEMA_VERSION, ProjectConfig, formatDatafilePath } from "../config";
 import { Datasource } from "../datasource";
 import { mergeFormatPresets } from "../formats";
 import { extractIcuStyleReferences } from "../icuStyleReferences";
+import { resolveLocaleChain, resolveLocaleValue } from "../localeResolution";
 import { formatProjectPath } from "../path";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
@@ -158,24 +159,6 @@ async function readAll<T>(
   return Object.fromEntries(entries);
 }
 
-function resolveLocaleChain(
-  localeKey: string,
-  locales: Record<string, Locale>,
-  field: "inheritFormatsFrom" | "inheritTranslationsFrom",
-) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.[field];
-  }
-
-  return chain;
-}
-
 export function resolveFormats(
   localeKey: string,
   locales: Record<string, Locale>,
@@ -210,21 +193,6 @@ function addUsedIcuFormatPatterns(result: UsedFormatPatterns, translation: strin
     }
 
     result[type] = styles;
-  }
-}
-
-function resolveLocaleValue<T>(
-  values: Record<string, T> | undefined,
-  localeKey: string,
-  locales: Record<string, Locale>,
-) {
-  const chain = resolveLocaleChain(localeKey, locales, "inheritTranslationsFrom");
-  const candidates = chain.reverse();
-
-  for (const candidate of candidates) {
-    if (values && typeof values[candidate] !== "undefined") {
-      return values[candidate];
-    }
   }
 }
 
@@ -368,10 +336,10 @@ async function buildDatafileFromMessageKeys(
       continue;
     }
 
-    translations[key] = translation;
+    translations[key] = translation.value;
 
     if (target?.includeOnlyUsedFormats) {
-      addUsedIcuFormatPatterns(usedFormatPatterns, translation);
+      addUsedIcuFormatPatterns(usedFormatPatterns, translation.value);
     }
 
     const overrides = (message.overrides || [])
@@ -384,7 +352,7 @@ async function buildDatafileFromMessageKeys(
 
         const targetedOverride: MessageOverride = {
           key: override.key,
-          translation: overrideTranslation,
+          translation: overrideTranslation.value,
         };
 
         if (override.conditions) {
@@ -430,7 +398,7 @@ async function buildDatafileFromMessageKeys(
         }
 
         if (target?.includeOnlyUsedFormats) {
-          addUsedIcuFormatPatterns(usedFormatPatterns, overrideTranslation);
+          addUsedIcuFormatPatterns(usedFormatPatterns, overrideTranslation.value);
         }
 
         return targetedOverride;

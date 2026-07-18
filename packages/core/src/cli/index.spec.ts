@@ -1,5 +1,6 @@
 import { MessagevisorCLIError } from "../error";
 
+import type { Plugin } from "./index";
 import { getCLIErrorOutput, runCLI } from "./index";
 
 describe("getCLIErrorOutput", function () {
@@ -50,5 +51,55 @@ describe("runCLI", function () {
     });
 
     expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("rejects unknown command options before invoking a handler", async function () {
+    process.argv = ["node", "messagevisor", "strict-command", "--typo=true"];
+    const handler = jest.fn(async () => undefined);
+    const exitSpy = jest.spyOn(process, "exit").mockImplementation(() => undefined as never);
+
+    await runCLI({
+      rootDirectoryPath: "/tmp/messagevisor-test",
+      projectConfig: {
+        plugins: [{ command: "strict-command", handler, examples: [] }],
+      } as any,
+      datasource: {} as any,
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("accepts options declared by custom plugins", async function () {
+    process.argv = [
+      "node",
+      "messagevisor",
+      "custom-command",
+      "--dry-run",
+      "--locale=en",
+      "--locale=nl",
+    ];
+    const handler = jest.fn(async () => undefined);
+    const plugin: Plugin = {
+      command: "custom-command",
+      options: {
+        dryRun: { type: "boolean" },
+        locale: { type: "array" },
+      },
+      handler,
+      examples: [],
+    };
+
+    await runCLI({
+      rootDirectoryPath: "/tmp/messagevisor-test",
+      projectConfig: { plugins: [plugin] } as any,
+      datasource: {} as any,
+    });
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parsed: expect.objectContaining({ dryRun: true, locale: ["en", "nl"] }),
+      }),
+    );
   });
 });

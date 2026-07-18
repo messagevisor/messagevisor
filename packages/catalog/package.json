@@ -13,9 +13,7 @@
   },
   "files": [
     "dist",
-    "lib",
-    "src",
-    "package.json"
+    "lib"
   ],
   "scripts": {
     "transpile": "rimraf lib && tsc --project tsconfig.cjs.json",

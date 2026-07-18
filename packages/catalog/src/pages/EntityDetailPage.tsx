@@ -40,6 +40,17 @@ import { GroupSegmentTree } from "../components/details/GroupSegmentTree";
 import { MarkdownContent } from "../components/details/MarkdownContent";
 import { TranslationsTable } from "../components/details/TranslationsTable";
 import { UsageLinks } from "../components/details/UsageLinks";
+import {
+  DescriptionField,
+  EntityStatusBadges,
+  hasEntityStatus,
+  LinkedEntityChips,
+  OverviewChip,
+  OverviewMetaPanel,
+  OverviewMetaRow,
+  OverviewPlaceholder,
+  SourceLocaleLink,
+} from "../components/details/Overview";
 import { HistoryTimeline } from "../components/history/HistoryTimeline";
 import { useCatalog } from "../context/CatalogContext";
 import { hashTranslationValue } from "../utils/hashTranslationValue";
@@ -1242,146 +1253,6 @@ function FormatRowsTable(props: {
   );
 }
 
-function SourceLocaleLink(props: { localeKey: string }) {
-  const { setKey } = useEntityDetail();
-
-  return (
-    <Link
-      to={getEntityRoute("locale", props.localeKey, setKey)}
-      className="font-medium text-primary hover:underline"
-    >
-      {props.localeKey}
-    </Link>
-  );
-}
-
-function LinkedTargetBadges(props: { targetKeys?: string[]; setKey?: string }) {
-  const targetKeys = props.targetKeys || [];
-
-  if (targetKeys.length === 0) {
-    return null;
-  }
-
-  return (
-    <>
-      {targetKeys.map((targetKey) => (
-        <OverviewChipLink key={targetKey} to={getEntityRoute("target", targetKey, props.setKey)}>
-          {targetKey}
-        </OverviewChipLink>
-      ))}
-    </>
-  );
-}
-
-function OverviewChip(props: { children: React.ReactNode; className?: string }) {
-  return (
-    <span
-      className={[
-        "inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs text-text",
-        props.className || "",
-      ].join(" ")}
-    >
-      {props.children}
-    </span>
-  );
-}
-
-function OverviewPlaceholder(props: { children: React.ReactNode }) {
-  return <span className="text-xs italic text-faint">{props.children}</span>;
-}
-
-function OverviewChipLink(props: { to: string; children: React.ReactNode }) {
-  return (
-    <Link
-      to={props.to}
-      className="inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs font-medium text-primary hover:underline"
-    >
-      {props.children}
-    </Link>
-  );
-}
-
-function OverviewMetaPanel(props: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl bg-elevated px-5 py-4">
-      <dl className="space-y-3.5">{props.children}</dl>
-    </div>
-  );
-}
-
-function OverviewMetaRow(props: { label: string; children?: React.ReactNode }) {
-  if (!props.children) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-5">
-      <dt className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-faint sm:w-[7rem]">
-        {props.label}
-      </dt>
-      <dd className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
-        {props.children}
-      </dd>
-    </div>
-  );
-}
-
-function DescriptionField(props: {
-  title?: string;
-  value?: string;
-  fallback?: string;
-  showTopDivider?: boolean;
-}) {
-  const showTopDivider = props.showTopDivider !== false;
-
-  return (
-    <div className={showTopDivider ? "border-t border-border pt-6" : undefined}>
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-faint">
-        {props.title || "Description"}
-      </div>
-      <div className="mt-2 min-w-0 text-sm [overflow-wrap:anywhere]">
-        <MarkdownContent value={props.value || props.fallback} />
-      </div>
-    </div>
-  );
-}
-
-function EntityStatusBadges(props: { entity: Record<string, any> }) {
-  if (!hasEntityStatus(props.entity)) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {props.entity.archived === true && <Badge tone="danger">archived</Badge>}
-      {props.entity.deprecated === true && <Badge tone="warning">deprecated</Badge>}
-      {props.entity.promotable === false && <Badge>not promotable</Badge>}
-    </div>
-  );
-}
-
-function hasEntityStatus(entity: Record<string, any>) {
-  return entity.archived === true || entity.deprecated === true || entity.promotable === false;
-}
-
-function LinkedLocaleChips(props: { localeKeys?: string[]; setKey?: string }) {
-  const localeKeys = props.localeKeys || [];
-
-  if (localeKeys.length === 0) {
-    return null;
-  }
-
-  return (
-    <>
-      {localeKeys.map((localeKey) => (
-        <OverviewChipLink key={localeKey} to={getEntityRoute("locale", localeKey, props.setKey)}>
-          {localeKey}
-        </OverviewChipLink>
-      ))}
-    </>
-  );
-}
-
 export function EntityDetailPage() {
   const { entityPath, entityKey, setKey } = useParams();
   const [detail, setDetail] = React.useState<EntityDetail | null>(null);
@@ -1600,7 +1471,7 @@ function getOverviewMetaRows(
       {
         label: "Targets",
         value: targetKeys?.length ? (
-          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+          <LinkedEntityChips type="target" keys={targetKeys} setKey={setKey} />
         ) : undefined,
       },
       promotableField,
@@ -1618,7 +1489,7 @@ function getOverviewMetaRows(
       {
         label: "Targets",
         value: targetKeys?.length ? (
-          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+          <LinkedEntityChips type="target" keys={targetKeys} setKey={setKey} />
         ) : undefined,
       },
     ]);
@@ -1644,7 +1515,7 @@ function getOverviewMetaRows(
       {
         label: "Targets",
         value: targetKeys?.length ? (
-          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+          <LinkedEntityChips type="target" keys={targetKeys} setKey={setKey} />
         ) : undefined,
       },
       promotableField,
@@ -1673,7 +1544,7 @@ function getOverviewMetaRows(
       {
         label: "Targets",
         value: targetKeys?.length ? (
-          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+          <LinkedEntityChips type="target" keys={targetKeys} setKey={setKey} />
         ) : undefined,
       },
     ]);
@@ -1696,7 +1567,7 @@ function getOverviewMetaRows(
     {
       label: "Locales",
       value: localeKeys?.length ? (
-        <LinkedLocaleChips localeKeys={localeKeys} setKey={setKey} />
+        <LinkedEntityChips type="locale" keys={localeKeys} setKey={setKey} />
       ) : undefined,
     },
   ]);
@@ -2398,7 +2269,7 @@ function MessageExampleDetails(props: {
     <div className="min-w-0 space-y-4">
       {props.showLocale !== false && (
         <InputField label="Locale">
-          <SourceLocaleLink localeKey={example.locale} />
+          <SourceLocaleLink localeKey={example.locale} setKey={setKey} />
         </InputField>
       )}
 
@@ -2722,7 +2593,7 @@ function LocaleExampleDetails(props: {
         <SearchHighlight text={localeKey} query={q} />
       </Link>
     ) : (
-      <SourceLocaleLink localeKey={localeKey} />
+      <SourceLocaleLink localeKey={localeKey} setKey={setKey} />
     );
   }
 

@@ -142,6 +142,44 @@ describe("Intl formatter helpers", function () {
     dateTimeFormatSpy.mockRestore();
   });
 
+  it("canonicalizes formatter cache keys regardless of option property order", function () {
+    const NumberFormat = Intl.NumberFormat;
+    const numberFormatSpy = jest.spyOn(Intl, "NumberFormat").mockImplementation(function (
+      locale,
+      options,
+    ) {
+      return new NumberFormat(locale, options);
+    } as typeof Intl.NumberFormat);
+    const m = createMessagevisor({ datafile, logLevel: "fatal" });
+
+    m.formatNumber(12, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    m.formatNumber(12, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+
+    expect(numberFormatSpy).toHaveBeenCalledTimes(1);
+    numberFormatSpy.mockRestore();
+  });
+
+  it("bounds each formatter cache and evicts its oldest entry", function () {
+    const NumberFormat = Intl.NumberFormat;
+    const numberFormatSpy = jest.spyOn(Intl, "NumberFormat").mockImplementation(function (
+      locale,
+      options,
+    ) {
+      return new NumberFormat(locale, options);
+    } as typeof Intl.NumberFormat);
+    const m = createMessagevisor({ datafile, logLevel: "fatal" });
+    const currency = (index: number) =>
+      String.fromCharCode(65 + Math.floor(index / 26), 65 + (index % 26), 65);
+
+    for (let i = 0; i <= 100; i++) {
+      m.formatNumber(12, { style: "currency", currency: currency(i) });
+    }
+    m.formatNumber(12, { style: "currency", currency: currency(0) });
+
+    expect(numberFormatSpy).toHaveBeenCalledTimes(102);
+    numberFormatSpy.mockRestore();
+  });
+
   it("falls back to default Intl options for unknown presets", function () {
     const m = createMessagevisor({ datafile, logLevel: "fatal" });
 

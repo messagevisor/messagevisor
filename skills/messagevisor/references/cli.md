@@ -272,7 +272,7 @@ npx messagevisor diff --resolved
 npx messagevisor diff --json --pretty
 ```
 
-Use `diff` when humans need to review copy and override behavior rather than YAML structure. With uncommitted project changes it compares `HEAD` to the working tree. When clean it compares `main` or `master` to the current branch. `--from` and `--to` accept explicit branches, tags, commits, remote-tracking refs, or `working-tree`. The report includes base copy, override copy, translation workflow-state changes, and override additions/removals/order/condition/segment changes. Add `--resolved` to show effective downstream copy after locale inheritance, including each value's source locale. Markdown is suitable for pull requests; JSON is suitable for automation.
+Use `diff` when humans need to review copy and override behavior rather than YAML structure. With uncommitted project changes it compares `HEAD` to the working tree. When clean it compares `main` or `master` to the current branch. `--from` and `--to` accept explicit branches, tags, commits, remote-tracking refs, or `working-tree`. The report includes base copy, override copy, translation workflow-state and deprecation changes, plus override additions/removals/order/condition/segment changes and changes to referenced Segment definitions. Add `--resolved` to show effective downstream copy after locale inheritance, including each value's source locale. Markdown is suitable for pull requests; JSON is suitable for automation. Requested refs must exist locally; use a full-history checkout (`fetch-depth: 0` in GitHub Actions) when a shallow clone does not contain the comparison base. Target-context specialization is not expanded into per-target rows.
 
 ### `find-duplicates`
 

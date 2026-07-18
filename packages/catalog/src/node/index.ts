@@ -17,9 +17,18 @@ import type {
   Segment,
   Test,
 } from "@messagevisor/types";
-import { resolveTranslationRow, type ResolvedTranslationRow } from "./resolveTranslationRow";
+import {
+  resolveLocaleChain,
+  resolveTranslationRow,
+  type ResolvedTranslationRow,
+} from "./resolveTranslationRow";
 
 import { attachFormatExamplePreviews } from "./formatExamplePreview";
+import {
+  filterCatalogSetExecutions,
+  normalizeSelectedSets,
+  sortCatalogSetKeys,
+} from "./setSelection";
 
 const CLI_FORMAT_GREEN = "\x1b[32m%s\x1b[0m";
 const CLI_FORMAT_DIM = "\x1b[2m%s\x1b[0m";
@@ -616,24 +625,6 @@ function flattenObjectRows(value: unknown, prefix = ""): { path: string; value: 
   }
 
   return rows;
-}
-
-function resolveLocaleChain(
-  localeKey: string,
-  locales: Record<string, Locale>,
-  field: "inheritFormatsFrom" | "inheritTranslationsFrom",
-) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.[field];
-  }
-
-  return chain;
 }
 
 function getLocaleFormatSource(
@@ -2061,63 +2052,6 @@ async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
 
 function getOutputRelativeDirectory(projectConfig: any, set?: string) {
   return projectConfig.sets ? path.join("sets", set || "") : "root";
-}
-
-function normalizeSelectedSets(values: unknown): string[] {
-  const rawValues = Array.isArray(values) ? values : typeof values === "undefined" ? [] : [values];
-  const selectedSets = rawValues
-    .flatMap((value) => (typeof value === "string" ? [value] : []))
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  return Array.from(new Set(selectedSets));
-}
-
-function filterCatalogSetExecutions(
-  executions: Array<{ set: string; projectConfig: any; datasource: any }>,
-  selectedSets: string[] | undefined,
-) {
-  if (!selectedSets || selectedSets.length === 0) {
-    return executions;
-  }
-
-  const selectedSet = new Set(selectedSets);
-  const filtered = executions.filter((execution) => selectedSet.has(execution.set));
-  const missingSets = selectedSets.filter(
-    (set) => !executions.some((execution) => execution.set === set),
-  );
-
-  if (missingSets.length > 0) {
-    throw new Error(`Catalog set not found: ${missingSets.join(", ")}`);
-  }
-
-  return filtered;
-}
-
-function getCatalogSetSortRank(set: string) {
-  const normalizedSet = set.toLowerCase();
-
-  if (normalizedSet.startsWith("dev")) {
-    return 0;
-  }
-
-  if (normalizedSet.startsWith("prod")) {
-    return 2;
-  }
-
-  return 1;
-}
-
-function sortCatalogSetKeys(setKeys: string[]) {
-  return [...setKeys].sort((a, b) => {
-    const rankDiff = getCatalogSetSortRank(a) - getCatalogSetSortRank(b);
-
-    if (rankDiff !== 0) {
-      return rankDiff;
-    }
-
-    return a.localeCompare(b);
-  });
 }
 
 function getDataOutputDirectoryPath(session: CatalogDevSession, projectConfig: any, set?: string) {

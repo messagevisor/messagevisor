@@ -176,6 +176,7 @@ interface MessagevisorCache {
   pluralRules: Record<string, Intl.PluralRules>;
   listFormat: Record<string, any>;
   displayNames: Record<string, any>;
+  order: Record<keyof Omit<MessagevisorCache, "order">, string[]>;
 }
 
 export type MessagevisorEventName =
@@ -274,6 +275,7 @@ export type MessagevisorChild = Omit<
 
 const DEFAULT_CURRENCY = "USD";
 const LOG_PREFIX = "[Messagevisor]";
+const FORMATTER_CACHE_LIMIT = 100;
 
 class MessagevisorCloseError extends Error {
   public readonly errors: unknown[];
@@ -297,7 +299,33 @@ function createMessagevisorCache(): MessagevisorCache {
     pluralRules: createEmptyRecord<Intl.PluralRules>(),
     listFormat: createEmptyRecord<any>(),
     displayNames: createEmptyRecord<any>(),
+    order: {
+      numberFormat: [],
+      dateTimeFormat: [],
+      relativeTimeFormat: [],
+      pluralRules: [],
+      listFormat: [],
+      displayNames: [],
+    },
   };
+}
+
+function getFormatterCacheKey(locale: string, options: Record<string, any>) {
+  var keys = Object.keys(options).sort();
+  var parts = [locale];
+  for (var i = 0; i < keys.length; i++) {
+    parts.push(keys[i], JSON.stringify(options[keys[i]]));
+  }
+  return parts.join("|");
+}
+
+function cacheFormatter<T>(values: Record<string, T>, order: string[], key: string, formatter: T) {
+  if (order.length >= FORMATTER_CACHE_LIMIT) {
+    delete values[order.shift() as string];
+  }
+  order.push(key);
+  values[key] = formatter;
+  return formatter;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -1179,14 +1207,16 @@ export class Messagevisor {
   }
 
   private getCachedNumberFormat(locale: LocaleKey, options: Intl.NumberFormatOptions) {
-    var cacheKey = JSON.stringify({
-      locale,
-      options,
-    });
+    var cacheKey = getFormatterCacheKey(locale, options);
 
     if (!this.cache.numberFormat[cacheKey]) {
       try {
-        this.cache.numberFormat[cacheKey] = new Intl.NumberFormat(locale, options);
+        cacheFormatter(
+          this.cache.numberFormat,
+          this.cache.order.numberFormat,
+          cacheKey,
+          new Intl.NumberFormat(locale, options),
+        );
       } catch (error) {
         this.reportDiagnostic({
           level: "error",
@@ -1203,14 +1233,16 @@ export class Messagevisor {
   }
 
   private getCachedDateTimeFormat(locale: LocaleKey, options: Intl.DateTimeFormatOptions) {
-    var cacheKey = JSON.stringify({
-      locale,
-      options,
-    });
+    var cacheKey = getFormatterCacheKey(locale, options);
 
     if (!this.cache.dateTimeFormat[cacheKey]) {
       try {
-        this.cache.dateTimeFormat[cacheKey] = new Intl.DateTimeFormat(locale, options);
+        cacheFormatter(
+          this.cache.dateTimeFormat,
+          this.cache.order.dateTimeFormat,
+          cacheKey,
+          new Intl.DateTimeFormat(locale, options),
+        );
       } catch (error) {
         this.reportDiagnostic({
           level: "error",
@@ -1230,14 +1262,16 @@ export class Messagevisor {
     locale: LocaleKey,
     options: Intl.RelativeTimeFormatOptions = {},
   ) {
-    var cacheKey = JSON.stringify({
-      locale,
-      options,
-    });
+    var cacheKey = getFormatterCacheKey(locale, options);
 
     if (!this.cache.relativeTimeFormat[cacheKey]) {
       try {
-        this.cache.relativeTimeFormat[cacheKey] = new Intl.RelativeTimeFormat(locale, options);
+        cacheFormatter(
+          this.cache.relativeTimeFormat,
+          this.cache.order.relativeTimeFormat,
+          cacheKey,
+          new Intl.RelativeTimeFormat(locale, options),
+        );
       } catch (error) {
         this.reportDiagnostic({
           level: "error",
@@ -1800,14 +1834,16 @@ export class Messagevisor {
   ) {
     const { locale: optionLocale, ...pluralOptions } = options;
     const locale = this.getCurrentLocale({ locale: optionLocale });
-    var cacheKey = JSON.stringify({
-      locale,
-      options: pluralOptions,
-    });
+    var cacheKey = getFormatterCacheKey(locale, pluralOptions);
 
     if (!this.cache.pluralRules[cacheKey]) {
       try {
-        this.cache.pluralRules[cacheKey] = new Intl.PluralRules(locale, pluralOptions);
+        cacheFormatter(
+          this.cache.pluralRules,
+          this.cache.order.pluralRules,
+          cacheKey,
+          new Intl.PluralRules(locale, pluralOptions),
+        );
       } catch (error) {
         this.reportDiagnostic({
           level: "error",
@@ -1826,10 +1862,7 @@ export class Messagevisor {
   formatList(values: Array<string>, options: any = {}) {
     const { locale: optionLocale, ...listOptions } = options || {};
     const locale = this.getCurrentLocale({ locale: optionLocale });
-    var cacheKey = JSON.stringify({
-      locale,
-      options: listOptions,
-    });
+    var cacheKey = getFormatterCacheKey(locale, listOptions);
     var ListFormat = (Intl as any).ListFormat;
 
     if (!ListFormat) {
@@ -1845,7 +1878,12 @@ export class Messagevisor {
 
     if (!this.cache.listFormat[cacheKey]) {
       try {
-        this.cache.listFormat[cacheKey] = new ListFormat(locale, listOptions);
+        cacheFormatter(
+          this.cache.listFormat,
+          this.cache.order.listFormat,
+          cacheKey,
+          new ListFormat(locale, listOptions),
+        );
       } catch (error) {
         this.reportDiagnostic({
           level: "error",
@@ -1864,10 +1902,7 @@ export class Messagevisor {
   formatListToParts(values: Array<string>, options: any = {}) {
     const { locale: optionLocale, ...listOptions } = options || {};
     const locale = this.getCurrentLocale({ locale: optionLocale });
-    var cacheKey = JSON.stringify({
-      locale,
-      options: listOptions,
-    });
+    var cacheKey = getFormatterCacheKey(locale, listOptions);
     var ListFormat = (Intl as any).ListFormat;
 
     if (!ListFormat) {
@@ -1883,7 +1918,12 @@ export class Messagevisor {
 
     if (!this.cache.listFormat[cacheKey]) {
       try {
-        this.cache.listFormat[cacheKey] = new ListFormat(locale, listOptions);
+        cacheFormatter(
+          this.cache.listFormat,
+          this.cache.order.listFormat,
+          cacheKey,
+          new ListFormat(locale, listOptions),
+        );
       } catch (error) {
         this.reportDiagnostic({
           level: "error",
@@ -1906,10 +1946,7 @@ export class Messagevisor {
   formatDisplayName(value: string, options: any = {}) {
     const { locale: optionLocale, ...displayNameOptions } = options || {};
     const locale = this.getCurrentLocale({ locale: optionLocale });
-    var cacheKey = JSON.stringify({
-      locale,
-      options: displayNameOptions,
-    });
+    var cacheKey = getFormatterCacheKey(locale, displayNameOptions);
     var DisplayNames = (Intl as any).DisplayNames;
 
     if (!DisplayNames) {
@@ -1925,7 +1962,12 @@ export class Messagevisor {
 
     if (!this.cache.displayNames[cacheKey]) {
       try {
-        this.cache.displayNames[cacheKey] = new DisplayNames(locale, displayNameOptions);
+        cacheFormatter(
+          this.cache.displayNames,
+          this.cache.order.displayNames,
+          cacheKey,
+          new DisplayNames(locale, displayNameOptions),
+        );
       } catch (error) {
         this.reportDiagnostic({
           level: "error",

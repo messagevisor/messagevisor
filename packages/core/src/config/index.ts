@@ -90,6 +90,23 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
   };
 
   const customConfig = require(path.join(rootDirectoryPath, CONFIG_MODULE_NAME));
+
+  if (typeof customConfig !== "object" || customConfig === null || Array.isArray(customConfig)) {
+    throw new Error("Invalid Messagevisor configuration: expected an object export.");
+  }
+
+  const unknownConfigKeys = Object.keys(customConfig).filter(
+    (key) => !Object.prototype.hasOwnProperty.call(baseConfig, key),
+  );
+
+  if (unknownConfigKeys.length > 0) {
+    throw new Error(
+      `Unknown Messagevisor configuration option${unknownConfigKeys.length === 1 ? "" : "s"}: ${unknownConfigKeys
+        .sort()
+        .join(", ")}.`,
+    );
+  }
+
   const mergedConfig: Record<string, any> = {};
 
   Object.keys(baseConfig).forEach((key) => {

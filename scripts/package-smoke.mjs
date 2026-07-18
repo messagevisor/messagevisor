@@ -44,12 +44,30 @@ try {
         encoding: "utf8",
       }),
     );
+    const packedFiles = output[0].files.map(({ path }) => path);
+    const unwantedFiles = packedFiles.filter(
+      (file) =>
+        file.endsWith(".DS_Store") ||
+        file.endsWith(".spec.ts") ||
+        (directory !== "types" && (file === "src" || file.startsWith("src/"))),
+    );
+    if (unwantedFiles.length > 0) {
+      throw new Error(
+        `${directory} contains source/test files that should not be published: ${unwantedFiles.join(", ")}`,
+      );
+    }
     const tarball = join(temporaryRoot, output[0].filename);
     const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
     const destination = join(modulesRoot, manifest.name);
     mkdirSync(destination, { recursive: true });
     execFileSync("tar", ["-xzf", tarball, "--strip-components=1", "-C", destination]);
     manifests.push(manifest);
+  }
+
+  for (const manifest of manifests.filter(({ name }) => name.startsWith("@messagevisor/module-"))) {
+    if (manifest.dependencies?.["@messagevisor/sdk"]) {
+      throw new Error(`${manifest.name} must declare @messagevisor/sdk as a peerDependency.`);
+    }
   }
 
   for (const manifest of manifests) {

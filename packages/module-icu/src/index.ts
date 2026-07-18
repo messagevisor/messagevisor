@@ -11,7 +11,10 @@ export interface ICUModuleOptions {
 
 interface ICUModuleCache {
   messageFormat: Record<string, IntlMessageFormat>;
+  order: string[];
 }
+
+const MESSAGE_FORMAT_CACHE_LIMIT = 100;
 
 function createEmptyRecord<T>() {
   return {} as Record<string, T>;
@@ -20,11 +23,23 @@ function createEmptyRecord<T>() {
 function createICUModuleCache(): ICUModuleCache {
   return {
     messageFormat: createEmptyRecord<IntlMessageFormat>(),
+    order: [],
   };
 }
 
+function canonicalJson(value: any): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function getCacheKey(payload: MessagevisorFormatPayload, ignoreTags: boolean) {
-  return JSON.stringify({
+  return canonicalJson({
     locale: payload.locale,
     translation: payload.translation,
     formats: payload.formats,
@@ -40,6 +55,10 @@ function getCachedIntlMessageFormat<T>(
   const cacheKey = getCacheKey(payload, ignoreTags);
 
   if (!cache.messageFormat[cacheKey]) {
+    if (cache.order.length >= MESSAGE_FORMAT_CACHE_LIMIT) {
+      delete cache.messageFormat[cache.order.shift() as string];
+    }
+    cache.order.push(cacheKey);
     cache.messageFormat[cacheKey] = new IntlMessageFormat(
       String(payload.translation),
       payload.locale,

@@ -27,6 +27,7 @@ import { getProjectSetExecutions } from "../sets";
 import { testPlugin } from "../tester";
 import { expandTestAssertions } from "../tester/matrix";
 import { formatMessagevisorCLIError, getMessagevisorCLIErrorMessage } from "../error";
+import { getBuiltinCLIOptions, type CLIOptionDefinitions } from "./options";
 
 export interface ParsedOptions {
   _: string[];
@@ -42,6 +43,7 @@ export interface PluginHandlerOptions {
 
 export interface Plugin {
   command: string;
+  options?: CLIOptionDefinitions;
   handler: (options: PluginHandlerOptions) => Promise<void | boolean>;
   examples: {
     command: string;
@@ -99,7 +101,13 @@ const nonProjectPlugins = [initPlugin];
 
 export async function runCLI(runnerOptions: RunnerOptions) {
   const yargs = require("yargs");
-  let y = yargs(process.argv.slice(2)).usage("Usage: $0 <command> [options]");
+  let y = yargs(process.argv.slice(2))
+    .usage("Usage: $0 <command> [options]")
+    .option("rootDirectoryPath", {
+      type: "string",
+      description: "Messagevisor project directory",
+    })
+    .strictOptions();
   const registeredSubcommands: string[] = [];
   const { rootDirectoryPath, projectConfig, datasource } = runnerOptions;
 
@@ -112,6 +120,11 @@ export async function runCLI(runnerOptions: RunnerOptions) {
 
     y = y.command({
       command: plugin.command,
+      builder(commandYargs: any) {
+        return commandYargs
+          .options({ ...getBuiltinCLIOptions(plugin.command), ...(plugin.options || {}) })
+          .strictOptions();
+      },
       handler: async function (parsed: ParsedOptions) {
         try {
           const result = await plugin.handler({
@@ -159,3 +172,4 @@ export async function runCLI(runnerOptions: RunnerOptions) {
 }
 
 export { getProjectConfig, Datasource };
+export type { CLIOptionDefinition, CLIOptionDefinitions } from "./options";

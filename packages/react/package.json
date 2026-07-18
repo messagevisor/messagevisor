@@ -4,6 +4,9 @@
   "description": "React package for Messagevisor",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",

@@ -13,6 +13,7 @@ import type {
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { mergeFormatPresets } from "../formats";
+import { resolveInheritedLocaleValue, resolveLocaleChain } from "../localeResolution";
 import { formatProjectPath } from "../path";
 import { getProjectSetExecutions } from "../sets";
 import { matchesPattern, targetIncludesMessage } from "../targeting";
@@ -106,41 +107,13 @@ async function readAll<T>(
   return Object.fromEntries(entries);
 }
 
-function resolveLocaleChain(
-  localeKey: string,
-  locales: Record<string, Locale>,
-  field: "inheritFormatsFrom" | "inheritTranslationsFrom",
-) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.[field];
-  }
-
-  return chain;
-}
-
 function resolveInheritedTranslationValue(
   translations: Record<string, Translation> | undefined,
   localeKey: string,
   locales: Record<string, Locale>,
 ) {
-  let currentKey = locales[localeKey]?.inheritTranslationsFrom;
-
-  while (currentKey) {
-    if (translations && typeof translations[currentKey] !== "undefined") {
-      return {
-        value: translations[currentKey],
-        inheritedFrom: currentKey,
-      };
-    }
-
-    currentKey = locales[currentKey]?.inheritTranslationsFrom;
-  }
+  const resolved = resolveInheritedLocaleValue(translations, localeKey, locales);
+  return resolved ? { value: resolved.value, inheritedFrom: resolved.sourceLocale } : undefined;
 }
 
 function resolveInheritedFormats(

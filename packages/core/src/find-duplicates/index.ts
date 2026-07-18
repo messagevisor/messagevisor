@@ -3,6 +3,7 @@ import type { Locale, Message, Translation } from "@messagevisor/types";
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
+import { resolveLocaleValue } from "../localeResolution";
 import { getProjectSetExecutions } from "../sets";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_CYAN, CLI_FORMAT_GREEN, colorize } from "../tester/cliFormat";
 
@@ -42,11 +43,6 @@ export interface FindDuplicatesResult {
   results: DuplicateTranslationSetResult[];
 }
 
-interface ResolvedTranslation {
-  value: string;
-  sourceLocale: string;
-}
-
 async function readAll<T>(
   keys: string[],
   read: (key: string) => Promise<T>,
@@ -55,35 +51,12 @@ async function readAll<T>(
   return Object.fromEntries(entries);
 }
 
-function resolveLocaleChain(localeKey: string, locales: Record<string, Locale>) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.inheritTranslationsFrom;
-  }
-
-  return chain;
-}
-
 function resolveTranslation(
   translations: Record<string, Translation> | undefined,
   localeKey: string,
   locales: Record<string, Locale>,
-): ResolvedTranslation | undefined {
-  const candidates = resolveLocaleChain(localeKey, locales).reverse();
-
-  for (const candidate of candidates) {
-    if (typeof translations?.[candidate] !== "undefined") {
-      return {
-        value: translations[candidate],
-        sourceLocale: candidate,
-      };
-    }
-  }
+) {
+  return resolveLocaleValue(translations, localeKey, locales);
 }
 
 function isAvailable(message: Message) {

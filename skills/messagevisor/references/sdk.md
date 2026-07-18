@@ -99,7 +99,7 @@ Key codes: `missing_datafile` (locale datafile not loaded) vs `missing_translati
 
 ## Request-scoped child instances (servers)
 
-Keep one parent with loaded datafiles; spawn cheap request-local children that share datafiles, modules, and formatter caches but isolate context, locale, currency, and time zone:
+Keep one parent with loaded datafiles; spawn cheap request-local children that share datafiles, modules, and bounded internal formatter caches but isolate context, locale, currency, and time zone:
 
 ```js
 const parent = createMessagevisor({ datafile: enDatafile });

@@ -7,6 +7,11 @@ import type { Locale, Message, Override, Translation } from "@messagevisor/types
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
+import {
+  getLocaleInheritanceDepth,
+  resolveInheritedLocaleValue,
+  resolveLocaleValue,
+} from "../localeResolution";
 import { formatProjectPath } from "../path";
 import { getProjectSetExecutions } from "../sets";
 import {
@@ -253,36 +258,12 @@ async function readAll<T>(
   return Object.fromEntries(entries);
 }
 
-function resolveLocaleChain(localeKey: string, locales: Record<string, Locale>) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.inheritTranslationsFrom;
-  }
-
-  return chain;
-}
-
 function resolveTranslation(
   translations: Record<string, Translation> | undefined,
   localeKey: string,
   locales: Record<string, Locale>,
 ) {
-  if (typeof translations?.[localeKey] !== "undefined") {
-    return translations[localeKey];
-  }
-
-  for (const candidate of resolveLocaleChain(localeKey, locales).reverse()) {
-    if (translations && typeof translations[candidate] !== "undefined") {
-      return translations[candidate];
-    }
-  }
-
-  return undefined;
+  return resolveLocaleValue(translations, localeKey, locales)?.value;
 }
 
 function resolveInheritedTranslationValue(
@@ -290,29 +271,7 @@ function resolveInheritedTranslationValue(
   localeKey: string,
   locales: Record<string, Locale>,
 ) {
-  let currentKey = locales[localeKey]?.inheritTranslationsFrom;
-
-  while (currentKey) {
-    if (translations && typeof translations[currentKey] !== "undefined") {
-      return translations[currentKey];
-    }
-
-    currentKey = locales[currentKey]?.inheritTranslationsFrom;
-  }
-}
-
-function getLocaleInheritanceDepth(localeKey: string, locales: Record<string, Locale>) {
-  let depth = 0;
-  const seen = new Set<string>();
-  let currentKey = locales[localeKey]?.inheritTranslationsFrom;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    depth++;
-    currentKey = locales[currentKey]?.inheritTranslationsFrom;
-  }
-
-  return depth;
+  return resolveInheritedLocaleValue(translations, localeKey, locales)?.value;
 }
 
 function splitMessageKey(projectConfig: ProjectConfig, key: string) {

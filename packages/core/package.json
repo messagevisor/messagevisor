@@ -4,6 +4,9 @@
   "description": "Core package of Messagevisor for Node.js usage",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
   "scripts": {
     "transpile": "rimraf lib && tsc --project tsconfig.cjs.json",
     "dist": "echo 'Nothing to dist here'",
@@ -33,7 +36,6 @@
   },
   "dependencies": {
     "@featurevisor/parsers": "^2.24.0",
-    "@featurevisor/sdk": "^3.0.1",
     "@messagevisor/catalog": "0.26.0",
     "@messagevisor/sdk": "0.26.0",
     "@messagevisor/types": "0.26.0",
@@ -41,5 +43,8 @@
     "tar": "^7.5.11",
     "yargs": "^17.7.2",
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@featurevisor/sdk": "^3.0.1"
   }
 }

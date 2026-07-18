@@ -6,6 +6,10 @@
   "bin": {
     "messagevisor": "bin.js"
   },
+  "files": [
+    "bin.js",
+    "lib"
+  ],
   "scripts": {
     "transpile": "rimraf lib && tsc --project tsconfig.cjs.json",
     "dist": "echo 'Nothing to dist here'",

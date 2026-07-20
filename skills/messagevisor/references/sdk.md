@@ -1,6 +1,6 @@
 # Runtime SDK
 
-Apps consume generated datafiles through `@messagevisor/sdk` and optional framework packages. The SDK is separate from the CLI. They share modules but run independently.
+Apps consume generated datafiles through Messagevisor's runtime SDKs. The JavaScript SDK and optional framework packages are the primary web runtime; Java serves Android/JVM applications, and Swift serves iOS, macOS, tvOS, watchOS, and visionOS. SDKs are separate from the CLI. They share the generated datafile contract and module concepts but run independently.
 
 ## Core setup
 
@@ -176,6 +176,27 @@ npm install @messagevisor/react-intl-compat
 ```
 
 Use this when migrating code that expects `formatMessage`, `formatNumber`, and react-intl-style components.
+
+## Native Apple applications
+
+Use `https://github.com/messagevisor/messagevisor-swift` through Swift Package Manager. The core product is `Messagevisor`; optional products include `MessagevisorICU`, `MessagevisorInterpolation`, and `MessagevisorMissingTranslations`.
+
+```swift
+import Messagevisor
+import MessagevisorICU
+
+let m = createMessagevisor(
+    MessagevisorOptions(
+        datafile: datafile,
+        context: ["platform": .string("ios")],
+        modules: [createICUModule()]
+    )
+)
+
+let title = try m.translate("checkout.title")
+```
+
+Use a target such as `swift` to build the locales and message subset needed by the Apple app. Apple Foundation and JavaScript `Intl` can render valid locale output differently; use native SDK expectations for exact platform copy and keep target/source semantics shared.
 
 ## Runtime rules
 

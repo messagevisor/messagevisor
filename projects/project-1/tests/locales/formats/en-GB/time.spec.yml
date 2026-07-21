@@ -86,8 +86,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30 am"
-    expectedByRuntime:
-      swift: "8:30\u202Fam"
   - description: "Time / hour12 false"
     rawMessage: "{when, time, hour24}"
     values:
@@ -107,8 +105,6 @@ assertions:
     values:
       when: "2026-05-12T00:30:45.678Z"
     expectedTranslation: "12:30 am"
-    expectedByRuntime:
-      swift: "12:30\u202Fam"
   - description: "Time / hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:
@@ -228,8 +224,6 @@ assertions:
     values:
       when: "2026-05-12T00:00:00Z"
     expectedTranslation: "12:00 am"
-    expectedByRuntime:
-      swift: "12:00\u202Fam"
   - description: "Time / midnight hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:

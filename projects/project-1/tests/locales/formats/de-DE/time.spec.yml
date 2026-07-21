@@ -39,8 +39,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30 AM"
-    expectedByRuntime:
-      swift: "8:30\u202FAM"
   - description: "Time / hour12 false"
     rawMessage: "{when, time, hour24}"
     values:

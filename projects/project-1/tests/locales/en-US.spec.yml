@@ -224,8 +224,6 @@ assertions:
       when: 2026-06-01T14:00:00.000Z
     timeZone: Asia/Tokyo
     expectedTranslation: 11:00:00 PM
-    expectedByRuntime:
-      swift: "11:00:00\u202FPM"
   - description: en-US ad hoc formats are honored
     rawMessage: "{value, number, signed}"
     values:

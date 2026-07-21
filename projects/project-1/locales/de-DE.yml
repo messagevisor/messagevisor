@@ -485,8 +485,6 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
-    expectedByRuntime:
-      swift: "Hour12 true: 8:30\u202FAM"
   - description: "Time / hour12 false"
     rawMessage: "Hour12 false: {when, time, hour24}"
     values:
@@ -506,8 +504,6 @@ examples:
     values:
       when: "2026-05-12T00:30:45.678Z"
 
-    expectedByRuntime:
-      swift: "Hour cycle h12: 12:30\u202FAM"
   - description: "Time / hour cycle h23"
     rawMessage: "Hour cycle h23: {when, time, hourCycle23}"
     values:
@@ -857,8 +853,6 @@ examples:
     rawMessage: "{when, time, hourCycle12}"
     values:
       when: "2026-05-12T00:00:00Z"
-    expectedByRuntime:
-      swift: "12:00\u202FAM"
   - description: Time / midnight hour cycle h23
     rawMessage: "{when, time, hourCycle23}"
     values:

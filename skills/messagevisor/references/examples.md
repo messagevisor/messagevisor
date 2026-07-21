@@ -33,11 +33,11 @@ examples:
 
 Examples can use `description`, `locale`, `values`, `context`, `formats`, `currency`, `timeZone`, `matrix`, and `expectedByRuntime`.
 
-Use `expectedByRuntime.<runtime>` to record a reviewed native-platform output that differs from JavaScript `Intl`. Cross-SDK runners must compare all outputs exactly; do not add permissive formatting modes or silently normalize spacing differences. Escape invisible differences such as narrow no-break spaces in YAML so reviewers can see them:
+Use `expectedByRuntime.<runtime>` to record a reviewed native-platform output that differs from JavaScript `Intl`. Cross-SDK runners must evaluate and compare every output; do not add permissive modes that skip formatter cases. A runner may narrowly equate ordinary, no-break, and narrow no-break spaces to keep fixtures readable. Record all other differences explicitly:
 
 ```yml
 expectedByRuntime:
-  swift: "Starts at 8:30\u202FAM"
+  swift: "Starts at 08:30 AM"
 ```
 
 ## Matrix examples

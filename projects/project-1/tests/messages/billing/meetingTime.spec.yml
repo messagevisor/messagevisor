@@ -7,9 +7,14 @@ assertions:
     values:
       date: "2025-01-01T12:00:00Z"
     expectedTranslation: "Starts at 12:00 PM"
+    expectedByRuntime:
+      swift: "Starts at 12:00\u202FPM"
   - locale: en-US
     target: web
     timeZone: America/New_York
     values:
       date: "2025-01-01T12:00:00Z"
     expectedTranslation: "Starts at 7:00 AM"
+
+    expectedByRuntime:
+      swift: "Starts at 7:00\u202FAM"

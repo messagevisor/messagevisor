@@ -6,6 +6,7 @@ import type { FormatPresets } from "./format";
 export type Matrix = Record<string, unknown[]>;
 
 export type ExampleKey = string;
+export type ExpectedByRuntime = Record<string, string>;
 
 export interface ExampleBase {
   matrix?: Matrix;
@@ -17,6 +18,7 @@ export interface ExampleBase {
   formats?: FormatPresets;
   timeZone?: string;
   currency?: string;
+  expectedByRuntime?: ExpectedByRuntime;
 }
 
 /**

@@ -41,6 +41,8 @@ assertions:
     values:
       value: 1234
     expectedTranslation: "1234"
+    expectedByRuntime:
+      swift: "1\u202F234"
   - description: "Number / grouping off"
     rawMessage: "{value, number, groupingOff}"
     values:
@@ -51,6 +53,8 @@ assertions:
     values:
       value: 1234567
     expectedTranslation: "1,2\u00A0M"
+    expectedByRuntime:
+      swift: "1,2M"
   - description: "Number / compact long"
     rawMessage: "{value, number, compactLong}"
     values:
@@ -151,6 +155,8 @@ assertions:
     values:
       value: 1.234
     expectedTranslation: "1,23"
+    expectedByRuntime:
+      swift: "1,234"
   - description: "Number / strip zeros if integer"
     rawMessage: "{value, number, stripIfInteger}"
     values:
@@ -211,16 +217,22 @@ assertions:
     values:
       value: 12500
     expectedTranslation: "13\u00A0k"
+    expectedByRuntime:
+      swift: "13K"
   - description: "Number / compact short negative"
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
     expectedTranslation: "-1,3\u00A0M"
+    expectedByRuntime:
+      swift: "-1,3M"
   - description: "Number / compact long thousands"
     rawMessage: "{value, number, compactLong}"
     values:
       value: 12500
     expectedTranslation: "13 mille"
+    expectedByRuntime:
+      swift: "13 thousand"
   - description: "Number / scientific sub-unit"
     rawMessage: "{value, number, scientific}"
     values:
@@ -286,11 +298,15 @@ assertions:
     values:
       value: -1.5
     expectedTranslation: "-1"
+    expectedByRuntime:
+      swift: "-2"
   - description: "Number / rounding half floor negative tie"
     rawMessage: "{value, number, roundingHalfFloor}"
     values:
       value: -1.5
     expectedTranslation: "-2"
+    expectedByRuntime:
+      swift: "-1"
   - description: "Number / rounding half expand negative tie"
     rawMessage: "{value, number, roundingHalfExpand}"
     values:

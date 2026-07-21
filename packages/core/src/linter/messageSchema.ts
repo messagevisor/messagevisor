@@ -52,6 +52,11 @@ export function getMessageZodSchema(
     z.string(),
     z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])),
   );
+  const expectedByRuntimeSchema = z
+    .record(z.string(), z.string())
+    .refine((value) => Object.keys(value).length > 0, {
+      message: "`expectedByRuntime` must define at least one runtime.",
+    });
 
   const messageExampleLocaleSchema = refineWithMessage(
     z.string(),
@@ -70,6 +75,7 @@ export function getMessageZodSchema(
       formats: z.record(z.string(), z.unknown()).optional(),
       timeZone: z.string().optional(),
       currency: z.string().optional(),
+      expectedByRuntime: expectedByRuntimeSchema.optional(),
     })
     .strict();
 

@@ -6,104 +6,143 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "৮:৩০:৪৫ AM স্থানাংকিত আন্তর্জাতিক সময়"
+    expectedByRuntime:
+      swift: "8:30:45 AM গ্রীনিচ মিন টাইম"
   - description: "Time / short style"
     rawMessage: "{when, time, shortStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "৮:৩০ AM"
+    expectedByRuntime:
+      swift: "8:30 AM"
   - description: "Time / seconds"
     rawMessage: "{when, time, seconds}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "৮:৩০:৪৫ AM"
+    expectedByRuntime:
+      swift: "8:30:45 AM"
   - description: "Time / fractional seconds 3 digits"
     rawMessage: "{when, time, fractional}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "৮:৩০:৪৫.৬৭৮ AM"
+    expectedByRuntime:
+      swift: "8:30:45.678 AM"
   - description: "Time / day period long"
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T12:00:00Z"
     expectedTranslation: "১২ দুপুরবেলায়"
+    expectedByRuntime:
+      swift: "12\u202FPM"
   - description: "Time / hour12 true"
     rawMessage: "{when, time, hour12}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "৮:৩০ AM"
+    expectedByRuntime:
+      swift: "8:30 AM"
   - description: "Time / hour12 false"
     rawMessage: "{when, time, hour24}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "০৮:৩০"
     expectedByRuntime:
+      swift: "08:30"
       java: ৮:৩০
   - description: "Time / hour cycle h11"
     rawMessage: "{when, time, hourCycle11}"
     values:
       when: "2026-05-12T00:30:45.678Z"
     expectedTranslation: "০০:৩০ AM"
+    expectedByRuntime:
+      swift: "12:30 AM"
   - description: "Time / hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:
       when: "2026-05-12T00:30:45.678Z"
     expectedTranslation: "০০:৩০"
+    expectedByRuntime:
+      swift: "00:30"
   - description: "Time / time zone short"
     rawMessage: "{when, time, zoneShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "৮:৩০ AM UTC"
+    expectedByRuntime:
+      swift: "8:30 AM GMT +0"
   - description: "Time / time zone short offset"
     rawMessage: "{when, time, zoneShortOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "২:১৫ PM GMT +৫:৪৫"
+    expectedByRuntime:
+      swift: "2:15 PM GMT +5:45"
   - description: "Time / time zone short generic"
     rawMessage: "{when, time, zoneShortGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "৪:৩০ AM নিউইয়র্ক সময়"
+    expectedByRuntime:
+      swift: "4:30 AM GMT -4"
   - description: "Time / time zone long generic"
     rawMessage: "{when, time, zoneLongGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "৪:৩০ AM পূর্বাঞ্চলীয় সময়"
+    expectedByRuntime:
+      swift: "4:30 AM পূর্বাঞ্চলের দিবালোক সময়"
   - description: "Time / Amsterdam winter"
     rawMessage: "{when, time, amsterdamShort}"
     values:
       when: "2026-01-15T12:00:00Z"
     expectedTranslation: "১:০০ PM"
+    expectedByRuntime:
+      swift: "1:00 PM"
   - description: "Time / Amsterdam summer"
     rawMessage: "{when, time, amsterdamShort}"
     values:
       when: "2026-07-15T12:00:00Z"
     expectedTranslation: "২:০০ PM"
+    expectedByRuntime:
+      swift: "2:00 PM"
   - description: "Time / New York winter"
     rawMessage: "{when, time, newYorkShort}"
     values:
       when: "2026-01-15T12:00:00Z"
     expectedTranslation: "৭:০০ AM"
+    expectedByRuntime:
+      swift: "7:00 AM"
   - description: "Time / New York summer"
     rawMessage: "{when, time, newYorkShort}"
     values:
       when: "2026-07-15T12:00:00Z"
     expectedTranslation: "৮:০০ AM"
+    expectedByRuntime:
+      swift: "8:00 AM"
   - description: "Time / Riyadh"
     rawMessage: "{when, time, riyadhShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "১১:৩০ AM"
+    expectedByRuntime:
+      swift: "11:30 AM"
   - description: "Time / Tokyo"
     rawMessage: "{when, time, tokyoShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "৫:৩০ PM"
+    expectedByRuntime:
+      swift: "5:30 PM"
   - description: "Time / per-call Tokyo override"
     rawMessage: "{when, time, seconds}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     timeZone: "Asia/Tokyo"
     expectedTranslation: "৫:৩০:৪৫ PM"
+    expectedByRuntime:
+      swift: "5:30:45 PM"
   - description: "Time / Latin digits"
     rawMessage: "{when, time, latinTime}"
     values:

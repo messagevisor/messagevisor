@@ -26,6 +26,8 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "1,234.50 US dollars"
+    expectedByRuntime:
+      swift: "1,234.50 (unknown currency)"
   - description: "Currency / accounting sign"
     rawMessage: "{amount, number, moneyAccounting}"
     values:

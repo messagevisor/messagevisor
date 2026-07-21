@@ -31,7 +31,14 @@ examples:
       amount: 1234.56
 ```
 
-Examples can use `description`, `locale`, `values`, `context`, `formats`, `currency`, `timeZone`, and `matrix`.
+Examples can use `description`, `locale`, `values`, `context`, `formats`, `currency`, `timeZone`, `matrix`, and `expectedByRuntime`.
+
+Use `expectedByRuntime.<runtime>` to record a reviewed native-platform output that differs from JavaScript `Intl`. Cross-SDK runners must compare all outputs exactly; do not add permissive formatting modes or silently normalize spacing differences. Escape invisible differences such as narrow no-break spaces in YAML so reviewers can see them:
+
+```yml
+expectedByRuntime:
+  swift: "Starts at 8:30\u202FAM"
+```
 
 ## Matrix examples
 

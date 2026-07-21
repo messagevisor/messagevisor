@@ -58,6 +58,8 @@ examples:
     values:
       value: 1234
 
+    expectedByRuntime:
+      swift: "Groepering min2: 1.234"
   - description: "Number / grouping off"
     rawMessage: "Groepering uit: {value, number, groupingOff}"
     values:
@@ -68,11 +70,15 @@ examples:
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Compact kort: 1,2M"
   - description: "Number / compact long"
     rawMessage: "Compact lang: {value, number, compactLong}"
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Compact lang: 1,2 million"
   - description: "Number / scientific notation"
     rawMessage: "Wetenschappelijke notatie: {value, number, scientific}"
     values:
@@ -168,6 +174,8 @@ examples:
     values:
       value: 1.234
 
+    expectedByRuntime:
+      swift: "Minder precisie: 1,234"
   - description: "Number / strip zeros if integer"
     rawMessage: "Nullen verwijderen bij geheel getal: {value, number, stripIfInteger}"
     values:
@@ -198,11 +206,15 @@ examples:
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "Smal valutasymbool: US$\u00A01.234,50"
   - description: "Currency / name display"
     rawMessage: "Valutanaam: {amount, number, moneyName}"
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "Valutanaam: 1.234,50 euro"
   - description: "Currency / accounting sign"
     rawMessage: "Boekhoudkundig teken: {amount, number, moneyAccounting}"
     values:
@@ -304,6 +316,8 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Weekdag smal: di 12-5-2026"
   - description: "Date / month long"
     rawMessage: "Maand lang: {when, date, monthLong}"
     values:
@@ -319,6 +333,8 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Maand smal: 12-5-2026"
   - description: "Date / era long"
     rawMessage: "Jaartelling lang: {when, date, eraLong}"
     values:
@@ -334,6 +350,8 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Jaartelling smal: 12 mei 2026 n.Chr."
   - description: "Date / Arabic digits"
     rawMessage: "Datum met Arabische cijfers: {when, date, arabicNumeric}"
     values:
@@ -344,6 +362,8 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Boeddhistische kalender: 12 mei 2569"
   - description: "Date / Japanese era calendar"
     rawMessage: "Japanse kalender met era: {when, date, japaneseEra}"
     values:
@@ -364,11 +384,15 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Volledige tijd: 08:30:45 Greenwich Mean Time"
   - description: "Time / long style"
     rawMessage: "Lange tijd: {when, time, longStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Lange tijd: 08:30:45 GMT"
   - description: "Time / medium style"
     rawMessage: "Middellange tijd: {when, time, mediumStyle}"
     values:
@@ -384,61 +408,85 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Uur en minuut: 08:30"
   - description: "Time / seconds"
     rawMessage: "Met seconden: {when, time, seconds}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Met seconden: 08:30:45"
   - description: "Time / fractional seconds 1 digit"
     rawMessage: "Fractieseconden 1 cijfer: {when, time, fractional1}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Fractieseconden 1 cijfer: 08:30:45,6"
   - description: "Time / fractional seconds 2 digits"
     rawMessage: "Fractieseconden 2 cijfers: {when, time, fractional2}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Fractieseconden 2 cijfers: 08:30:45,67"
   - description: "Time / fractional seconds 3 digits"
     rawMessage: "Fractieseconden 3 cijfers: {when, time, fractional}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Fractieseconden 3 cijfers: 08:30:45,678"
   - description: "Time / day period long"
     rawMessage: "Dagperiode lang: {when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T12:00:00Z"
 
+    expectedByRuntime:
+      swift: "Dagperiode lang: 12\u202FPM"
   - description: "Time / day period short"
     rawMessage: "Dagperiode kort: {when, time, dayPeriodShort}"
     values:
       when: "2026-05-12T12:00:00Z"
 
+    expectedByRuntime:
+      swift: "Dagperiode kort: 12\u202FPM"
   - description: "Time / day period narrow"
     rawMessage: "Dagperiode smal: {when, time, dayPeriodNarrow}"
     values:
       when: "2026-05-12T12:00:00Z"
 
+    expectedByRuntime:
+      swift: "Dagperiode smal: 12\u202FPM"
   - description: "Time / hour12 true"
     rawMessage: "Hour12 true: {when, time, hour12}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour12 true: 8:30\u202FAM"
   - description: "Time / hour12 false"
     rawMessage: "Hour12 false: {when, time, hour24}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour12 false: 08:30"
   - description: "Time / hour cycle h11"
     rawMessage: "Uurcyclus h11: {when, time, hourCycle11}"
     values:
       when: "2026-05-12T00:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Uurcyclus h11: 12:30\u202FAM"
   - description: "Time / hour cycle h12"
     rawMessage: "Uurcyclus h12: {when, time, hourCycle12}"
     values:
       when: "2026-05-12T00:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Uurcyclus h12: 12:30\u202FAM"
   - description: "Time / hour cycle h23"
     rawMessage: "Uurcyclus h23: {when, time, hourCycle23}"
     values:
@@ -449,16 +497,22 @@ examples:
     values:
       when: "2026-05-12T00:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Uurcyclus h24: 00:30"
   - description: "Time / time zone short"
     rawMessage: "Tijdzone kort: {when, time, zoneShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Tijdzone kort: 08:30 GMT"
   - description: "Time / time zone long"
     rawMessage: "Tijdzone lang: {when, time, zoneLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Tijdzone lang: 08:30 Greenwich Mean Time"
   - description: "Time / time zone short offset"
     rawMessage: "Tijdzone korte offset: {when, time, zoneShortOffset}"
     values:
@@ -469,26 +523,36 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Tijdzone lange offset: 14:15 Nepalese tijd"
   - description: "Time / time zone short generic"
     rawMessage: "Tijdzone kort algemeen: {when, time, zoneShortGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Tijdzone kort algemeen: 04:30 EDT"
   - description: "Time / time zone long generic"
     rawMessage: "Tijdzone lang algemeen: {when, time, zoneLongGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Tijdzone lang algemeen: 04:30 Eastern-zomertijd"
   - description: "Time / format matcher basic"
     rawMessage: "Format matcher basic: {when, time, matcherBasic}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Format matcher basic: 08:30:45"
   - description: "Time / format matcher best fit"
     rawMessage: "Format matcher best fit: {when, time, matcherBestFit}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Format matcher best fit: 08:30:45"
   - description: "Basis / reference a message"
     message: auth.installApp
 
@@ -542,10 +606,14 @@ examples:
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
+    expectedByRuntime:
+      swift: "-1,3M"
   - description: Number / compact long thousands
     rawMessage: "{value, number, compactLong}"
     values:
       value: 12500
+    expectedByRuntime:
+      swift: "13 thousand"
   - description: Number / scientific sub-unit
     rawMessage: "{value, number, scientific}"
     values:
@@ -598,10 +666,14 @@ examples:
     rawMessage: "{value, number, roundingHalfCeil}"
     values:
       value: -1.5
+    expectedByRuntime:
+      swift: "-2"
   - description: Number / rounding half floor negative tie
     rawMessage: "{value, number, roundingHalfFloor}"
     values:
       value: -1.5
+    expectedByRuntime:
+      swift: "-1"
   - description: Number / rounding half expand negative tie
     rawMessage: "{value, number, roundingHalfExpand}"
     values:
@@ -699,6 +771,8 @@ examples:
     rawMessage: "{when, date, islamicLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "25 Doe al kaʻaba 1447"
   - description: Date / Latin digits
     rawMessage: "{when, date, latinNumeric}"
     values:
@@ -736,22 +810,32 @@ examples:
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T08:00:00Z"
+    expectedByRuntime:
+      swift: "8\u202FAM"
   - description: Time / noon day period
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T12:00:00Z"
+    expectedByRuntime:
+      swift: "12\u202FPM"
   - description: Time / evening day period
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T19:00:00Z"
+    expectedByRuntime:
+      swift: "7\u202FPM"
   - description: Time / midnight hour cycle h11
     rawMessage: "{when, time, hourCycle11}"
     values:
       when: "2026-05-12T00:00:00Z"
+    expectedByRuntime:
+      swift: "12:00\u202FAM"
   - description: Time / midnight hour cycle h12
     rawMessage: "{when, time, hourCycle12}"
     values:
       when: "2026-05-12T00:00:00Z"
+    expectedByRuntime:
+      swift: "12:00\u202FAM"
   - description: Time / midnight hour cycle h23
     rawMessage: "{when, time, hourCycle23}"
     values:
@@ -760,6 +844,8 @@ examples:
     rawMessage: "{when, time, hourCycle24}"
     values:
       when: "2026-05-12T00:00:00Z"
+    expectedByRuntime:
+      swift: "00:00"
   - description: Time / Amsterdam winter
     rawMessage: "{when, time, amsterdamShort}"
     values:
@@ -772,10 +858,14 @@ examples:
     rawMessage: "{when, time, newYorkShort}"
     values:
       when: "2026-01-15T12:00:00Z"
+    expectedByRuntime:
+      swift: "07:00"
   - description: Time / New York summer
     rawMessage: "{when, time, newYorkShort}"
     values:
       when: "2026-07-15T12:00:00Z"
+    expectedByRuntime:
+      swift: "08:00"
   - description: Time / Riyadh
     rawMessage: "{when, time, riyadhShort}"
     values:
@@ -793,3 +883,6 @@ examples:
     rawMessage: "{when, time, latinTime}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+
+    expectedByRuntime:
+      swift: "08:30"

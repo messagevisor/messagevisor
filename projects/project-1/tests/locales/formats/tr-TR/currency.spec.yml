@@ -17,6 +17,7 @@ assertions:
       amount: 1234.5
     expectedTranslation: "₺1.234,50 Türk lirası"
     expectedByRuntime:
+      swift: "1.234,50 Türk lirası"
       java: 1.234,50 Türk lirası
   - description: "Currency / accounting sign"
     rawMessage: "{amount, number, moneyAccounting}"

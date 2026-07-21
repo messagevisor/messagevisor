@@ -117,6 +117,8 @@ describe("lintProject", function () {
         "description: Sign in",
         "examples:",
         "  - locale: en",
+        "    expectedByRuntime:",
+        "      swift: Sign in from Swift",
         "  - locale: missing",
         "  - matrix:",
         "      locale: [en]",
@@ -125,6 +127,8 @@ describe("lintProject", function () {
         "      user:",
         "        name: Ada",
         "    locale: en",
+        "  - locale: en",
+        "    expectedByRuntime: {}",
         "translations:",
         "  en: Sign in",
         "",
@@ -155,6 +159,16 @@ describe("lintProject", function () {
         (error) => error.entityType === "message" && error.path.join(".") === "examples.2.locale",
       ),
     ).toEqual(false);
+    expect(
+      result.errors.some((error) => error.path.join(".") === "examples.0.expectedByRuntime"),
+    ).toEqual(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.path.join(".") === "examples.4.expectedByRuntime" &&
+          error.message.includes("at least one runtime"),
+      ),
+    ).toEqual(true);
   });
 
   it("reports circular locale dependencies for translations, formats, and examples", async function () {
@@ -216,10 +230,14 @@ describe("lintProject", function () {
         "  - rawMessage: Hello",
         "    message: auth.signin",
         "  - description: Missing both",
+        "    expectedByRuntime:",
+        "      swift: Hello from Swift",
         "  - message: missing.key",
         "  - matrix:",
         "      user:",
         "        name: Ada",
+        "  - rawMessage: Hello",
+        "    expectedByRuntime: {}",
         "",
       ].join("\n"),
     );
@@ -236,6 +254,16 @@ describe("lintProject", function () {
         (error) =>
           error.path.join(".") === "examples.3.matrix.user" &&
           error.message.toLowerCase().includes("array"),
+      ),
+    ).toEqual(true);
+    expect(
+      result.errors.some((error) => error.path.join(".") === "examples.1.expectedByRuntime"),
+    ).toEqual(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.path.join(".") === "examples.4.expectedByRuntime" &&
+          error.message.includes("at least one runtime"),
       ),
     ).toEqual(true);
   });

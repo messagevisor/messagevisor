@@ -9,6 +9,8 @@ assertions:
       suffix: sharp
       date: "2025-01-01T12:00:00Z"
     expectedTranslation: "Webinar: 01/01/2025 at 12:00 PM sharp"
+    expectedByRuntime:
+      swift: "Webinar: 01/01/2025 at 12:00\u202FPM sharp"
   - locale: nl-NL
     target: web
     timeZone: Europe/Amsterdam

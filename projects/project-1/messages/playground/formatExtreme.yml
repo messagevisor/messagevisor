@@ -20,6 +20,8 @@ examples:
       rate: 0.0575
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Plain 1,234,567.891; fixed 12.00; significant 12,300; signed +5; compact 13K/13 thousand; unit 42 kilometers; money £99.50; yen ¥2,000; percent 5.8%; date 05/12/2026; long May 12, 2026; zone 8:30\u202FAM GMT; generic 4:30\u202FAM EDT."
   - description: Extreme portable formatter mix in nl-NL
     locale: nl-NL
     values:
@@ -34,6 +36,8 @@ examples:
       rate: 0.0575
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Gewoon 1.234.567,891; vast 12,00; significant 12.300; teken +5; compact 13K/13 thousand; eenheid 42 kilometer; geld £\u00A099,50; yen JP¥\u00A02.000; percentage 5,8%; datum 12-05-2026; lang 12 mei 2026; zone 08:30 GMT; generiek 04:30 EDT."
   - description: Extreme formatter mix in bn
     locale: bn
     values:
@@ -47,3 +51,6 @@ examples:
       yen: 1999.99
       rate: 0.0575
       when: "2026-05-12T08:30:45.678Z"
+
+    expectedByRuntime:
+      swift: "Plain 12,34,567.891; fixed 12.00; significant 12,300; signed +5; compact 13K/13 thousand; unit 42 কিলোমিটার; money 99.50£; yen 2,000\u00A0JP¥; percent 5.8%; date 12/05/2026; long 12 মে, 2026; zone 8:30 AM GMT +0; generic 4:30 AM GMT -4."

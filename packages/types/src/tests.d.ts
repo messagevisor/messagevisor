@@ -6,10 +6,9 @@ import type {
   TargetKey,
   LocaleKey,
   Translation,
+  ExpectedByRuntime,
 } from "./entities";
 import type { FormatPresets } from "./format";
-
-export type ExpectedByRuntime = Record<string, string>;
 
 /**
  * MessageTest

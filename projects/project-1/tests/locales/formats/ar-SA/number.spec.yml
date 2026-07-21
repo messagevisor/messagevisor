@@ -26,6 +26,8 @@ assertions:
     values:
       value: 1234567
     expectedTranslation: "١٫٢\u00A0مليون"
+    expectedByRuntime:
+      swift: "١٫٢M"
   - description: "Number / scientific notation"
     rawMessage: "{value, number, scientific}"
     values:
@@ -36,6 +38,8 @@ assertions:
     values:
       value: 1234.5
     expectedTranslation: "\u061C+١٬٢٣٥"
+    expectedByRuntime:
+      swift: "+١٬٢٣٥"
   - description: "Number / rounding half even"
     rawMessage: "{value, number, roundingHalfEven}"
     values:
@@ -61,16 +65,22 @@ assertions:
     values:
       value: 12500
     expectedTranslation: "١٣\u00A0ألف"
+    expectedByRuntime:
+      swift: "١٣K"
   - description: "Number / compact short negative"
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
     expectedTranslation: "\u061C-١٫٣\u00A0مليون"
+    expectedByRuntime:
+      swift: "\u061C-١٫٣M"
   - description: "Number / sign always zero"
     rawMessage: "{value, number, signAlways}"
     values:
       value: 0
     expectedTranslation: "\u061C+٠"
+    expectedByRuntime:
+      swift: "+٠"
   - description: "Number / rounding half expand negative tie"
     rawMessage: "{value, number, roundingHalfExpand}"
     values:

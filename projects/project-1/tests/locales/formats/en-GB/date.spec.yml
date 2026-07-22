@@ -46,8 +46,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "T, 12 M 2026"
-    expectedByRuntime:
-      swift: "Tue, 12/05/2026"
   - description: "Date / month long"
     rawMessage: "{when, date, monthLong}"
     values:
@@ -63,8 +61,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 M 2026"
-    expectedByRuntime:
-      swift: "12/05/2026"
   - description: "Date / era long"
     rawMessage: "{when, date, eraLong}"
     values:
@@ -80,8 +76,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 May 2026 A"
-    expectedByRuntime:
-      swift: "12 May 2026 AD"
   - description: "Date / Arabic digits"
     rawMessage: "{when, date, arabicNumeric}"
     values:

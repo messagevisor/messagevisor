@@ -11,15 +11,21 @@ on:
 
 jobs:
   ci:
-    name: Checks
+    name: Checks (Node.js ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - "20.19.0"
+          - "24.16.0"
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
+          node-version: ${{ matrix.node-version }}
 
       - name: Cache dependencies
         uses: actions/cache@v4

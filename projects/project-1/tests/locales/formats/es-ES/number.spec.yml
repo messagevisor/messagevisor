@@ -26,8 +26,6 @@ assertions:
     values:
       value: 1234567
     expectedTranslation: "1,2\u00A0M"
-    expectedByRuntime:
-      swift: "1,2M"
   - description: "Number / scientific notation"
     rawMessage: "{value, number, scientific}"
     values:
@@ -63,15 +61,11 @@ assertions:
     values:
       value: 12500
     expectedTranslation: "13\u00A0mil"
-    expectedByRuntime:
-      swift: "13K"
   - description: "Number / compact short negative"
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
     expectedTranslation: "-1,3\u00A0M"
-    expectedByRuntime:
-      swift: "-1,3M"
   - description: "Number / sign always zero"
     rawMessage: "{value, number, signAlways}"
     values:

@@ -94,14 +94,14 @@ examples:
       value: 1234567
 
     expectedByRuntime:
-      swift: "Compact short: 1,2M"
+      swift: "Compact short: 1,2\u00A0Mln"
   - description: "Number / compact long"
     rawMessage: "Compact long: {value, number, compactLong}"
     values:
       value: 1234567
 
     expectedByRuntime:
-      swift: "Compact long: 1,2 million"
+      swift: "Compact long: 1,2\u00A0Mln"
   - description: "Number / scientific notation"
     rawMessage: "Scientific notation: {value, number, scientific}"
     values:
@@ -336,7 +336,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Weekday narrow: mar 12/05/2026"
+      swift: "Weekday narrow: M 12 M 2026"
   - description: "Date / month long"
     rawMessage: "Month long: {when, date, monthLong}"
     values:
@@ -353,7 +353,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Month narrow: 12/05/2026"
+      swift: "Month narrow: 12 M 2026"
   - description: "Date / era long"
     rawMessage: "Era long: {when, date, eraLong}"
     values:
@@ -370,7 +370,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Era narrow: 12 mag 2026 d.C."
+      swift: "Era narrow: 12 mag 2026 dC"
   - description: "Date / Arabic digits"
     rawMessage: "Arabic date digits: {when, date, arabicNumeric}"
     values:

@@ -35,7 +35,7 @@ assertions:
       value: 1234567
     expectedTranslation: "১২\u00A0লা"
     expectedByRuntime:
-      swift: "1.2M"
+      swift: "12\u00A0লা"
   - description: "Number / scientific notation"
     rawMessage: "{value, number, scientific}"
     values:
@@ -82,14 +82,14 @@ assertions:
       value: 12500
     expectedTranslation: "১৩\u00A0হা"
     expectedByRuntime:
-      swift: "13K"
+      swift: "13\u00A0হা"
   - description: "Number / compact short negative"
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
     expectedTranslation: "-১৩\u00A0লা"
     expectedByRuntime:
-      swift: "-1.3M"
+      swift: "-13\u00A0লা"
   - description: "Number / sign always zero"
     rawMessage: "{value, number, signAlways}"
     values:

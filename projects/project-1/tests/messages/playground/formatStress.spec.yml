@@ -72,4 +72,4 @@ assertions:
       ৩:০৫:০০ PM; local ৩:০৫ PM UTC."
 
     expectedByRuntime:
-      swift: "Receipt (1,284.50৳); ISO -1,284.50\u00A0BDT; rate 12.3%; compact 13K; distance 42 কিমি; placed বৃহস্পতিবার, 26 নভেম্বর, 2026 at 3:05:00 PM; local 3:05 PM GMT +0."
+      swift: "Receipt (1,284.50৳); ISO -1,284.50\u00A0BDT; rate 12.3%; compact 13\u00A0হা; distance 42 কিমি; placed বৃহস্পতিবার, 26 নভেম্বর, 2026 at 3:05:00 PM; local 3:05 PM GMT +0."

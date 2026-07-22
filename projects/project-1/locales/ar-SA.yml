@@ -96,14 +96,14 @@ examples:
       value: 1234567
 
     expectedByRuntime:
-      swift: "Compact short: ١٫٢M"
+      swift: "Compact short: ١٫٢\u00A0مليون"
   - description: "Number / compact long"
     rawMessage: "Compact long: {value, number, compactLong}"
     values:
       value: 1234567
 
     expectedByRuntime:
-      swift: "Compact long: ١٫٢ million"
+      swift: "Compact long: ١٫٢\u00A0مليون"
   - description: "Number / scientific notation"
     rawMessage: "Scientific notation: {value, number, scientific}"
     values:
@@ -130,7 +130,7 @@ examples:
       value: 1234.5
 
     expectedByRuntime:
-      swift: "Sign always: +١٬٢٣٥"
+      swift: "Sign always: \u061C+١٬٢٣٥"
   - description: "Number / sign except zero"
     rawMessage: "Sign except zero: {value, number, signExceptZero}"
     values:
@@ -352,7 +352,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Weekday narrow: ثلاثاء، ١٢ مايو، ٢٠٢٦ م"
+      swift: "Weekday narrow: ث، ١٢ و، ٢٠٢٦ م"
   - description: "Date / month long"
     rawMessage: "Month long: {when, date, monthLong}"
     values:
@@ -373,7 +373,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Month narrow: ١٢ مايو، ٢٠٢٦ م"
+      swift: "Month narrow: ١٢ و، ٢٠٢٦ م"
   - description: "Date / era long"
     rawMessage: "Era long: {when, date, eraLong}"
     values:
@@ -634,19 +634,19 @@ examples:
     values:
       value: 12500
     expectedByRuntime:
-      swift: "١٣K"
+      swift: "١٣\u00A0ألف"
   - description: Number / compact short negative
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
     expectedByRuntime:
-      swift: "\u061C-١٫٣M"
+      swift: "\u061C-١٫٣\u00A0مليون"
   - description: Number / compact long thousands
     rawMessage: "{value, number, compactLong}"
     values:
       value: 12500
     expectedByRuntime:
-      swift: "١٣ thousand"
+      swift: "١٣\u00A0ألف"
   - description: Number / scientific sub-unit
     rawMessage: "{value, number, scientific}"
     values:
@@ -660,13 +660,13 @@ examples:
     values:
       value: 0
     expectedByRuntime:
-      swift: "+٠"
+      swift: "\u061C+٠"
   - description: Number / sign except zero positive
     rawMessage: "{value, number, signExceptZero}"
     values:
       value: 12
     expectedByRuntime:
-      swift: "+١٢"
+      swift: "\u061C+١٢"
   - description: Number / sign except zero negative
     rawMessage: "{value, number, signExceptZero}"
     values:
@@ -704,13 +704,13 @@ examples:
     values:
       value: -1.5
     expectedByRuntime:
-      swift: "\u061C-٢"
+      swift: "\u061C-١"
   - description: Number / rounding half floor negative tie
     rawMessage: "{value, number, roundingHalfFloor}"
     values:
       value: -1.5
     expectedByRuntime:
-      swift: "\u061C-١"
+      swift: "\u061C-٢"
   - description: Number / rounding half expand negative tie
     rawMessage: "{value, number, roundingHalfExpand}"
     values:

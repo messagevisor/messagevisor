@@ -1,7 +1,15 @@
 /* global process */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
@@ -68,6 +76,13 @@ try {
     if (manifest.dependencies?.["@messagevisor/sdk"]) {
       throw new Error(`${manifest.name} must declare @messagevisor/sdk as a peerDependency.`);
     }
+    const peerRange = manifest.peerDependencies?.["@messagevisor/sdk"];
+    if (!peerRange) {
+      throw new Error(`${manifest.name} must declare @messagevisor/sdk as a peerDependency.`);
+    }
+    if (Number.parseInt(manifest.version, 10) >= 1 && /(?:^|\s|\|)[~^<>=]*0\./.test(peerRange)) {
+      throw new Error(`${manifest.name} v1+ must not accept a pre-v1 @messagevisor/sdk peer.`);
+    }
   }
 
   for (const manifest of manifests) {
@@ -103,6 +118,47 @@ try {
     ["--input-type=module", "-e", `await import('@messagevisor/sdk')`],
     { cwd: temporaryRoot, stdio: "inherit" },
   );
+
+  const consumerRoot = join(temporaryRoot, "typescript-consumer");
+  linkExternalDependency("@types/node");
+  linkExternalDependency("@types/react");
+  linkExternalDependency("@types/react-dom");
+  mkdirSync(consumerRoot);
+  writeFileSync(
+    join(consumerRoot, "index.ts"),
+    [
+      'import { createMessagevisor, type Messagevisor, type MessagevisorOptions } from "@messagevisor/sdk";',
+      ...packageDirectories
+        .filter((name) => !["sdk", "cli"].includes(name))
+        .map((name) => `import type * as ${name.replaceAll("-", "_")} from "@messagevisor/${name}";`),
+      "const options: MessagevisorOptions = { locale: \"en\" };",
+      "const messagevisor: Messagevisor = createMessagevisor(options);",
+      "void messagevisor;",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(consumerRoot, "tsconfig.json"),
+    JSON.stringify(
+      {
+        compilerOptions: {
+          lib: ["ES2022", "DOM", "ES2022.Intl"],
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          noEmit: true,
+          skipLibCheck: false,
+          strict: true,
+          target: "ES2022",
+        },
+        files: ["index.ts"],
+      },
+      null,
+      2,
+    ),
+  );
+  execFileSync(process.execPath, [join(root, "node_modules/typescript/bin/tsc"), "-p", consumerRoot], {
+    cwd: consumerRoot,
+    stdio: "inherit",
+  });
 
   console.log(`Validated ${manifests.length} packed Messagevisor packages.`);
 } finally {

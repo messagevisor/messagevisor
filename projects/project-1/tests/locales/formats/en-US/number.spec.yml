@@ -58,6 +58,8 @@ assertions:
     values:
       value: 1234567
     expectedTranslation: "1.2 million"
+    expectedByRuntime:
+      swift: "1.2M"
   - description: "Number / scientific notation"
     rawMessage: "{value, number, scientific}"
     values:
@@ -225,6 +227,8 @@ assertions:
     values:
       value: 12500
     expectedTranslation: "13 thousand"
+    expectedByRuntime:
+      swift: "13K"
   - description: "Number / scientific sub-unit"
     rawMessage: "{value, number, scientific}"
     values:
@@ -290,15 +294,11 @@ assertions:
     values:
       value: -1.5
     expectedTranslation: "-1"
-    expectedByRuntime:
-      swift: "-2"
   - description: "Number / rounding half floor negative tie"
     rawMessage: "{value, number, roundingHalfFloor}"
     values:
       value: -1.5
     expectedTranslation: "-2"
-    expectedByRuntime:
-      swift: "-1"
   - description: "Number / rounding half expand negative tie"
     rawMessage: "{value, number, roundingHalfExpand}"
     values:

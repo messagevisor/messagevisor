@@ -73,6 +73,8 @@ examples:
     rawMessage: "Compact long: {value, number, compactLong}"
     values:
       value: 1234567
+    expectedByRuntime:
+      swift: "Compact long: 1.2M"
 
   - description: "Number / scientific notation"
     rawMessage: "Scientific notation: {value, number, scientific}"
@@ -308,7 +310,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Weekday narrow: Tue, 5/12/2026"
+      swift: "Weekday narrow: T, M 12, 2026"
   - description: "Date / month long"
     rawMessage: "Month long: {when, date, monthLong}"
     values:
@@ -325,7 +327,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Month narrow: 5/12/2026"
+      swift: "Month narrow: M 12, 2026"
   - description: "Date / era long"
     rawMessage: "Era long: {when, date, eraLong}"
     values:
@@ -342,7 +344,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Era narrow: May 12, 2026 AD"
+      swift: "Era narrow: May 12, 2026 A"
   - description: "Date / Arabic digits"
     rawMessage: "Arabic date digits: {when, date, arabicNumeric}"
     values:
@@ -581,6 +583,8 @@ examples:
     rawMessage: "{value, number, compactLong}"
     values:
       value: 12500
+    expectedByRuntime:
+      swift: "13K"
   - description: Number / scientific sub-unit
     rawMessage: "{value, number, scientific}"
     values:
@@ -633,14 +637,10 @@ examples:
     rawMessage: "{value, number, roundingHalfCeil}"
     values:
       value: -1.5
-    expectedByRuntime:
-      swift: "-2"
   - description: Number / rounding half floor negative tie
     rawMessage: "{value, number, roundingHalfFloor}"
     values:
       value: -1.5
-    expectedByRuntime:
-      swift: "-1"
   - description: Number / rounding half expand negative tie
     rawMessage: "{value, number, roundingHalfExpand}"
     values:

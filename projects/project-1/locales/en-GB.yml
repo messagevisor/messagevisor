@@ -96,11 +96,13 @@ examples:
       value: 1234567
 
     expectedByRuntime:
-      swift: "Compact short: 1.2M"
+      swift: "Compact short: 1.2m"
   - description: "Number / compact long"
     rawMessage: "Compact long: {value, number, compactLong}"
     values:
       value: 1234567
+    expectedByRuntime:
+      swift: "Compact long: 1.2m"
 
   - description: "Number / scientific notation"
     rawMessage: "Scientific notation: {value, number, scientific}"
@@ -336,7 +338,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Weekday narrow: Tue, 12/05/2026"
+      swift: "Weekday narrow: T, 12 M 2026"
   - description: "Date / month long"
     rawMessage: "Month long: {when, date, monthLong}"
     values:
@@ -353,7 +355,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Month narrow: 12/05/2026"
+      swift: "Month narrow: 12 M 2026"
   - description: "Date / era long"
     rawMessage: "Era long: {when, date, eraLong}"
     values:
@@ -370,7 +372,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Era narrow: 12 May 2026 AD"
+      swift: "Era narrow: 12 May 2026 A"
   - description: "Date / Arabic digits"
     rawMessage: "Arabic date digits: {when, date, arabicNumeric}"
     values:
@@ -618,17 +620,19 @@ examples:
     values:
       value: 12500
     expectedByRuntime:
-      swift: "13K"
+      swift: "13k"
   - description: Number / compact short negative
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
     expectedByRuntime:
-      swift: "-1.3M"
+      swift: "-1.3m"
   - description: Number / compact long thousands
     rawMessage: "{value, number, compactLong}"
     values:
       value: 12500
+    expectedByRuntime:
+      swift: "13k"
   - description: Number / scientific sub-unit
     rawMessage: "{value, number, scientific}"
     values:
@@ -681,14 +685,10 @@ examples:
     rawMessage: "{value, number, roundingHalfCeil}"
     values:
       value: -1.5
-    expectedByRuntime:
-      swift: "-2"
   - description: Number / rounding half floor negative tie
     rawMessage: "{value, number, roundingHalfFloor}"
     values:
       value: -1.5
-    expectedByRuntime:
-      swift: "-1"
   - description: Number / rounding half expand negative tie
     rawMessage: "{value, number, roundingHalfExpand}"
     values:

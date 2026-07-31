@@ -13,6 +13,10 @@ import { evaluateCondition, evaluateGroupSegment, evaluateSegment } from "./cond
 import { createMessagevisor } from "./instance";
 
 interface Fixture {
+  portableRegex: {
+    accepted: Array<{ pattern: string; flags?: string; value: string }>;
+    rejected: Array<{ name: string; pattern: string; flags?: string }>;
+  };
   conditions: Array<{
     name: string;
     context: Context;
@@ -57,6 +61,8 @@ interface Fixture {
   };
   events: {
     stateEventBeforeChange: boolean;
+    childrenObserveParentDatafiles: boolean;
+    childCloseRemovesDelegatedSubscriptions: boolean;
     changeSources: Array<
       "datafile_set" | "locale_set" | "context_set" | "currency_set" | "timeZone_set"
     >;
@@ -68,6 +74,30 @@ const fixture = JSON.parse(
 ) as Fixture;
 
 describe("portable SDK conformance", function () {
+  test.each(fixture.portableRegex.accepted)(
+    "accepts portable regex $pattern",
+    function ({ pattern, flags, value }) {
+      expect(
+        evaluateCondition(
+          { attribute: "value", operator: "matches", value: pattern, regexFlags: flags },
+          { context: { value } },
+        ),
+      ).toBe(true);
+    },
+  );
+
+  test.each(fixture.portableRegex.rejected)(
+    "rejects nonportable regex $name",
+    function ({ pattern, flags }) {
+      expect(
+        evaluateCondition(
+          { attribute: "value", operator: "notMatches", value: pattern, regexFlags: flags },
+          { context: { value: "other" } },
+        ),
+      ).toBe(false);
+    },
+  );
+
   test.each(fixture.conditions)("$name", function ({ context, condition, expected }) {
     expect(evaluateCondition(condition, { context })).toBe(expected);
   });
@@ -301,5 +331,29 @@ describe("portable SDK conformance", function () {
         "change:timeZone_set",
       ]);
     }
+  });
+
+  it("executes the child subscription ownership contract", async function () {
+    const parent = createMessagevisor({ logLevel: "fatal" });
+    const child = parent.spawn();
+    const revisions: string[] = [];
+    child.on("datafile_set", (event) => revisions.push(event.datafile.revision));
+
+    const datafile: DatafileContent = {
+      schemaVersion: "1",
+      messagevisorVersion: "fixture",
+      revision: "1",
+      target: "web",
+      locale: "en",
+      segments: {},
+      messages: {},
+      translations: {},
+    };
+    parent.setDatafile(datafile);
+    if (fixture.events.childrenObserveParentDatafiles) expect(revisions).toEqual(["1"]);
+
+    await child.close();
+    parent.setDatafile({ ...datafile, revision: "2" }, true);
+    if (fixture.events.childCloseRemovesDelegatedSubscriptions) expect(revisions).toEqual(["1"]);
   });
 });

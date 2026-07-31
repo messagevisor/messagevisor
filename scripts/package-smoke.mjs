@@ -16,6 +16,7 @@ import { dirname, join, resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const packageDirectories = [
   "types",
+  "parsers",
   "sdk",
   "module-featurevisor",
   "module-icu",
@@ -56,7 +57,9 @@ try {
     const unwantedFiles = packedFiles.filter(
       (file) =>
         file.endsWith(".DS_Store") ||
-        file.endsWith(".spec.ts") ||
+        /\.spec\.[cm]?[jt]sx?(?:\.map)?$/.test(file) ||
+        /(?:^|\/)(?:jest\.config\.[cm]?js|tsconfig(?:\.[^/]+)?\.json)$/.test(file) ||
+        file.includes("test-fixtures") ||
         (directory !== "types" && (file === "src" || file.startsWith("src/"))),
     );
     if (unwantedFiles.length > 0) {
@@ -130,8 +133,10 @@ try {
       'import { createMessagevisor, type Messagevisor, type MessagevisorOptions } from "@messagevisor/sdk";',
       ...packageDirectories
         .filter((name) => !["sdk", "cli"].includes(name))
-        .map((name) => `import type * as ${name.replaceAll("-", "_")} from "@messagevisor/${name}";`),
-      "const options: MessagevisorOptions = { locale: \"en\" };",
+        .map(
+          (name) => `import type * as ${name.replaceAll("-", "_")} from "@messagevisor/${name}";`,
+        ),
+      'const options: MessagevisorOptions = { locale: "en" };',
       "const messagevisor: Messagevisor = createMessagevisor(options);",
       "void messagevisor;",
     ].join("\n"),
@@ -155,10 +160,14 @@ try {
       2,
     ),
   );
-  execFileSync(process.execPath, [join(root, "node_modules/typescript/bin/tsc"), "-p", consumerRoot], {
-    cwd: consumerRoot,
-    stdio: "inherit",
-  });
+  execFileSync(
+    process.execPath,
+    [join(root, "node_modules/typescript/bin/tsc"), "-p", consumerRoot],
+    {
+      cwd: consumerRoot,
+      stdio: "inherit",
+    },
+  );
 
   console.log(`Validated ${manifests.length} packed Messagevisor packages.`);
 } finally {

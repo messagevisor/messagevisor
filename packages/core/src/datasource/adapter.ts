@@ -53,7 +53,7 @@ export abstract class Adapter {
 
   abstract listSets(): Promise<string[]>;
   abstract listEntities(type: EntityType): Promise<string[]>;
-  abstract entityExists(type: EntityType, key: string): Promise<boolean> | boolean;
+  abstract entityExists(type: EntityType, key: string): Promise<boolean>;
   abstract readEntity<T>(type: EntityType, key: string): Promise<T>;
   abstract readEntityDocument<T>(type: EntityType, key: string): Promise<EntityDocument<T>>;
   abstract writeEntity<T>(type: EntityType, key: string, entity: T): Promise<T>;

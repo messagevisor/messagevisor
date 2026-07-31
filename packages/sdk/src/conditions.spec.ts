@@ -168,6 +168,38 @@ describe("evaluateCondition", function () {
     ).toBe(true);
   });
 
+  it.each([
+    "value(?=x)",
+    "(?<=x)value",
+    "(?:value)",
+    "(?<name>value)",
+    "(value)\\1",
+    "(?<name>value)\\k<name>",
+    "value++",
+  ])("defensively rejects nonportable regular expression %s", function (value) {
+    expect(
+      evaluateCondition(
+        { attribute: "name", operator: "matches", value },
+        { context: { name: "valuex" } },
+      ),
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { attribute: "name", operator: "notMatches", value },
+        { context: { name: "other" } },
+      ),
+    ).toBe(false);
+  });
+
+  it("supports the portable regex flags and ordinary capture groups", function () {
+    expect(
+      evaluateCondition(
+        { attribute: "value", operator: "matches", value: "^(hello)[\\s\\S]+$", regexFlags: "iu" },
+        { context: { value: "HELLO\nWORLD" } },
+      ),
+    ).toBe(true);
+  });
+
   it("evaluates array and membership operators", function () {
     const cases: Array<[Condition, boolean]> = [
       [{ attribute: "roles", operator: "includes", value: "admin" }, true],

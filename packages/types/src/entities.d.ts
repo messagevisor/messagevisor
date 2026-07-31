@@ -185,7 +185,8 @@ export interface AttributeCondition {
     | "in"
     | "notIn";
   value?: ConditionValue; // for all operators, except for "exists" and "notExists"
-  regexFlags?: string; // unique portable flags: i, m, s, u; regex operators only
+  /** Unique portable flags: i, m, s, and u. Regex operators only. */
+  regexFlags?: string;
 }
 
 export interface FeatureCondition {

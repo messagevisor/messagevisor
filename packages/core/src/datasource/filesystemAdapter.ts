@@ -3,7 +3,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 import { gzipSync } from "zlib";
 
-import type { CustomParser } from "@featurevisor/parsers";
+import type { CustomParser } from "@messagevisor/parsers";
 import type {
   Attribute,
   DatafileContent,
@@ -218,8 +218,14 @@ export class FilesystemAdapter extends Adapter {
     ).sort();
   }
 
-  entityExists(type: EntityType, key: string) {
-    return fs.existsSync(this.getEntityPath(type, key));
+  async entityExists(type: EntityType, key: string): Promise<boolean> {
+    try {
+      await fs.promises.access(this.getEntityPath(type, key));
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    }
   }
 
   async readEntity<T>(type: EntityType, key: string): Promise<T> {

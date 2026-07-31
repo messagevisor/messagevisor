@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "Language-neutral Messagevisor SDK behavioral contract",
   "runtimeVariability": {
     "notGuaranteed": [
@@ -8,6 +8,22 @@
       "CLDR-dependent date, time, number, list, and plural output"
     ],
     "policy": "Assert semantic behavior portably; use runtime-specific expectations for legitimate host ICU or CLDR output differences."
+  },
+  "portableRegex": {
+    "flags": ["i", "m", "s", "u"],
+    "accepted": [
+      { "pattern": "^checkout-[0-9]+$", "flags": "i", "value": "CHECKOUT-42" },
+      { "pattern": "^(hello)[\\s\\S]+$", "flags": "iu", "value": "HELLO\nWORLD" }
+    ],
+    "rejected": [
+      { "name": "lookahead", "pattern": "value(?=x)" },
+      { "name": "lookbehind", "pattern": "(?<=x)value" },
+      { "name": "noncapturing group", "pattern": "(?:value)" },
+      { "name": "named group", "pattern": "(?<name>value)" },
+      { "name": "backreference", "pattern": "(value)\\1" },
+      { "name": "named backreference", "pattern": "(?<name>value)\\k<name>" },
+      { "name": "possessive quantifier", "pattern": "value++" }
+    ]
   },
   "conditions": [
     {
@@ -290,12 +306,8 @@
   },
   "events": {
     "stateEventBeforeChange": true,
-    "changeSources": [
-      "datafile_set",
-      "locale_set",
-      "context_set",
-      "currency_set",
-      "timeZone_set"
-    ]
+    "childrenObserveParentDatafiles": true,
+    "childCloseRemovesDelegatedSubscriptions": true,
+    "changeSources": ["datafile_set", "locale_set", "context_set", "currency_set", "timeZone_set"]
   }
 }

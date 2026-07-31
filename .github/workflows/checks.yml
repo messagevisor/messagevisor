@@ -38,17 +38,5 @@ jobs:
       - name: Install dependencies
         run: make install
 
-      - name: Build
-        run: make build
-
-      - name: Lint
-        run: make lint
-
-      - name: Typecheck
-        run: make typecheck
-
-      - name: Test
-        run: make test
-
-      - name: Test packed packages
-        run: make test-packages
+      - name: Check
+        run: make check

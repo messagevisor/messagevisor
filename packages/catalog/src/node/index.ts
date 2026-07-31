@@ -1403,6 +1403,8 @@ async function buildSetCatalog(
       key: testKey,
       entityType,
       entityKey,
+      promotable: test.promotable,
+      authoredAssertions: test.assertions,
       assertions: context.runtime.expandTestAssertions(test),
     });
   }

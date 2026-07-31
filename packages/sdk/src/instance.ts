@@ -454,6 +454,7 @@ export class Messagevisor {
   private version = 0;
   private ownsModules = true;
   private parent?: Messagevisor;
+  private parentUnsubscribers: MessagevisorUnsubscribe[] = [];
   private listeners: Record<MessagevisorEventName, MessagevisorEventCallback<any>[]> = {
     change: [],
     error: [],
@@ -528,6 +529,34 @@ export class Messagevisor {
       return () => {};
     }
 
+    if (this.parent && eventName === "datafile_set") {
+      return this.trackParentSubscription(
+        this.parent.on("datafile_set", callback as MessagevisorEventCallback<"datafile_set">),
+      );
+    }
+
+    if (this.parent && eventName === "change") {
+      const unsubscribeLocal = this.addLocalListener(eventName, callback);
+      const unsubscribeParent = this.parent.on("change", (event) => {
+        if (event.source === "datafile_set") {
+          callback(event as MessagevisorEvent<T>);
+        }
+      });
+      const unsubscribeTrackedParent = this.trackParentSubscription(unsubscribeParent);
+
+      return () => {
+        unsubscribeLocal();
+        unsubscribeTrackedParent();
+      };
+    }
+
+    return this.addLocalListener(eventName, callback);
+  }
+
+  private addLocalListener<T extends MessagevisorEventName>(
+    eventName: T,
+    callback: MessagevisorEventCallback<T>,
+  ): MessagevisorUnsubscribe {
     if (this.listeners[eventName].indexOf(callback) === -1) {
       this.listeners[eventName].push(callback as MessagevisorEventCallback<any>);
     }
@@ -537,6 +566,18 @@ export class Messagevisor {
         (listener) => listener !== callback,
       );
     };
+  }
+
+  private trackParentSubscription(unsubscribeParent: MessagevisorUnsubscribe) {
+    let active = true;
+    const unsubscribe = () => {
+      if (!active) return;
+      active = false;
+      unsubscribeParent();
+      this.parentUnsubscribers = this.parentUnsubscribers.filter((entry) => entry !== unsubscribe);
+    };
+    this.parentUnsubscribers.push(unsubscribe);
+    return unsubscribe;
   }
 
   getSnapshot(): MessagevisorSnapshot {
@@ -1595,6 +1636,8 @@ export class Messagevisor {
     }
 
     this.closed = true;
+    this.parentUnsubscribers.slice().forEach((unsubscribe) => unsubscribe());
+    this.parentUnsubscribers = [];
     Object.keys(this.listeners).forEach((eventName) => {
       this.listeners[eventName as MessagevisorEventName] = [];
     });

@@ -2,6 +2,8 @@
 
 Catalog is a generated, read-only UI over a Messagevisor project. It helps engineers and non-engineers review messages, locales, targets, examples, relationships, history, and optional reports.
 
+Entity Tests tabs present authored and matrix-expanded assertion counts, inputs, contexts, expectations, and shareable assertion links. Entity title keys can be copied from the title area.
+
 ## Commands
 
 ```bash

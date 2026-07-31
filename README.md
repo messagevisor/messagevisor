@@ -190,6 +190,7 @@ npx messagevisor catalog
 | [`@messagevisor/vue`](./packages/vue)                                                 | Vue bindings                                                                                |
 | [`@messagevisor/react-intl-compat`](./packages/react-intl-compat)                     | Compatibility layer for react-intl style APIs                                               |
 | [`@messagevisor/catalog`](./packages/catalog)                                         | Static Catalog generator and UI                                                             |
+| [`@messagevisor/parsers`](./packages/parsers)                                         | YAML and JSON authoring parsers                                                             |
 | [`@messagevisor/module-icu`](./packages/module-icu)                                   | ICU message formatting module                                                               |
 | [`@messagevisor/module-interpolation`](./packages/module-interpolation)               | Lightweight string interpolation module                                                     |
 | [`@messagevisor/module-featurevisor`](./packages/module-featurevisor)                 | Featurevisor feature and experiment condition integration                                   |

@@ -327,6 +327,7 @@ describe("catalog", function () {
     expect(message.tests).toEqual([
       expect.objectContaining({
         key: "messages.common.welcome",
+        authoredAssertions: [expect.objectContaining({ matrix: expect.any(Object) })],
         assertions: [
           expect.objectContaining({ matrixIndex: 0, description: "Welcome for free" }),
           expect.objectContaining({ matrixIndex: 1, description: "Welcome for pro" }),

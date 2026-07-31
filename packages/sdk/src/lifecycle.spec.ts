@@ -151,6 +151,41 @@ describe("SDK lifecycle invariants", function () {
     expect(parent.getContext()).toEqual({ tenant: "parent", shared: "parent" });
   });
 
+  it("lets children observe shared parent datafiles and removes delegated subscriptions on close", async function () {
+    const parent = createMessagevisor({ datafile, logLevel: "fatal" });
+    const child = parent.spawn();
+    const datafileEvents: string[] = [];
+    const changeEvents: string[] = [];
+
+    child.on("datafile_set", (event) => datafileEvents.push(event.datafile.revision));
+    child.on("change", (event) => changeEvents.push(event.source));
+
+    child.setContext({ plan: "pro" });
+    parent.setDatafile({ ...datafile, revision: "2" }, true);
+    expect(datafileEvents).toEqual(["2"]);
+    expect(changeEvents).toEqual(["context_set", "datafile_set"]);
+
+    await child.close();
+    parent.setDatafile({ ...datafile, revision: "3" }, true);
+    expect(datafileEvents).toEqual(["2"]);
+    expect(changeEvents).toEqual(["context_set", "datafile_set"]);
+  });
+
+  it("keeps child delegated unsubscriptions idempotent", function () {
+    const parent = createMessagevisor({ datafile, logLevel: "fatal" });
+    const child = parent.spawn();
+    const revisions: string[] = [];
+    const unsubscribe = child.on("datafile_set", (event) =>
+      revisions.push(event.datafile.revision),
+    );
+
+    unsubscribe();
+    unsubscribe();
+    parent.setDatafile({ ...datafile, revision: "2" }, true);
+
+    expect(revisions).toEqual([]);
+  });
+
   it("closes a dynamically registered module only once when unsubscribe is repeated", async function () {
     const calls: string[] = [];
     const m = createMessagevisor({ datafile, logLevel: "fatal" });

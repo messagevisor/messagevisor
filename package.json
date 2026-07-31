@@ -10,6 +10,8 @@
   "scripts": {
     "build": "lerna run build",
     "test": "lerna run test",
+    "test:package-exports": "node scripts/test-package-exports.mjs",
+    "test:browser": "node scripts/test-browser.mjs",
     "bundle-sizes": "node scripts/bundle-sizes.mjs",
     "test:packages": "npm run build && node scripts/package-smoke.mjs",
     "typecheck": "lerna run typecheck"
@@ -32,6 +34,7 @@
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
     "@typescript-eslint/parser": "^8.18.1",
+    "esbuild": "^0.25.0",
     "eslint": "^9.17.0",
     "globals": "^15.14.0",
     "jest": "^30.1.3",

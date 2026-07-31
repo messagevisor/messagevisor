@@ -9,6 +9,10 @@ permissions:
   id-token: write
   contents: write
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   ci:
     name: Publish
@@ -35,20 +39,8 @@ jobs:
       - name: Install dependencies
         run: make install
 
-      - name: Build
-        run: make build
-
-      - name: Lint
-        run: make lint
-
-      - name: Typecheck
-        run: make typecheck
-
-      - name: Test
-        run: make test
-
-      - name: Test packed packages
-        run: make test-packages
+      - name: Check
+        run: make check
 
       - name: Bump version
         continue-on-error: true
@@ -75,8 +67,6 @@ jobs:
           npx lerna version --conventional-commits --conventional-graduate --exact --yes --no-push
 
       - name: Publish
-        env:
-          NPM_CONFIG_PROVENANCE: "false"
         run: |
           unset NODE_AUTH_TOKEN
           rm -f .npmrc

@@ -19,18 +19,20 @@ npx messagevisor --rootDirectoryPath=/absolute/path/to/project info
 
 ## Important options
 
-| Option                       | What it changes                                                                                                                           |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `parser`                     | Source file parser. Built-ins are `yml` and `json`; custom parsers are supported.                                                         |
-| `modules`                    | Runtime modules used by CLI evaluation, examples, tests, and Catalog examples.                                                            |
-| `namespaceCharacter`         | Separator used when deriving message keys from paths. Default is `"."`.                                                                   |
-| `exportOverrideKeySeparator` | Separator used for override row keys in CSV export/import. Default is `":"`.                                                              |
-| `sets`                       | Enables `sets/<name>/...` project layout when `true`.                                                                                     |
-| `promotionFlows`             | Restricts allowed `promote --from --to` directions.                                                                                       |
-| `sourceLocale`               | Locale used as the authoring source for translation contract and staleness checks.                                                        |
-| `lintIcu`                    | Enables ICU syntax and named format reference validation during linting. Default is `true`.                                               |
-| `icuSkeleton`                | Allows inline ICU skeleton styles during linting when `true`.                                                                             |
-| `plugins`                    | Extra project-specific CLI commands (`{command, options, handler}`) appended to the built-ins — declare every accepted option in `options`. |
+| Option                       | What it changes                                                                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `parser`                     | Source file parser. Built-ins are `yml` and `json`; custom parsers are supported.                                                          |
+| `modules`                    | Runtime modules used by CLI evaluation, examples, tests, and Catalog examples.                                                             |
+| `namespaceCharacter`         | Separator used when deriving message keys from paths. Default is `"."`.                                                                    |
+| `exportOverrideKeySeparator` | Separator used for override row keys in CSV export/import. Default is `":"`.                                                               |
+| `sets`                       | Enables `sets/<name>/...` project layout when `true`.                                                                                      |
+| `promotionFlows`             | Restricts allowed `promote --from --to` directions.                                                                                        |
+| `sourceLocale`               | Locale used as the authoring source for translation contract and staleness checks.                                                         |
+| `lintIcu`                    | Enables ICU syntax and named format reference validation during linting. Default is `true`.                                                |
+| `icuSkeleton`                | Allows inline ICU skeleton styles during linting when `true`.                                                                              |
+| `plugins`                    | Extra project-specific CLI commands (`{command, options, handler}`) appended to the built-ins. Declare every accepted option in `options`. |
+
+Parser types and the built-in parser registry come from `@messagevisor/parsers`. YAML editorial writes preserve comments where the corresponding entity fields remain present.
 
 Directory options: `localesDirectoryPath`, `messagesDirectoryPath`, `attributesDirectoryPath`, `segmentsDirectoryPath`, `targetsDirectoryPath`, `testsDirectoryPath`, `datafilesDirectoryPath`, `catalogDirectoryPath`, `exportsDirectoryPath`.
 

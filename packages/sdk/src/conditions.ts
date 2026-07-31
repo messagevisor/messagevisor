@@ -21,6 +21,25 @@ function getContextValue(context: Context | undefined, attribute: string) {
 }
 
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
+const portableRegexFlagsPattern = /^[imsu]+$/;
+
+function isPortableRegex(pattern: string, flags = "") {
+  if (flags && (!portableRegexFlagsPattern.test(flags) || new Set(flags).size !== flags.length)) {
+    return false;
+  }
+
+  try {
+    new RegExp(pattern, flags);
+  } catch {
+    return false;
+  }
+
+  if (/\(\?/.test(pattern)) return false;
+  if (/\\(?:[1-9]|k<|k'|g<|g')/.test(pattern)) return false;
+  if (/(?:[?*+]|\{\d+(?:,\d*)?\})\+/.test(pattern)) return false;
+
+  return true;
+}
 
 function getPortableDateTime(value: unknown) {
   if (value instanceof Date) {
@@ -172,13 +191,9 @@ export function evaluateCondition(
     case "matches":
     case "notMatches": {
       if (typeof value !== "string" || typeof expected !== "string") return false;
-      if (condition.regexFlags && !/^[imsu]+$/.test(condition.regexFlags)) return false;
-      try {
-        const matched = new RegExp(expected, condition.regexFlags || "").test(value);
-        return condition.operator === "matches" ? matched : !matched;
-      } catch {
-        return false;
-      }
+      if (!isPortableRegex(expected, condition.regexFlags)) return false;
+      const matched = new RegExp(expected, condition.regexFlags || "").test(value);
+      return condition.operator === "matches" ? matched : !matched;
     }
     case "before":
       return compareDate(value, expected, "before");

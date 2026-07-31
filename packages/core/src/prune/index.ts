@@ -1,6 +1,6 @@
 import * as path from "path";
 
-import type { CustomParser } from "@featurevisor/parsers";
+import type { CustomParser } from "@messagevisor/parsers";
 import type {
   FormatPresets,
   Locale,

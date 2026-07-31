@@ -114,7 +114,7 @@ export function handleRequest(request) {
 }
 ```
 
-Datafiles loaded into the parent stay visible to existing children. Closing a child releases only its own listeners.
+Datafiles loaded into the parent stay visible to existing children. Child `datafile_set` listeners and generic `change` listeners observe parent datafile updates. Closing a child removes those delegated subscriptions and its local listeners without closing parent modules.
 
 ## Lifecycle
 

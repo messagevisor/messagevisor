@@ -1,7 +1,7 @@
 import * as path from "path";
 import * as util from "util";
 
-import { Parser, parsers } from "@featurevisor/parsers";
+import { Parser, parsers } from "@messagevisor/parsers";
 import type { MessagevisorModule } from "@messagevisor/sdk";
 
 import { FilesystemAdapter } from "../datasource/filesystemAdapter";

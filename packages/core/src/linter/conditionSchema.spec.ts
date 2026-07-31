@@ -62,6 +62,18 @@ describe("condition schema regex operators", function () {
     ).toBe(false);
   });
 
+  it.each([
+    ["lookahead", "value(?=x)"],
+    ["lookbehind", "(?<=x)value"],
+    ["noncapturing group", "(?:value)"],
+    ["named group", "(?<name>value)"],
+    ["backreference", "(value)\\1"],
+    ["named backreference", "(?<name>value)\\k<name>"],
+    ["possessive quantifier", "value++"],
+  ])("rejects portable regex incompatible %s syntax", function (_name, value) {
+    expect(schema.safeParse({ attribute: "code", operator: "matches", value }).success).toBe(false);
+  });
+
   it("requires portable timezone-qualified ISO date-time values", function () {
     const dateSchema = getConditionsZodSchema({ createdAt: { type: "date" } });
     expect(

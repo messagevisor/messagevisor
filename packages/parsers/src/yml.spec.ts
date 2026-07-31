@@ -38,4 +38,45 @@ describe("ymlParser", function () {
     );
     rmSync(directory, { recursive: true, force: true });
   });
+
+  it("preserves scalar styles, flow collections, anchors, aliases, and directives", function () {
+    const directory = mkdtempSync(join(tmpdir(), "messagevisor-parser-"));
+    const filePath = join(directory, "message.yml");
+    const before = [
+      "%YAML 1.2",
+      "---",
+      'title: "Before"',
+      "description: |-",
+      "  First line",
+      "  Second line",
+      "defaults: &defaults { tone: calm, retries: 2 }",
+      "copy: *defaults",
+      "tags: [first, second]",
+      "",
+    ].join("\n");
+    writeFileSync(filePath, before);
+
+    const parsed = ymlParser.parse<Record<string, unknown>>(before);
+    const output = ymlParser.stringify({ ...parsed, title: "After" }, filePath);
+
+    expect(output).toContain("%YAML 1.2");
+    expect(output).toContain('title: "After"');
+    expect(output).toContain("description: |-");
+    expect(output).toContain("defaults: &defaults { tone: calm, retries: 2 }");
+    expect(output).toContain("copy: *defaults");
+    expect(output).toMatch(/tags: \[\s*first, second\s*\]/);
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it("keeps comments attached to duplicate sequence entries", function () {
+    const directory = mkdtempSync(join(tmpdir(), "messagevisor-parser-"));
+    const filePath = join(directory, "message.yml");
+    writeFileSync(filePath, "items:\n  - same # first\n  - same # second\n");
+
+    const output = ymlParser.stringify({ items: ["same", "same"] }, filePath);
+
+    expect(output).toContain("same # first");
+    expect(output).toContain("same # second");
+    rmSync(directory, { recursive: true, force: true });
+  });
 });

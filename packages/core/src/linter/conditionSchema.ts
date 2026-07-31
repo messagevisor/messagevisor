@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Attribute } from "@messagevisor/types";
+import { getPortableRegexError } from "@messagevisor/sdk";
 import { z } from "zod";
 
 import { refineWithMessage } from "./zodHelpers";
@@ -433,21 +434,4 @@ export function getConditionsZodSchema(attributesByKey: Record<string, Attribute
   });
 
   return z.union([z.literal("*"), conditionZodSchema, z.array(conditionZodSchema).min(1)]);
-}
-function getPortableRegexError(pattern: string, flags?: string) {
-  try {
-    new RegExp(pattern, flags);
-  } catch (error) {
-    return `must be valid: ${error instanceof Error ? error.message : String(error)}`;
-  }
-
-  if (/\(\?/.test(pattern)) {
-    return "must not use lookaround, named groups, noncapturing groups, atomic groups, or inline mode groups";
-  }
-  if (/\\(?:[1-9]|k<|k'|g<|g')/.test(pattern)) return "must not use backreferences";
-  if (/(?:[?*+]|\{\d+(?:,\d*)?\})\+/.test(pattern)) {
-    return "must not use possessive quantifiers";
-  }
-
-  return undefined;
 }

@@ -32,7 +32,7 @@ npx messagevisor --rootDirectoryPath=/absolute/path/to/project info
 | `icuSkeleton`                | Allows inline ICU skeleton styles during linting when `true`.                                                                              |
 | `plugins`                    | Extra project-specific CLI commands (`{command, options, handler}`) appended to the built-ins. Declare every accepted option in `options`. |
 
-Parser types and the built-in parser registry come from `@messagevisor/parsers`. YAML editorial writes preserve comments where the corresponding entity fields remain present.
+Parser types and the built-in parser registry come from `@messagevisor/parsers`. YAML editorial writes preserve comments and reuse unchanged YAML nodes so scalar styles, flow collections, anchors, aliases, tags, and directives remain intact where possible.
 
 Directory options: `localesDirectoryPath`, `messagesDirectoryPath`, `attributesDirectoryPath`, `segmentsDirectoryPath`, `targetsDirectoryPath`, `testsDirectoryPath`, `datafilesDirectoryPath`, `catalogDirectoryPath`, `exportsDirectoryPath`.
 

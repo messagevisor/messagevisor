@@ -10,10 +10,34 @@ describe("Catalog test model", function () {
         { matrix: { locale: ["en", "nl"], plan: ["free", "pro"] }, locale: "${{ locale }}" },
       ],
       assertions: [
-        { assertionIndex: 0, matrixIndex: 0, locale: "en" },
-        { assertionIndex: 0, matrixIndex: 1, locale: "en" },
-        { assertionIndex: 0, matrixIndex: 2, locale: "nl" },
-        { assertionIndex: 0, matrixIndex: 3, locale: "nl" },
+        {
+          assertionIndex: 0,
+          matrixIndex: 0,
+          matrixValues: { locale: "en", plan: "free" },
+          matrixCount: 4,
+          locale: "en",
+        },
+        {
+          assertionIndex: 0,
+          matrixIndex: 1,
+          matrixValues: { locale: "en", plan: "pro" },
+          matrixCount: 4,
+          locale: "en",
+        },
+        {
+          assertionIndex: 0,
+          matrixIndex: 2,
+          matrixValues: { locale: "nl", plan: "free" },
+          matrixCount: 4,
+          locale: "nl",
+        },
+        {
+          assertionIndex: 0,
+          matrixIndex: 3,
+          matrixValues: { locale: "nl", plan: "pro" },
+          matrixCount: 4,
+          locale: "nl",
+        },
       ],
     });
 

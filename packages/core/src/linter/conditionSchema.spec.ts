@@ -74,6 +74,16 @@ describe("condition schema regex operators", function () {
     expect(schema.safeParse({ attribute: "code", operator: "matches", value }).success).toBe(false);
   });
 
+  it.each([
+    ["special characters in a class", "^[()?+*]+$", undefined],
+    ["an escaped literal backslash before a digit", "^\\\\1$", undefined],
+    ["a Unicode code point", "^.$", "u"],
+  ])("accepts portable regex syntax for %s", function (_name, value, regexFlags) {
+    expect(
+      schema.safeParse({ attribute: "code", operator: "matches", value, regexFlags }).success,
+    ).toBe(true);
+  });
+
   it("requires portable timezone-qualified ISO date-time values", function () {
     const dateSchema = getConditionsZodSchema({ createdAt: { type: "date" } });
     expect(

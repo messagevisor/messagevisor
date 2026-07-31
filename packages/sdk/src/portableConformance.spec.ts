@@ -13,6 +13,7 @@ import { evaluateCondition, evaluateGroupSegment, evaluateSegment } from "./cond
 import { createMessagevisor } from "./instance";
 
 interface Fixture {
+  fixtureVersion: number;
   portableRegex: {
     accepted: Array<{ pattern: string; flags?: string; value: string }>;
     rejected: Array<{ name: string; pattern: string; flags?: string }>;
@@ -61,8 +62,8 @@ interface Fixture {
   };
   events: {
     stateEventBeforeChange: boolean;
-    childrenObserveParentDatafiles: boolean;
-    childCloseRemovesDelegatedSubscriptions: boolean;
+    childDatafileTrace: Array<Record<string, unknown>>;
+    childDatafileRevisionAfterClose: string;
     changeSources: Array<
       "datafile_set" | "locale_set" | "context_set" | "currency_set" | "timeZone_set"
     >;
@@ -333,12 +334,7 @@ describe("portable SDK conformance", function () {
     }
   });
 
-  it("executes the child subscription ownership contract", async function () {
-    const parent = createMessagevisor({ logLevel: "fatal" });
-    const child = parent.spawn();
-    const revisions: string[] = [];
-    child.on("datafile_set", (event) => revisions.push(event.datafile.revision));
-
+  it("executes the child-owned datafile event contract", async function () {
     const datafile: DatafileContent = {
       schemaVersion: "1",
       messagevisorVersion: "fixture",
@@ -349,11 +345,39 @@ describe("portable SDK conformance", function () {
       messages: {},
       translations: {},
     };
-    parent.setDatafile(datafile);
-    if (fixture.events.childrenObserveParentDatafiles) expect(revisions).toEqual(["1"]);
+    const parent = createMessagevisor({ datafile, logLevel: "fatal" });
+    parent.setDatafile({ ...datafile, locale: "nl", revision: "nl-1" });
+    const child = parent.spawn({ tenant: "child" }, { locale: "nl" });
+    const trace: Array<Record<string, unknown>> = [];
+    const record = (event: any) =>
+      trace.push({
+        type: event.type,
+        ...(event.source ? { source: event.source } : {}),
+        version: event.version,
+        snapshotVersion: event.snapshot.version,
+        previousSnapshotVersion: event.previousSnapshot.version,
+        snapshotLocale: event.snapshot.locale,
+        previousSnapshotLocale: event.previousSnapshot.locale,
+        datafileLocale: event.datafile.locale,
+        activeLocale: event.activeLocale,
+        datafileRevision: event.datafile.revision,
+        snapshotDatafileRevision: event.snapshot.datafileRevisionsByLocale.en,
+        previousSnapshotDatafileRevision: event.previousSnapshot.datafileRevisionsByLocale.en,
+      });
+    child.on("datafile_set", record);
+    child.on("change", (event) => {
+      if (event.source === "datafile_set") record(event);
+    });
+
+    parent.setDatafile({ ...datafile, revision: "2" }, true);
+    expect(trace).toEqual(fixture.events.childDatafileTrace);
+    expect(child.getSnapshot()).toEqual(
+      expect.objectContaining({ version: 1, locale: "nl", context: { tenant: "child" } }),
+    );
 
     await child.close();
-    parent.setDatafile({ ...datafile, revision: "2" }, true);
-    if (fixture.events.childCloseRemovesDelegatedSubscriptions) expect(revisions).toEqual(["1"]);
+    parent.setDatafile({ ...datafile, revision: "3" }, true);
+    expect(trace[0].datafileRevision).toBe(fixture.events.childDatafileRevisionAfterClose);
+    expect(trace).toHaveLength(fixture.events.childDatafileTrace.length);
   });
 });

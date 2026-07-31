@@ -15,28 +15,20 @@ export interface CatalogExpandedAssertion {
   caseCount?: number;
 }
 
-function getMatrixCombinations(matrix: Record<string, unknown[]>) {
-  return Object.keys(matrix).reduce<Array<Record<string, unknown>>>(
-    (combinations, key) =>
-      combinations.flatMap((combination) =>
-        matrix[key].map((value) => ({ ...combination, [key]: value })),
-      ),
-    [{}],
-  );
-}
-
 export function getCatalogAssertions(test: CatalogTestSpec): CatalogExpandedAssertion[] {
   return test.assertions.map((assertion, fallbackIndex) => {
     const assertionIndex =
       typeof assertion.assertionIndex === "number" ? assertion.assertionIndex : fallbackIndex;
     const matrixIndex =
       typeof assertion.matrixIndex === "number" ? assertion.matrixIndex : undefined;
-    const authored = test.authoredAssertions[assertionIndex];
-    const matrix = authored?.matrix as Record<string, unknown[]> | undefined;
-    const combinations = matrix ? getMatrixCombinations(matrix) : [];
+    const matrixValues = assertion.matrixValues as Record<string, unknown> | undefined;
+    const matrixCount =
+      typeof assertion.matrixCount === "number" ? assertion.matrixCount : undefined;
     const cleanAssertion = { ...assertion };
     delete cleanAssertion.assertionIndex;
     delete cleanAssertion.matrixIndex;
+    delete cleanAssertion.matrixValues;
+    delete cleanAssertion.matrixCount;
 
     return {
       assertion: cleanAssertion,
@@ -46,9 +38,9 @@ export function getCatalogAssertions(test: CatalogTestSpec): CatalogExpandedAsse
           : String(assertionIndex + 1),
       ...(typeof matrixIndex === "number"
         ? {
-            matrixValues: combinations[matrixIndex],
+            matrixValues,
             caseIndex: matrixIndex,
-            caseCount: combinations.length,
+            caseCount: matrixCount,
           }
         : {}),
     };

@@ -135,4 +135,84 @@ describe("Datasource adapter contract", function () {
       ]),
     ).rejects.toThrow(/same entity/);
   });
+
+  it("updates and deletes legacy test paths without creating duplicate spec files", async function () {
+    const testsDirectory = path.join(root, "tests", "messages");
+    await fs.promises.mkdir(testsDirectory, { recursive: true });
+    const legacyPath = path.join(testsDirectory, "welcome.yml");
+    const specPath = path.join(testsDirectory, "welcome.spec.yml");
+    await fs.promises.writeFile(
+      legacyPath,
+      "message: welcome\nassertions:\n  - expectedTranslation: Hello\n",
+    );
+
+    const document = await datasource.readEntityDocument("test", "messages.welcome");
+    await datasource.applyEntityMutations([
+      {
+        operation: "write",
+        type: "test",
+        key: "messages.welcome",
+        expectedVersion: document.version,
+        entity: {
+          message: "welcome",
+          assertions: [{ expectedTranslation: "Updated" }],
+        },
+      },
+    ]);
+
+    expect(await fs.promises.readFile(legacyPath, "utf8")).toContain("Updated");
+    expect(fs.existsSync(specPath)).toBe(false);
+
+    const updated = await datasource.readEntityDocument("test", "messages.welcome");
+    await datasource.applyEntityMutations([
+      {
+        operation: "delete",
+        type: "test",
+        key: "messages.welcome",
+        expectedVersion: updated.version,
+      },
+    ]);
+    expect(fs.existsSync(legacyPath)).toBe(false);
+  });
+
+  it("serializes concurrent mutation batches and recovers a stale editorial lock", async function () {
+    await datasource.writeMessage("welcome", { translations: { en: "Hello" } });
+    const original = await datasource.readEntityDocument<Message>("message", "welcome");
+    const mutation = (translation: string) =>
+      datasource.applyEntityMutations([
+        {
+          operation: "write" as const,
+          type: "message" as const,
+          key: "welcome",
+          expectedVersion: original.version,
+          entity: { translations: { en: translation } },
+        },
+      ]);
+
+    const outcomes = await Promise.allSettled([mutation("First"), mutation("Second")]);
+    expect(outcomes.filter(({ status }) => status === "fulfilled")).toHaveLength(1);
+    expect(outcomes.filter(({ status }) => status === "rejected")).toHaveLength(1);
+    expect(
+      String(
+        (outcomes.find(({ status }) => status === "rejected") as PromiseRejectedResult).reason,
+      ),
+    ).toMatch(/Entity conflict/);
+
+    const lockPath = path.join(root, ".messagevisor", "editorial.lock");
+    await fs.promises.mkdir(path.dirname(lockPath), { recursive: true });
+    await fs.promises.writeFile(lockPath, "2147483647\n");
+    const current = await datasource.readEntityDocument<Message>("message", "welcome");
+    await expect(
+      datasource.applyEntityMutations([
+        {
+          operation: "write",
+          type: "message",
+          key: "welcome",
+          expectedVersion: current.version,
+          entity: { translations: { en: "Recovered" } },
+        },
+      ]),
+    ).resolves.toHaveLength(1);
+    expect((await datasource.readMessage("welcome")).translations.en).toBe("Recovered");
+  });
 });

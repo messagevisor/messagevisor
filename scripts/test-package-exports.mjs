@@ -46,17 +46,10 @@ async function main() {
       assertTarget(directory, target, `${packageName} bin ${name}`);
     }
 
-    const rootExport = manifest.exports?.["."];
-    if (rootExport) {
-      for (const target of collectTargets(rootExport))
-        assertTarget(directory, target, `${packageName} export`);
-    }
-    if (manifest.exports?.["./package.json"]) {
-      assertTarget(
-        directory,
-        manifest.exports["./package.json"],
-        `${packageName} package.json export`,
-      );
+    for (const [subpath, target] of Object.entries(manifest.exports || {})) {
+      for (const resolvedTarget of collectTargets(target)) {
+        assertTarget(directory, resolvedTarget, `${packageName} export ${subpath}`);
+      }
     }
 
     if (loadRuntime) require(packageName);
@@ -69,6 +62,7 @@ async function main() {
     "evaluateCondition",
     "evaluateGroupSegment",
     "evaluateSegment",
+    "getPortableRegexError",
   ];
   for (const loaded of [sdk, importedSdk]) {
     const actualExports = Object.keys(loaded).sort();

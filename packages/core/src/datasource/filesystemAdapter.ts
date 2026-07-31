@@ -182,6 +182,51 @@ export class FilesystemAdapter extends Adapter {
     }
   }
 
+  private async acquireEditorialLock() {
+    const lockPath = path.join(this.config.stateDirectoryPath, "editorial.lock");
+    await fs.promises.mkdir(path.dirname(lockPath), { recursive: true });
+    const deadline = Date.now() + 2000;
+
+    while (true) {
+      try {
+        const handle = await fs.promises.open(lockPath, "wx");
+        await handle.writeFile(`${process.pid}\n`);
+        let released = false;
+        return async () => {
+          if (released) return;
+          released = true;
+          await handle.close();
+          await fs.promises.rm(lockPath, { force: true });
+        };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+
+        try {
+          const owner = Number.parseInt(await fs.promises.readFile(lockPath, "utf8"), 10);
+          if (Number.isInteger(owner)) process.kill(owner, 0);
+        } catch (ownerError) {
+          if ((ownerError as NodeJS.ErrnoException).code === "ESRCH") {
+            const stalePath = `${lockPath}.stale-${process.pid}-${crypto.randomUUID()}`;
+            try {
+              await fs.promises.rename(lockPath, stalePath);
+              await fs.promises.rm(stalePath, { force: true });
+            } catch (recoveryError) {
+              if ((recoveryError as NodeJS.ErrnoException).code !== "ENOENT") {
+                throw recoveryError;
+              }
+            }
+            continue;
+          }
+        }
+
+        if (Date.now() >= deadline) {
+          throw new Error("Another editorial mutation is currently in progress.");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+    }
+  }
+
   async listEntities(type: EntityType): Promise<string[]> {
     const directoryPath = this.getEntityDirectory(type);
 
@@ -265,12 +310,24 @@ export class FilesystemAdapter extends Adapter {
     mutations: EntityMutation[],
     options: ApplyEntityMutationsOptions = {},
   ): Promise<EntityMutationResult[]> {
+    const releaseLock = await this.acquireEditorialLock();
+    try {
+      return await this.applyEntityMutationsWithLock(mutations, options);
+    } finally {
+      await releaseLock();
+    }
+  }
+
+  private async applyEntityMutationsWithLock(
+    mutations: EntityMutation[],
+    options: ApplyEntityMutationsOptions,
+  ): Promise<EntityMutationResult[]> {
     const identities = mutations.map((mutation) => `${mutation.type}\0${mutation.key}`);
     if (new Set(identities).size !== identities.length) {
       throw new Error("A mutation batch cannot contain the same entity more than once.");
     }
     const snapshots = new Map<string, Buffer | null>();
-    const paths = mutations.map((mutation) => this.getEntityWritePath(mutation.type, mutation.key));
+    const paths = mutations.map((mutation) => this.getEntityPath(mutation.type, mutation.key));
 
     for (let index = 0; index < mutations.length; index++) {
       const mutation = mutations[index];

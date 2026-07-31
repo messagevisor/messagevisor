@@ -157,7 +157,12 @@ describe("SDK lifecycle invariants", function () {
     const datafileEvents: string[] = [];
     const changeEvents: string[] = [];
 
-    child.on("datafile_set", (event) => datafileEvents.push(event.datafile.revision));
+    child.on("datafile_set", (event) => {
+      datafileEvents.push(event.datafile.revision);
+      expect(event.snapshot.context).toEqual({ plan: "pro" });
+      expect(event.snapshot.version).toBe(2);
+      expect(event.previousSnapshot.version).toBe(1);
+    });
     child.on("change", (event) => changeEvents.push(event.source));
 
     child.setContext({ plan: "pro" });

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "fixtureVersion": 3,
   "description": "Language-neutral Messagevisor SDK behavioral contract",
   "runtimeVariability": {
     "notGuaranteed": [
@@ -13,7 +13,10 @@
     "flags": ["i", "m", "s", "u"],
     "accepted": [
       { "pattern": "^checkout-[0-9]+$", "flags": "i", "value": "CHECKOUT-42" },
-      { "pattern": "^(hello)[\\s\\S]+$", "flags": "iu", "value": "HELLO\nWORLD" }
+      { "pattern": "^(hello)[\\s\\S]+$", "flags": "iu", "value": "HELLO\nWORLD" },
+      { "pattern": "^.$", "flags": "u", "value": "😀" },
+      { "pattern": "^[()?+*]+$", "value": "(?+*" },
+      { "pattern": "^\\\\1$", "value": "\\1" }
     ],
     "rejected": [
       { "name": "lookahead", "pattern": "value(?=x)" },
@@ -306,8 +309,36 @@
   },
   "events": {
     "stateEventBeforeChange": true,
-    "childrenObserveParentDatafiles": true,
-    "childCloseRemovesDelegatedSubscriptions": true,
+    "childDatafileTrace": [
+      {
+        "type": "datafile_set",
+        "version": 1,
+        "snapshotVersion": 1,
+        "previousSnapshotVersion": 0,
+        "snapshotLocale": "nl",
+        "previousSnapshotLocale": "nl",
+        "datafileLocale": "en",
+        "activeLocale": "nl",
+        "datafileRevision": "2",
+        "snapshotDatafileRevision": "2",
+        "previousSnapshotDatafileRevision": "1"
+      },
+      {
+        "type": "change",
+        "source": "datafile_set",
+        "version": 1,
+        "snapshotVersion": 1,
+        "previousSnapshotVersion": 0,
+        "snapshotLocale": "nl",
+        "previousSnapshotLocale": "nl",
+        "datafileLocale": "en",
+        "activeLocale": "nl",
+        "datafileRevision": "2",
+        "snapshotDatafileRevision": "2",
+        "previousSnapshotDatafileRevision": "1"
+      }
+    ],
+    "childDatafileRevisionAfterClose": "2",
     "changeSources": ["datafile_set", "locale_set", "context_set", "currency_set", "timeZone_set"]
   }
 }

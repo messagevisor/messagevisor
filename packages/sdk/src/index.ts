@@ -1,5 +1,6 @@
 export { createMessagevisor } from "./instance.js";
 export { evaluateCondition, evaluateGroupSegment, evaluateSegment } from "./conditions.js";
+export { getPortableRegexError } from "./portableRegex.js";
 export type { EvaluateOptions as MessagevisorEvaluationDataProvider } from "./conditions.js";
 
 // `createMessagevisor()` is the primary runtime API. Keep the rest type-only so

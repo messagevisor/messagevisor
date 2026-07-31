@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -25,6 +25,22 @@ function run(command, args, options = {}) {
 }
 
 try {
+  const packageRoot = join(temporaryDirectory, "node_modules", "@messagevisor", "sdk");
+  mkdirSync(packageRoot, { recursive: true });
+  const packed = JSON.parse(
+    run("npm", ["pack", "--json", "--pack-destination", temporaryDirectory], {
+      cwd: join(root, "packages", "sdk"),
+      env: { ...process.env, npm_config_cache: join(temporaryDirectory, "npm-cache") },
+    }),
+  );
+  run("tar", [
+    "-xzf",
+    join(temporaryDirectory, packed[0].filename),
+    "--strip-components=1",
+    "-C",
+    packageRoot,
+  ]);
+
   const entryPath = join(temporaryDirectory, "entry.js");
   const bundlePath = join(temporaryDirectory, "bundle.js");
   const htmlPath = join(temporaryDirectory, "index.html");
@@ -32,7 +48,7 @@ try {
   writeFileSync(
     entryPath,
     `
-import { createMessagevisor } from ${JSON.stringify(join(root, "packages/sdk/esm/index.js"))};
+import { createMessagevisor } from "@messagevisor/sdk";
 
 const messagevisor = createMessagevisor({
   logLevel: "fatal",
@@ -62,7 +78,7 @@ document.body.dataset.result = messagevisor.translate("greeting") === "Hello pro
     "--bundle",
     "--format=iife",
     "--platform=browser",
-    "--target=chrome80",
+    "--target=es2022",
     `--outfile=${bundlePath}`,
   ]);
   writeFileSync(
@@ -97,7 +113,7 @@ document.body.dataset.result = messagevisor.translate("greeting") === "Hello pro
     throw new Error(`Browser smoke test did not pass:\n${html}`);
   }
 
-  console.log("Browser SDK bundle and evaluation smoke test passed.");
+  console.log("Packed browser SDK bundle and evaluation smoke test passed in current Chrome.");
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });
 }

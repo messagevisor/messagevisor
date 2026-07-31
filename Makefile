@@ -1,7 +1,10 @@
-.PHONY: install build test test-package-exports test-packages test-browser typecheck bundle-sizes lint check
+.PHONY: install clean build test test-package-exports test-packages test-browser typecheck bundle-sizes lint check
 
 install:
 	npm ci
+
+clean:
+	npm run clean
 
 build:
 	npm run build
@@ -34,10 +37,11 @@ format:
 	npx eslint . --fix
 
 check:
+	make clean
 	make build
 	make test
-	make test-package-exports
-	make test-packages
-	make test-browser
+	npm run test:package-exports:built
+	npm run test:packages:built
+	npm run test:browser:built
 	make lint
 	make typecheck

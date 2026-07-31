@@ -7,6 +7,7 @@ describe("SDK root exports", function () {
       "evaluateCondition",
       "evaluateGroupSegment",
       "evaluateSegment",
+      "getPortableRegexError",
     ]);
   });
 });

@@ -6,7 +6,7 @@ import type {
   SegmentAssertion,
 } from "@messagevisor/types";
 
-import { applyCombinationToValue, getMatrixCombinations } from "../matrix";
+import { applyCombinationToValue, getMatrixCombinations, type MatrixCombination } from "../matrix";
 
 interface MatrixEnabledAssertion {
   matrix?: Matrix;
@@ -16,6 +16,8 @@ interface MatrixEnabledAssertion {
 interface ExpandedAssertionMeta {
   assertionIndex: number;
   matrixIndex?: number;
+  matrixValues?: MatrixCombination;
+  matrixCount?: number;
 }
 
 export type ExpandedMessageAssertion = Omit<MessageAssertion, "matrix"> & ExpandedAssertionMeta;
@@ -65,6 +67,8 @@ function expandAssertions<T extends MatrixEnabledAssertion>(
         ...(normalizer ? normalizer(expandedAssertion) : expandedAssertion),
         assertionIndex,
         matrixIndex,
+        matrixValues: combinations[matrixIndex],
+        matrixCount: combinations.length,
       } as Omit<T, "matrix"> & ExpandedAssertionMeta);
     }
   }

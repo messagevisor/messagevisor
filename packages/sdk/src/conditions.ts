@@ -1,5 +1,7 @@
 import type { Condition, Context, GroupSegment, Segment } from "@messagevisor/types";
 
+import { getPortableRegexError } from "./portableRegex.js";
+
 export interface EvaluateOptions {
   context?: Context;
   segments?: Record<string, Segment>;
@@ -21,26 +23,6 @@ function getContextValue(context: Context | undefined, attribute: string) {
 }
 
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
-const portableRegexFlagsPattern = /^[imsu]+$/;
-
-function isPortableRegex(pattern: string, flags = "") {
-  if (flags && (!portableRegexFlagsPattern.test(flags) || new Set(flags).size !== flags.length)) {
-    return false;
-  }
-
-  try {
-    new RegExp(pattern, flags);
-  } catch {
-    return false;
-  }
-
-  if (/\(\?/.test(pattern)) return false;
-  if (/\\(?:[1-9]|k<|k'|g<|g')/.test(pattern)) return false;
-  if (/(?:[?*+]|\{\d+(?:,\d*)?\})\+/.test(pattern)) return false;
-
-  return true;
-}
-
 function getPortableDateTime(value: unknown) {
   if (value instanceof Date) {
     const time = value.getTime();
@@ -191,7 +173,7 @@ export function evaluateCondition(
     case "matches":
     case "notMatches": {
       if (typeof value !== "string" || typeof expected !== "string") return false;
-      if (!isPortableRegex(expected, condition.regexFlags)) return false;
+      if (getPortableRegexError(expected, condition.regexFlags)) return false;
       const matched = new RegExp(expected, condition.regexFlags || "").test(value);
       return condition.operator === "matches" ? matched : !matched;
     }

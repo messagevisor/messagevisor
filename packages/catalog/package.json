@@ -43,7 +43,9 @@
   "engines": {
     "node": ">=20.19.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@messagevisor/types": "0.26.0"
+  },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.7",

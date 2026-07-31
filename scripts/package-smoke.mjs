@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdtempSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -32,12 +33,45 @@ const packageDirectories = [
 const temporaryRoot = mkdtempSync(join(tmpdir(), "messagevisor-packages-"));
 const modulesRoot = join(temporaryRoot, "node_modules");
 const cache = join(temporaryRoot, "npm-cache");
+const manifestsByName = new Map();
+const packagePathsByName = new Map();
+// Core optionally discovers the host CLI version for generated datafile metadata.
+// It is guarded at runtime and core must remain independently installable.
+const optionalHostImports = new Map([["@messagevisor/core", new Set(["@messagevisor/cli"])]]);
 
 function linkExternalDependency(name) {
   const destination = join(modulesRoot, name);
   if (existsSync(destination)) return;
   mkdirSync(dirname(destination), { recursive: true });
   symlinkSync(join(root, "node_modules", name), destination, "junction");
+}
+
+function findInternalImports(directory) {
+  const imports = new Set();
+  const visit = (current) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const entryPath = join(current, entry.name);
+      if (entry.isDirectory()) {
+        visit(entryPath);
+        continue;
+      }
+      if (!/\.(?:[cm]?js|d\.ts)$/.test(entry.name)) continue;
+      const content = readFileSync(entryPath, "utf8");
+      const importPattern =
+        /(?:\brequire\s*\(|\brequire\.resolve\s*\(|\bimport\s*\(|\bfrom\s+)["']@messagevisor\/([a-z0-9._-]+)/gi;
+      for (const match of content.matchAll(importPattern)) {
+        imports.add(`@messagevisor/${match[1]}`);
+      }
+    }
+  };
+  visit(directory);
+  return imports;
+}
+
+function collectExportTargets(value) {
+  if (typeof value === "string") return [value];
+  if (!value || typeof value !== "object") return [];
+  return Object.values(value).flatMap(collectExportTargets);
 }
 
 try {
@@ -73,6 +107,8 @@ try {
     mkdirSync(destination, { recursive: true });
     execFileSync("tar", ["-xzf", tarball, "--strip-components=1", "-C", destination]);
     manifests.push(manifest);
+    manifestsByName.set(manifest.name, manifest);
+    packagePathsByName.set(manifest.name, destination);
   }
 
   for (const manifest of manifests.filter(({ name }) => name.startsWith("@messagevisor/module-"))) {
@@ -98,11 +134,81 @@ try {
   }
 
   for (const manifest of manifests) {
+    const declared = new Set([
+      manifest.name,
+      ...Object.keys(manifest.dependencies || {}),
+      ...Object.keys(manifest.peerDependencies || {}),
+    ]);
+    for (const imported of findInternalImports(packagePathsByName.get(manifest.name))) {
+      if (!declared.has(imported) && !optionalHostImports.get(manifest.name)?.has(imported)) {
+        throw new Error(`${manifest.name} imports undeclared internal package ${imported}.`);
+      }
+    }
+  }
+
+  function collectInternalDependencies(manifest, collected = new Set()) {
+    if (collected.has(manifest.name)) return collected;
+    collected.add(manifest.name);
+    const dependencies = {
+      ...(manifest.dependencies || {}),
+      ...(manifest.peerDependencies || {}),
+    };
+    for (const dependency of Object.keys(dependencies)) {
+      const internal = manifestsByName.get(dependency);
+      if (internal) collectInternalDependencies(internal, collected);
+    }
+    return collected;
+  }
+
+  for (const manifest of manifests.filter(({ name }) => name !== "@messagevisor/cli")) {
+    const consumer = join(temporaryRoot, `consumer-${manifest.name.replace("@messagevisor/", "")}`);
+    const consumerModules = join(consumer, "node_modules");
+    mkdirSync(consumerModules, { recursive: true });
+
+    for (const dependencyName of collectInternalDependencies(manifest)) {
+      const destination = join(consumerModules, dependencyName);
+      mkdirSync(dirname(destination), { recursive: true });
+      symlinkSync(packagePathsByName.get(dependencyName), destination, "junction");
+    }
+
+    const externalDependencies = new Set();
+    for (const dependencyName of collectInternalDependencies(manifest)) {
+      const dependencyManifest = manifestsByName.get(dependencyName);
+      for (const externalName of Object.keys({
+        ...(dependencyManifest.dependencies || {}),
+        ...(dependencyManifest.peerDependencies || {}),
+      })) {
+        if (!externalName.startsWith("@messagevisor/")) externalDependencies.add(externalName);
+      }
+    }
+    for (const externalName of externalDependencies) {
+      const destination = join(consumerModules, externalName);
+      if (existsSync(destination)) continue;
+      mkdirSync(dirname(destination), { recursive: true });
+      symlinkSync(join(root, "node_modules", externalName), destination, "junction");
+    }
+
+    execFileSync(process.execPath, ["-e", `require(${JSON.stringify(manifest.name)})`], {
+      cwd: consumer,
+      stdio: "inherit",
+    });
+  }
+
+  for (const manifest of manifests) {
     if (manifest.main && !existsSync(join(modulesRoot, manifest.name, manifest.main))) {
       throw new Error(`${manifest.name} is missing main entry ${manifest.main}`);
     }
     if (manifest.types && !existsSync(join(modulesRoot, manifest.name, manifest.types))) {
       throw new Error(`${manifest.name} is missing types entry ${manifest.types}`);
+    }
+    for (const [subpath, target] of Object.entries(manifest.exports || {})) {
+      for (const resolvedTarget of collectExportTargets(target)) {
+        if (!existsSync(join(modulesRoot, manifest.name, resolvedTarget))) {
+          throw new Error(
+            `${manifest.name} is missing packed export ${subpath}: ${resolvedTarget}`,
+          );
+        }
+      }
     }
   }
 

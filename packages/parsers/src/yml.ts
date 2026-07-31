@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 
-import { parse, parseDocument, stringify, Scalar } from "yaml";
+import { isAlias, parse, parseDocument, stringify, Scalar } from "yaml";
 import type { Pair, YAMLMap, YAMLSeq } from "yaml";
 
 import type { CustomParser } from "./index";
@@ -52,22 +52,40 @@ function valueIdentity(value: unknown) {
   return JSON.stringify(value);
 }
 
+function valuesEqual(creator: NodeCreator, node: unknown, value: unknown) {
+  try {
+    const current = isAlias(node)
+      ? node.resolve(creator as never)?.toJSON()
+      : (node as { toJSON?: () => unknown } | null)?.toJSON?.();
+    return JSON.stringify(current) === JSON.stringify(value);
+  } catch {
+    return false;
+  }
+}
+
 function createValue(creator: NodeCreator, previous: unknown, value: unknown): unknown {
+  if (valuesEqual(creator, previous, value)) return previous;
+
   if (value === null || typeof value !== "object") {
-    const node = new Scalar(value);
+    const node = previous instanceof Scalar ? previous : new Scalar(value);
+    node.value = value;
     copyNodeComments(previous, node);
     return node;
   }
 
   if (Array.isArray(value)) {
-    const previousItems = new Map<string, unknown>();
+    const previousItems = new Map<string, unknown[]>();
     if (isYamlSequence(previous)) {
-      previous.items.forEach((item) => previousItems.set(valueIdentity(item), item));
+      previous.items.forEach((item) => {
+        const identity = valueIdentity(item);
+        previousItems.set(identity, [...(previousItems.get(identity) || []), item]);
+      });
     }
-    const sequence = creator.createNode([]) as YAMLSeq;
-    value.forEach((entry) =>
-      sequence.add(createValue(creator, previousItems.get(valueIdentity(entry)), entry)),
-    );
+    const sequence = isYamlSequence(previous) ? previous : (creator.createNode([]) as YAMLSeq);
+    sequence.items = value.map((entry) => {
+      const candidates = previousItems.get(valueIdentity(entry));
+      return createValue(creator, candidates?.shift(), entry) as never;
+    });
     copyNodeComments(previous, sequence);
     return sequence;
   }
@@ -80,12 +98,13 @@ function createValue(creator: NodeCreator, previous: unknown, value: unknown): u
     });
   }
 
-  const map = creator.createNode({}) as YAMLMap;
-  Object.entries(value as Record<string, unknown>).forEach(([key, entry]) => {
+  const map = isYamlMap(previous) ? previous : (creator.createNode({}) as YAMLMap);
+  map.items = Object.entries(value as Record<string, unknown>).map(([key, entry]) => {
     const previousPair = previousPairs.get(key);
-    const pair = creator.createPair(key, createValue(creator, previousPair?.value, entry));
+    const pair = previousPair || creator.createPair(key, entry);
+    pair.value = createValue(creator, previousPair?.value, entry) as never;
     if (previousPair) copyPairComments(previousPair, pair);
-    map.add(pair);
+    return pair;
   });
   copyNodeComments(previous, map);
   return map;

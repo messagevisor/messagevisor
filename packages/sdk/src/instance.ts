@@ -455,6 +455,10 @@ export class Messagevisor {
   private ownsModules = true;
   private parent?: Messagevisor;
   private parentUnsubscribers: MessagevisorUnsubscribe[] = [];
+  private observedParentDatafileState?: Pick<
+    MessagevisorSnapshot,
+    "datafileLocales" | "datafileRevisionsByLocale" | "direction"
+  >;
   private listeners: Record<MessagevisorEventName, MessagevisorEventCallback<any>[]> = {
     change: [],
     error: [],
@@ -500,6 +504,10 @@ export class Messagevisor {
       this.datafiles = parent.datafiles;
       this.defaultTranslationsByLocale = parent.defaultTranslationsByLocale;
       this.defaultFormatsByLocale = parent.defaultFormatsByLocale;
+      this.captureObservedParentDatafileState();
+      this.trackParentSubscription(
+        parent.on("datafile_set", (event) => this.forwardParentDatafileEvent(event)),
+      );
     } else {
       this.reportDiagnostic({
         level: "info",
@@ -529,28 +537,40 @@ export class Messagevisor {
       return () => {};
     }
 
-    if (this.parent && eventName === "datafile_set") {
-      return this.trackParentSubscription(
-        this.parent.on("datafile_set", callback as MessagevisorEventCallback<"datafile_set">),
-      );
-    }
-
-    if (this.parent && eventName === "change") {
-      const unsubscribeLocal = this.addLocalListener(eventName, callback);
-      const unsubscribeParent = this.parent.on("change", (event) => {
-        if (event.source === "datafile_set") {
-          callback(event as MessagevisorEvent<T>);
-        }
-      });
-      const unsubscribeTrackedParent = this.trackParentSubscription(unsubscribeParent);
-
-      return () => {
-        unsubscribeLocal();
-        unsubscribeTrackedParent();
-      };
-    }
-
     return this.addLocalListener(eventName, callback);
+  }
+
+  private captureObservedParentDatafileState() {
+    const snapshot = this.getSnapshot();
+    this.observedParentDatafileState = {
+      datafileLocales: snapshot.datafileLocales.slice(),
+      datafileRevisionsByLocale: { ...snapshot.datafileRevisionsByLocale },
+      direction: snapshot.direction,
+    };
+  }
+
+  private forwardParentDatafileEvent(event: MessagevisorEvent<"datafile_set">) {
+    if (this.closed) return;
+
+    const current = this.getSnapshot();
+    const observed = this.observedParentDatafileState;
+    const previousSnapshot = observed
+      ? {
+          ...current,
+          direction: observed.direction,
+          datafileLocales: observed.datafileLocales.slice(),
+          datafileRevisionsByLocale: { ...observed.datafileRevisionsByLocale },
+        }
+      : current;
+
+    this.emit("datafile_set", previousSnapshot, {
+      datafile: event.datafile,
+      locale: event.locale,
+      activeLocale: this.locale,
+      previousLocale: this.locale,
+      replaced: event.replaced,
+    });
+    this.captureObservedParentDatafileState();
   }
 
   private addLocalListener<T extends MessagevisorEventName>(

@@ -106,7 +106,7 @@ async function copyText(value: string) {
   if (!copied) throw new Error("Could not copy entity key");
 }
 
-function CopyEntityKeyButton(props: { entityKey: string }) {
+export function CopyEntityKeyButton(props: { entityKey: string }) {
   const [status, setStatus] = React.useState<"idle" | "copied" | "error">("idle");
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 

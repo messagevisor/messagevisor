@@ -114,7 +114,7 @@ export function handleRequest(request) {
 }
 ```
 
-Datafiles loaded into the parent stay visible to existing children. Child `datafile_set` listeners and generic `change` listeners observe parent datafile updates. Closing a child removes those delegated subscriptions and its local listeners without closing parent modules.
+Datafiles loaded into the parent stay visible to existing children. Child `datafile_set` listeners and generic `change` listeners observe parent datafile updates through child-owned events. Their locale, context, snapshots, and incremented version belong to the child rather than being copied from the parent event. Closing a child removes its parent bridge and local listeners without closing parent modules.
 
 ## Lifecycle
 
@@ -203,6 +203,7 @@ Use a target such as `swift` to build the locales and message subset needed by t
 - Do not fetch Catalog JSON as runtime translation data.
 - Do not assume a message exists unless the active target includes it.
 - Runtime operators are type-strict: numeric, string/regex, and array operators do not coerce mismatched values. `null` counts as present for `exists`.
+- Portable regex flags are unique `i`, `m`, `s`, and `u`. The `u` flag maps to each SDK's Unicode-aware mode. Character classes and escaped literal backslashes are supported; lookaround, advanced groups, backreferences, and possessive quantifiers are rejected.
 - Regex conditions use only portable `i`, `m`, `s`, and `u` flags. Date comparisons require timezone-qualified ISO date-time values.
 - The supported runtime entry point is `createMessagevisor()`. Treat `Messagevisor` and supporting contracts as types, not constructable runtime exports.
 - Keep module registration consistent between CLI and SDK.

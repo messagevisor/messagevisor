@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Security vulnerability
-    url: https://github.com/messagevisor/messagevisor/security/advisories/new
-    about: Report security issues privately through GitHub.
-  - name: Documentation
-    url: https://messagevisor.com/docs
-    about: Read the Messagevisor documentation.

@@ -43,7 +43,7 @@
   },
   "peerDependencies": {
     "@featurevisor/sdk": ">=3.0.0 <4",
-    "@messagevisor/sdk": ">=0.26.0 <2"
+    "@messagevisor/sdk": ">=1.0.0 <2"
   },
   "devDependencies": {
     "@featurevisor/sdk": "^3.0.1",

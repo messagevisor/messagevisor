@@ -42,7 +42,7 @@
     "@messagevisor/types": "1.0.0"
   },
   "peerDependencies": {
-    "@messagevisor/sdk": ">=0.26.0 <2",
+    "@messagevisor/sdk": ">=1.0.0 <2",
     "react": ">=16.8.0"
   },
   "devDependencies": {

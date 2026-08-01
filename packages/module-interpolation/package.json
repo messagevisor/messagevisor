@@ -39,7 +39,7 @@
   },
   "license": "MIT",
   "peerDependencies": {
-    "@messagevisor/sdk": ">=0.26.0 <2"
+    "@messagevisor/sdk": ">=1.0.0 <2"
   },
   "devDependencies": {
     "@messagevisor/sdk": "1.0.0"

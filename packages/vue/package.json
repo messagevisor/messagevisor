@@ -42,7 +42,7 @@
     "@messagevisor/types": "1.0.0"
   },
   "peerDependencies": {
-    "@messagevisor/sdk": ">=0.26.0 <2",
+    "@messagevisor/sdk": ">=1.0.0 <2",
     "vue": ">=3.3.0"
   },
   "devDependencies": {

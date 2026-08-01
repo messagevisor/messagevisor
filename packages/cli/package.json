@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/cli",
-  "version": "0.26.0",
+  "version": "1.0.0",
   "description": "CLI package of Messagevisor",
   "main": "bin.js",
   "bin": {
@@ -38,6 +38,6 @@
     "node": ">=20.19.0"
   },
   "dependencies": {
-    "@messagevisor/core": "0.26.0"
+    "@messagevisor/core": "1.0.0"
   }
 }

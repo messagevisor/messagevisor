@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/types",
-  "version": "0.26.0",
+  "version": "1.0.0",
   "description": "Common Typescript types for Messagevisor",
   "main": "src/index.js",
   "module": "src/index.js",

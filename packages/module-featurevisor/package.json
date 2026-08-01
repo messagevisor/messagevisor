@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/module-featurevisor",
-  "version": "0.26.0",
+  "version": "1.0.0",
   "description": "Featurevisor integration module for Messagevisor",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -39,7 +39,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@messagevisor/types": "0.26.0"
+    "@messagevisor/types": "1.0.0"
   },
   "peerDependencies": {
     "@featurevisor/sdk": ">=3.0.0 <4",
@@ -47,6 +47,6 @@
   },
   "devDependencies": {
     "@featurevisor/sdk": "^3.0.1",
-    "@messagevisor/sdk": "0.26.0"
+    "@messagevisor/sdk": "1.0.0"
   }
 }

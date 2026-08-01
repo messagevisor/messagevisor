@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/module-icu",
-  "version": "0.26.0",
+  "version": "1.0.0",
   "description": "ICU formatting module for Messagevisor",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -45,6 +45,6 @@
     "@messagevisor/sdk": ">=0.26.0 <2"
   },
   "devDependencies": {
-    "@messagevisor/sdk": "0.26.0"
+    "@messagevisor/sdk": "1.0.0"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/module-featurevisor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Featurevisor integration module for Messagevisor",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

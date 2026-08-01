@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/module-missing-translations",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Missing translations reporting module for Messagevisor",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

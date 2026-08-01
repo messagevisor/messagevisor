@@ -2,6 +2,8 @@
 
 Messagevisor project configuration lives in `messagevisor.config.js` at the project root. Read it before changing source files, because it controls where the CLI looks, how files are parsed, which modules run, whether sets are enabled, and how keys are derived.
 
+Configuration keys are strict: unsupported or misspelled keys are errors, not ignored metadata.
+
 ## Inspect first
 
 ```bash
@@ -17,16 +19,20 @@ npx messagevisor --rootDirectoryPath=/absolute/path/to/project info
 
 ## Important options
 
-| Option                       | What it changes                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------- |
-| `parser`                     | Source file parser. Built-ins are `yml` and `json`; custom parsers are supported.           |
-| `modules`                    | Runtime modules used by CLI evaluation, examples, tests, and Catalog examples.              |
-| `namespaceCharacter`         | Separator used when deriving message keys from paths. Default is `"."`.                     |
-| `exportOverrideKeySeparator` | Separator used for override row keys in CSV export/import. Default is `":"`.                |
-| `sets`                       | Enables `sets/<name>/...` project layout when `true`.                                       |
-| `promotionFlows`             | Restricts allowed `promote --from --to` directions.                                         |
-| `lintIcu`                    | Enables ICU syntax and named format reference validation during linting. Default is `true`. |
-| `icuSkeleton`                | Allows inline ICU skeleton styles during linting when `true`.                               |
+| Option                       | What it changes                                                                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `parser`                     | Source file parser. Built-ins are `yml` and `json`; custom parsers are supported.                                                          |
+| `modules`                    | Runtime modules used by CLI evaluation, examples, tests, and Catalog examples.                                                             |
+| `namespaceCharacter`         | Separator used when deriving message keys from paths. Default is `"."`.                                                                    |
+| `exportOverrideKeySeparator` | Separator used for override row keys in CSV export/import. Default is `":"`.                                                               |
+| `sets`                       | Enables `sets/<name>/...` project layout when `true`.                                                                                      |
+| `promotionFlows`             | Restricts allowed `promote --from --to` directions.                                                                                        |
+| `sourceLocale`               | Locale used as the authoring source for translation contract and staleness checks.                                                         |
+| `lintIcu`                    | Enables ICU syntax and named format reference validation during linting. Default is `true`.                                                |
+| `icuSkeleton`                | Allows inline ICU skeleton styles during linting when `true`.                                                                              |
+| `plugins`                    | Extra project-specific CLI commands (`{command, options, handler}`) appended to the built-ins. Declare every accepted option in `options`. |
+
+Parser types and the built-in parser registry come from `@messagevisor/parsers`. YAML editorial writes preserve comments and reuse unchanged YAML nodes so scalar styles, flow collections, anchors, aliases, tags, and directives remain intact where possible.
 
 Directory options: `localesDirectoryPath`, `messagesDirectoryPath`, `attributesDirectoryPath`, `segmentsDirectoryPath`, `targetsDirectoryPath`, `testsDirectoryPath`, `datafilesDirectoryPath`, `catalogDirectoryPath`, `exportsDirectoryPath`.
 
@@ -38,6 +44,7 @@ Directory options: `localesDirectoryPath`, `messagesDirectoryPath`, `attributesD
 - Do not set `exportOverrideKeySeparator` to the same value as `namespaceCharacter`.
 - Register formatting modules in both project config and application runtime. A CLI test can pass while the app renders differently if module setup differs.
 - Keep `lintIcu: true` unless the project intentionally stores text that looks like ICU but should not be validated by Messagevisor linting.
+- Set `sourceLocale` when the project tracks translation review state. Every base translation and override must then have source copy, and translated locales must preserve its ICU argument/tag contract.
 - Prefer named locale formats over enabling `icuSkeleton` unless inline ICU skeleton syntax is intentional.
 - If paths are customized, use the resolved config output instead of assuming default directories.
 

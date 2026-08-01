@@ -5,6 +5,7 @@ import * as path from "path";
 import { getProjectConfig } from "../config";
 import { Datasource } from "../datasource";
 import { lintProject } from "./index";
+import { getTranslationSourceHash } from "./translationContractLint";
 
 async function writeFile(root: string, relativePath: string, content: string) {
   const filePath = path.join(root, relativePath);
@@ -116,6 +117,8 @@ describe("lintProject", function () {
         "description: Sign in",
         "examples:",
         "  - locale: en",
+        "    expectedByRuntime:",
+        "      swift: Sign in from Swift",
         "  - locale: missing",
         "  - matrix:",
         "      locale: [en]",
@@ -124,6 +127,8 @@ describe("lintProject", function () {
         "      user:",
         "        name: Ada",
         "    locale: en",
+        "  - locale: en",
+        "    expectedByRuntime: {}",
         "translations:",
         "  en: Sign in",
         "",
@@ -154,6 +159,16 @@ describe("lintProject", function () {
         (error) => error.entityType === "message" && error.path.join(".") === "examples.2.locale",
       ),
     ).toEqual(false);
+    expect(
+      result.errors.some((error) => error.path.join(".") === "examples.0.expectedByRuntime"),
+    ).toEqual(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.path.join(".") === "examples.4.expectedByRuntime" &&
+          error.message.includes("at least one runtime"),
+      ),
+    ).toEqual(true);
   });
 
   it("reports circular locale dependencies for translations, formats, and examples", async function () {
@@ -215,10 +230,14 @@ describe("lintProject", function () {
         "  - rawMessage: Hello",
         "    message: auth.signin",
         "  - description: Missing both",
+        "    expectedByRuntime:",
+        "      swift: Hello from Swift",
         "  - message: missing.key",
         "  - matrix:",
         "      user:",
         "        name: Ada",
+        "  - rawMessage: Hello",
+        "    expectedByRuntime: {}",
         "",
       ].join("\n"),
     );
@@ -235,6 +254,16 @@ describe("lintProject", function () {
         (error) =>
           error.path.join(".") === "examples.3.matrix.user" &&
           error.message.toLowerCase().includes("array"),
+      ),
+    ).toEqual(true);
+    expect(
+      result.errors.some((error) => error.path.join(".") === "examples.1.expectedByRuntime"),
+    ).toEqual(false);
+    expect(
+      result.errors.some(
+        (error) =>
+          error.path.join(".") === "examples.4.expectedByRuntime" &&
+          error.message.includes("at least one runtime"),
       ),
     ).toEqual(true);
   });
@@ -1193,5 +1222,72 @@ describe("lintProject", function () {
     expect(result.errors.filter((error) => error.code === "icu_skeleton_not_allowed")).toHaveLength(
       0,
     );
+  });
+
+  it("enforces source-locale ICU argument and rich-text contracts", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+    await writeFile(root, "messagevisor.config.js", 'module.exports = { sourceLocale: "en" };\n');
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(root, "locales/nl.yml", "description: Dutch\n");
+    await writeFile(
+      root,
+      "messages/welcome.yml",
+      [
+        "translations:",
+        '  en: "Hello <strong>{name}</strong>"',
+        '  nl: "Hallo {firstName}"',
+        "",
+      ].join("\n"),
+    );
+
+    const config = getProjectConfig(root);
+    const result = await lintProject(config, new Datasource(config, root));
+    expect(result.errors.map((error) => error.code)).toContain("translation_contract_mismatch");
+  });
+
+  it("tracks reviewed and stale translations against the source hash", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+    const hash = getTranslationSourceHash("Hello {name}");
+    await writeFile(root, "messagevisor.config.js", 'module.exports = { sourceLocale: "en" };\n');
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(root, "locales/nl.yml", "description: Dutch\n");
+    await writeFile(
+      root,
+      "messages/welcome.yml",
+      [
+        "translations:",
+        '  en: "Hello {name}"',
+        '  nl: "Hallo {name}"',
+        "translationStates:",
+        "  nl:",
+        "    status: reviewed",
+        `    sourceHash: ${hash}`,
+        "overrides:",
+        "  - key: pro",
+        '    conditions: "*"',
+        "    translations:",
+        "      en: Pro",
+        "      nl: Pro NL",
+        "    translationStates:",
+        "      nl:",
+        "        status: reviewed",
+        "",
+      ].join("\n"),
+    );
+
+    const config = getProjectConfig(root);
+    const datasource = new Datasource(config, root);
+    let result = await lintProject(config, datasource);
+    expect(result.errors.map((error) => error.code)).toContain(
+      "reviewed_translation_missing_source_hash",
+    );
+    expect(result.errors.map((error) => error.code)).not.toContain("stale_translation");
+
+    await datasource.writeMessage("welcome", {
+      translations: { en: "Hello again {name}", nl: "Hallo {name}" },
+      translationStates: { nl: { status: "reviewed", sourceHash: hash } },
+    });
+    result = await lintProject(config, datasource);
+    expect(result.errors.map((error) => error.code)).toContain("stale_translation");
   });
 });

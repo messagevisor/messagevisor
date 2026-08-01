@@ -2,6 +2,8 @@
 
 Catalog is a generated, read-only UI over a Messagevisor project. It helps engineers and non-engineers review messages, locales, targets, examples, relationships, history, and optional reports.
 
+Entity Tests tabs present authored and matrix-expanded assertion counts, inputs, contexts, expectations, and shareable assertion links. Entity title keys can be copied from the title area.
+
 ## Commands
 
 ```bash
@@ -18,13 +20,15 @@ npx messagevisor catalog serve
 npx messagevisor catalog serve --port=3100
 ```
 
-| Command | Use |
-| --- | --- |
-| `catalog` | Dev mode: build, serve, watch inputs, live reload |
+| Command          | Use                                               |
+| ---------------- | ------------------------------------------------- |
+| `catalog`        | Dev mode: build, serve, watch inputs, live reload |
 | `catalog export` | Static export for CI artifacts or private hosting |
-| `catalog serve` | Serve an already generated catalog |
+| `catalog serve`  | Serve an already generated catalog                |
 
 `catalog serve` does not build optional indexes. It only reflects what was generated.
+
+Entity detail pages show related authored test specifications in a **Tests** tab. Matrix assertions appear as their expanded test-runner cases.
 
 ## Sets
 

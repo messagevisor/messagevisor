@@ -3,13 +3,14 @@
   "version": "0.26.0",
   "description": "Missing translations reporting module for Messagevisor",
   "main": "lib/index.js",
-  "module": "lib/index.js",
   "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
-      "require": "./lib/index.js",
-      "import": "./lib/index.js"
+      "default": "./lib/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -37,7 +38,10 @@
     "url": "https://github.com/messagevisor/messagevisor/issues"
   },
   "license": "MIT",
-  "dependencies": {
+  "peerDependencies": {
+    "@messagevisor/sdk": ">=0.26.0 <2"
+  },
+  "devDependencies": {
     "@messagevisor/sdk": "0.26.0"
   }
 }

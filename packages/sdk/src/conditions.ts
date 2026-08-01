@@ -1,5 +1,7 @@
 import type { Condition, Context, GroupSegment, Segment } from "@messagevisor/types";
 
+import { getPortableRegexError } from "./portableRegex.js";
+
 export interface EvaluateOptions {
   context?: Context;
   segments?: Record<string, Segment>;
@@ -14,14 +16,32 @@ function getContextValue(context: Context | undefined, attribute: string) {
 
   return attribute
     .split(".")
-    .reduce((value: any, part) => (value ? value[part] : undefined), context as any);
+    .reduce(
+      (value: any, part) => (value !== null && typeof value === "object" ? value[part] : undefined),
+      context as any,
+    );
+}
+
+const isoDatePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/;
+function getPortableDateTime(value: unknown) {
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return isNaN(time) ? undefined : time;
+  }
+
+  if (typeof value !== "string" || !isoDatePattern.test(value)) {
+    return undefined;
+  }
+
+  const time = new Date(value).getTime();
+  return isNaN(time) ? undefined : time;
 }
 
 function compareDate(value: unknown, expected: unknown, operator: "before" | "after") {
-  const valueTime = new Date(value as any).getTime();
-  const expectedTime = new Date(expected as any).getTime();
+  const valueTime = getPortableDateTime(value);
+  const expectedTime = getPortableDateTime(expected);
 
-  if (isNaN(valueTime) || isNaN(expectedTime)) {
+  if (typeof valueTime === "undefined" || typeof expectedTime === "undefined") {
     return false;
   }
 
@@ -29,19 +49,23 @@ function compareDate(value: unknown, expected: unknown, operator: "before" | "af
 }
 
 function stringContains(value: unknown, expected: unknown) {
-  return String(value).indexOf(String(expected)) !== -1;
+  return (
+    typeof value === "string" && typeof expected === "string" && value.indexOf(expected) !== -1
+  );
 }
 
 function stringStartsWith(value: unknown, expected: unknown) {
-  const valueAsString = String(value);
-  const expectedAsString = String(expected);
+  if (typeof value !== "string" || typeof expected !== "string") return false;
+  const valueAsString = value;
+  const expectedAsString = expected;
 
   return valueAsString.slice(0, expectedAsString.length) === expectedAsString;
 }
 
 function stringEndsWith(value: unknown, expected: unknown) {
-  const valueAsString = String(value);
-  const expectedAsString = String(expected);
+  if (typeof value !== "string" || typeof expected !== "string") return false;
+  const valueAsString = value;
+  const expectedAsString = expected;
 
   return valueAsString.slice(valueAsString.length - expectedAsString.length) === expectedAsString;
 }
@@ -123,25 +147,36 @@ export function evaluateCondition(
     case "notEquals":
       return value !== expected;
     case "exists":
-      return value !== undefined && value !== null;
+      return value !== undefined;
     case "notExists":
-      return value === undefined || value === null;
+      return value === undefined;
     case "greaterThan":
-      return Number(value) > Number(expected);
+      return typeof value === "number" && typeof expected === "number" && value > expected;
     case "greaterThanOrEquals":
-      return Number(value) >= Number(expected);
+      return typeof value === "number" && typeof expected === "number" && value >= expected;
     case "lessThan":
-      return Number(value) < Number(expected);
+      return typeof value === "number" && typeof expected === "number" && value < expected;
     case "lessThanOrEquals":
-      return Number(value) <= Number(expected);
+      return typeof value === "number" && typeof expected === "number" && value <= expected;
     case "contains":
       return stringContains(value, expected);
     case "notContains":
-      return !stringContains(value, expected);
+      return (
+        typeof value === "string" &&
+        typeof expected === "string" &&
+        !stringContains(value, expected)
+      );
     case "startsWith":
       return stringStartsWith(value, expected);
     case "endsWith":
       return stringEndsWith(value, expected);
+    case "matches":
+    case "notMatches": {
+      if (typeof value !== "string" || typeof expected !== "string") return false;
+      if (getPortableRegexError(expected, condition.regexFlags)) return false;
+      const matched = new RegExp(expected, condition.regexFlags || "").test(value);
+      return condition.operator === "matches" ? matched : !matched;
+    }
     case "before":
       return compareDate(value, expected, "before");
     case "after":
@@ -149,11 +184,11 @@ export function evaluateCondition(
     case "includes":
       return Array.isArray(value) && arrayContains(value, expected);
     case "notIncludes":
-      return !Array.isArray(value) || !arrayContains(value, expected);
+      return Array.isArray(value) && !arrayContains(value, expected);
     case "in":
       return Array.isArray(expected) && arrayContains(expected, value);
     case "notIn":
-      return !Array.isArray(expected) || !arrayContains(expected, value);
+      return Array.isArray(expected) && !arrayContains(expected, value);
     default:
       return false;
   }

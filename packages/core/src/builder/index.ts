@@ -5,7 +5,6 @@ import * as path from "path";
 import type {
   DatafileContent,
   Condition,
-  Context,
   FormatPresets,
   GroupSegment,
   Locale,
@@ -18,13 +17,15 @@ import type {
 
 import { SCHEMA_VERSION, ProjectConfig, formatDatafilePath } from "../config";
 import { Datasource } from "../datasource";
-import { evaluateCondition } from "../evaluate";
 import { mergeFormatPresets } from "../formats";
 import { extractIcuStyleReferences } from "../icuStyleReferences";
+import { resolveLocaleChain, resolveLocaleValue } from "../localeResolution";
 import { formatProjectPath } from "../path";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
+import { matchesPattern, targetIncludesMessage } from "../targeting";
+import { createTargetContextSpecializer } from "./applyContextToTarget";
 
 interface TargetDatafileOptions {
   stringify: boolean;
@@ -34,6 +35,15 @@ interface TargetDatafileOptions {
 
 type FormatPatterns = Partial<Record<keyof FormatPresets, string | string[]>>;
 type UsedFormatPatterns = Partial<Record<keyof FormatPresets, string[]>>;
+
+export function getMessagevisorVersion(): string {
+  try {
+    const cliPackage = require(require.resolve("@messagevisor/cli/package.json"));
+    return cliPackage.version;
+  } catch {
+    return "unknown";
+  }
+}
 
 export interface BuildProjectOptions {
   target?: string;
@@ -81,17 +91,6 @@ export function mergeFormats(
   child?: FormatPresets,
 ): FormatPresets | undefined {
   return mergeFormatPresets(parent, child);
-}
-
-function matchesPattern(key: string, patterns?: string | string[]) {
-  if (!patterns || patterns.length === 0) {
-    return false;
-  }
-
-  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`).test(key);
-  });
 }
 
 function formatTypeKeys(formats: FormatPresets | undefined) {
@@ -160,24 +159,6 @@ async function readAll<T>(
   return Object.fromEntries(entries);
 }
 
-function resolveLocaleChain(
-  localeKey: string,
-  locales: Record<string, Locale>,
-  field: "inheritFormatsFrom" | "inheritTranslationsFrom",
-) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.[field];
-  }
-
-  return chain;
-}
-
 export function resolveFormats(
   localeKey: string,
   locales: Record<string, Locale>,
@@ -212,21 +193,6 @@ function addUsedIcuFormatPatterns(result: UsedFormatPatterns, translation: strin
     }
 
     result[type] = styles;
-  }
-}
-
-function resolveLocaleValue<T>(
-  values: Record<string, T> | undefined,
-  localeKey: string,
-  locales: Record<string, Locale>,
-) {
-  const chain = resolveLocaleChain(localeKey, locales, "inheritTranslationsFrom");
-  const candidates = chain.reverse();
-
-  for (const candidate of candidates) {
-    if (values && typeof values[candidate] !== "undefined") {
-      return values[candidate];
-    }
   }
 }
 
@@ -328,216 +294,6 @@ function stringifyDatafileExpression<T>(options: TargetDatafileOptions, value: T
   return JSON.stringify(value);
 }
 
-type TargetedResult<T> = { state: "true" } | { state: "false" } | { state: "partial"; value: T };
-
-function hasContextValue(context: Context | undefined, attribute: string) {
-  if (!context) {
-    return false;
-  }
-
-  let current: any = context;
-
-  for (const part of attribute.split(".")) {
-    if (
-      !current ||
-      typeof current !== "object" ||
-      !Object.prototype.hasOwnProperty.call(current, part)
-    ) {
-      return false;
-    }
-
-    current = current[part];
-  }
-
-  return true;
-}
-
-function simplifyAnd<T>(items: TargetedResult<T>[], create: (items: T[]) => T): TargetedResult<T> {
-  if (items.some((item) => item.state === "false")) {
-    return { state: "false" };
-  }
-
-  const partials = items
-    .filter((item): item is { state: "partial"; value: T } => item.state === "partial")
-    .map((item) => item.value);
-
-  if (partials.length === 0) {
-    return { state: "true" };
-  }
-
-  if (partials.length === 1) {
-    return { state: "partial", value: partials[0] };
-  }
-
-  return { state: "partial", value: create(partials) };
-}
-
-function simplifyOr<T>(items: TargetedResult<T>[], create: (items: T[]) => T): TargetedResult<T> {
-  if (items.some((item) => item.state === "true")) {
-    return { state: "true" };
-  }
-
-  const partials = items
-    .filter((item): item is { state: "partial"; value: T } => item.state === "partial")
-    .map((item) => item.value);
-
-  if (partials.length === 0) {
-    return { state: "false" };
-  }
-
-  if (partials.length === 1) {
-    return { state: "partial", value: partials[0] };
-  }
-
-  return { state: "partial", value: create(partials) };
-}
-
-function simplifyNot<T>(items: TargetedResult<T>[], create: (items: T[]) => T): TargetedResult<T> {
-  if (items.some((item) => item.state === "false")) {
-    return { state: "true" };
-  }
-
-  const partials = items
-    .filter((item): item is { state: "partial"; value: T } => item.state === "partial")
-    .map((item) => item.value);
-
-  if (partials.length === 0) {
-    return { state: "false" };
-  }
-
-  return { state: "partial", value: create(partials) };
-}
-
-function createTargetSimplifier(segments: Record<string, Segment>, context?: Context) {
-  const targetedSegments: Record<string, Segment> = {};
-  const segmentConditionResults: Record<string, TargetedResult<Condition | Condition[]>> = {};
-
-  function simplifyCondition(
-    condition: Condition | Condition[],
-  ): TargetedResult<Condition | Condition[]> {
-    if (Array.isArray(condition)) {
-      return simplifyAnd(
-        condition.map((item) => simplifyCondition(item)),
-        (items) => items as Condition[],
-      );
-    }
-
-    if (typeof condition === "string") {
-      return simplifyGroupSegment(condition);
-    }
-
-    if ("and" in condition) {
-      return simplifyAnd(
-        condition.and.map((item) => simplifyCondition(item)),
-        (items) => ({ and: items as Condition[] }),
-      );
-    }
-
-    if ("or" in condition) {
-      return simplifyOr(
-        condition.or.map((item) => simplifyCondition(item)),
-        (items) => ({ or: items as Condition[] }),
-      );
-    }
-
-    if ("not" in condition) {
-      return simplifyNot(
-        condition.not.map((item) => simplifyCondition(item)),
-        (items) => ({ not: items as Condition[] }),
-      );
-    }
-
-    if (!("attribute" in condition) || !hasContextValue(context, condition.attribute)) {
-      return { state: "partial", value: condition };
-    }
-
-    return evaluateCondition(condition, { context, segments })
-      ? { state: "true" }
-      : { state: "false" };
-  }
-
-  function simplifySegmentCondition(segmentKey: string): TargetedResult<Condition | Condition[]> {
-    if (segmentConditionResults[segmentKey]) {
-      return segmentConditionResults[segmentKey];
-    }
-
-    const segment = segments[segmentKey];
-
-    if (!segment || segment.archived) {
-      segmentConditionResults[segmentKey] = { state: "false" };
-      return segmentConditionResults[segmentKey];
-    }
-
-    const result = simplifyCondition(segment.conditions);
-    segmentConditionResults[segmentKey] = result;
-
-    if (result.state === "partial") {
-      const {
-        key: _key,
-        description: _description,
-        promotable: _promotable,
-        ...segmentForDatafile
-      } = segment;
-      targetedSegments[segmentKey] = {
-        ...segmentForDatafile,
-        conditions: result.value,
-      };
-    }
-
-    return result;
-  }
-
-  function simplifyGroupSegment(
-    groupSegment: GroupSegment | GroupSegment[],
-  ): TargetedResult<GroupSegment | GroupSegment[]> {
-    if (Array.isArray(groupSegment)) {
-      return simplifyAnd(
-        groupSegment.map((item) => simplifyGroupSegment(item)),
-        (items) => items as GroupSegment[],
-      );
-    }
-
-    if (typeof groupSegment === "string") {
-      const segmentResult = simplifySegmentCondition(groupSegment);
-
-      if (segmentResult.state !== "partial") {
-        return segmentResult;
-      }
-
-      return { state: "partial", value: groupSegment };
-    }
-
-    if ("and" in groupSegment) {
-      return simplifyAnd(
-        groupSegment.and.map((item) => simplifyGroupSegment(item)),
-        (items) => ({ and: items as GroupSegment[] }),
-      );
-    }
-
-    if ("or" in groupSegment) {
-      return simplifyOr(
-        groupSegment.or.map((item) => simplifyGroupSegment(item)),
-        (items) => ({ or: items as GroupSegment[] }),
-      );
-    }
-
-    return simplifyNot(
-      groupSegment.not.map((item) => simplifyGroupSegment(item)),
-      (items) => ({ not: items as GroupSegment[] }),
-    );
-  }
-
-  return {
-    targetedSegments,
-    simplifyCondition,
-    simplifyGroupSegment,
-  };
-}
-
-function getTargetIncludedMessages(target: Target | undefined) {
-  return typeof target?.includeMessages === "undefined" ? ["*"] : target.includeMessages;
-}
-
 async function buildDatafileFromMessageKeys(
   projectConfig: ProjectConfig,
   datasource: Datasource,
@@ -555,15 +311,13 @@ async function buildDatafileFromMessageKeys(
 
   const target = targetKey ? await datasource.readTarget(targetKey) : undefined;
   const datafileOptions = resolveTargetDatafileOptions(target);
-  const includedMessages = getTargetIncludedMessages(target);
-  const excludedMessages = target?.excludeMessages || [];
   const datafileMessages: DatafileContent["messages"] = {};
   const translations: DatafileContent["translations"] = {};
   const usedSegmentKeys = new Set<SegmentKey>();
   const usedFormatPatterns: UsedFormatPatterns = {};
   const segmentKeys = await datasource.listSegments();
   const segments = await readAll<Segment>(segmentKeys, (key) => datasource.readSegment(key));
-  const targetSimplifier = createTargetSimplifier(segments, target?.context);
+  const targetSimplifier = createTargetContextSpecializer(segments, target?.context);
 
   for (const key of messageKeys) {
     const message = messages[key];
@@ -572,7 +326,7 @@ async function buildDatafileFromMessageKeys(
       continue;
     }
 
-    if (!matchesPattern(key, includedMessages) || matchesPattern(key, excludedMessages)) {
+    if (!targetIncludesMessage(target, key)) {
       continue;
     }
 
@@ -582,10 +336,10 @@ async function buildDatafileFromMessageKeys(
       continue;
     }
 
-    translations[key] = translation;
+    translations[key] = translation.value;
 
     if (target?.includeOnlyUsedFormats) {
-      addUsedIcuFormatPatterns(usedFormatPatterns, translation);
+      addUsedIcuFormatPatterns(usedFormatPatterns, translation.value);
     }
 
     const overrides = (message.overrides || [])
@@ -598,14 +352,16 @@ async function buildDatafileFromMessageKeys(
 
         const targetedOverride: MessageOverride = {
           key: override.key,
-          translation: overrideTranslation,
+          translation: overrideTranslation.value,
         };
 
         if (override.conditions) {
           if (override.conditions === "*") {
             targetedOverride.conditions = override.conditions;
           } else {
-            const targetedConditions = targetSimplifier.simplifyCondition(override.conditions);
+            const targetedConditions = targetSimplifier.applyContextToCondition(
+              override.conditions,
+            );
 
             if (targetedConditions.state === "false") {
               return undefined;
@@ -625,7 +381,7 @@ async function buildDatafileFromMessageKeys(
           if (override.segments === "*") {
             targetedOverride.segments = override.segments;
           } else {
-            const targetedSegments = targetSimplifier.simplifyGroupSegment(override.segments);
+            const targetedSegments = targetSimplifier.applyContextToGroupSegment(override.segments);
 
             if (targetedSegments.state === "false") {
               return undefined;
@@ -642,7 +398,7 @@ async function buildDatafileFromMessageKeys(
         }
 
         if (target?.includeOnlyUsedFormats) {
-          addUsedIcuFormatPatterns(usedFormatPatterns, overrideTranslation);
+          addUsedIcuFormatPatterns(usedFormatPatterns, overrideTranslation.value);
         }
 
         return targetedOverride;
@@ -663,8 +419,8 @@ async function buildDatafileFromMessageKeys(
   const datafileSegmentKeys = Array.from(usedSegmentKeys).sort();
 
   for (const key of datafileSegmentKeys) {
-    if (targetSimplifier.targetedSegments[key]) {
-      const segment = targetSimplifier.targetedSegments[key];
+    if (targetSimplifier.specializedSegments[key]) {
+      const segment = targetSimplifier.specializedSegments[key];
 
       datafileSegments[key] = {
         ...segment,
@@ -675,7 +431,7 @@ async function buildDatafileFromMessageKeys(
 
   return {
     schemaVersion: SCHEMA_VERSION,
-    messagevisorVersion: "0.0.1",
+    messagevisorVersion: getMessagevisorVersion(),
     revision,
     target: targetKey || "",
     locale: localeKey,

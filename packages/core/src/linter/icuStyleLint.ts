@@ -2,6 +2,7 @@ import type { FormatPresets, Locale, Message } from "@messagevisor/types";
 
 import { mergeFormatPresets } from "../formats";
 import { extractIcuStyleReferences, type IcuFormatType } from "../icuStyleReferences";
+import { resolveLocaleChain } from "../localeResolution";
 import type { LintError } from "./index";
 
 const IntlMessageFormat =
@@ -15,22 +16,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function resolveLocaleFormatChain(localeKey: string, localesByKey: Record<string, Locale>) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = localesByKey[currentKey]?.inheritFormatsFrom;
-  }
-
-  return chain;
-}
-
 function resolveLocaleFormats(localeKey: string, localesByKey: Record<string, Locale>) {
-  const chain = resolveLocaleFormatChain(localeKey, localesByKey);
+  const chain = resolveLocaleChain(localeKey, localesByKey, "inheritFormatsFrom");
   let formats: FormatPresets | undefined;
 
   for (const key of chain) {

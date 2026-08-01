@@ -1,13 +1,14 @@
 {
   "extends": "../../tsconfig.cjs.json",
   "compilerOptions": {
-    "outDir": "./lib",
+    "outDir": "./cjs",
     "rootDir": "./src",
     "moduleResolution": "node",
     "esModuleInterop": true,
     "target": "es2018",
     "lib": ["es2021", "es2021.intl", "dom"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "strict": true
   },
   "include": ["./src/**/*.ts"],
   "exclude": ["./src/**/*.spec.ts"]

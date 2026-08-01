@@ -1,6 +1,6 @@
 import type { DatafileContent } from "@messagevisor/types";
 
-import { createMessagevisor, createMessagevisorCache } from "./index";
+import { createMessagevisor } from "./index";
 
 const datafile: DatafileContent = {
   schemaVersion: "1",
@@ -74,51 +74,110 @@ describe("Intl formatter helpers", function () {
     consoleWarnSpy.mockRestore();
   });
 
-  it("reuses caller-provided cache buckets across helper methods", function () {
-    const cache = createMessagevisorCache();
-    const m = createMessagevisor({ datafile, cache, logLevel: "fatal" });
+  it("reuses internal formatter instances across helper methods and spawned children", function () {
+    const NumberFormat = Intl.NumberFormat;
+    const numberFormatSpy = jest.spyOn(Intl, "NumberFormat").mockImplementation(function (
+      locale,
+      options,
+    ) {
+      return new NumberFormat(locale, options);
+    } as typeof Intl.NumberFormat);
+    const m = createMessagevisor({ datafile, logLevel: "fatal" });
+    const child = m.spawn();
     const date = new Date("2026-05-12T08:30:00Z");
 
-    expect(Object.keys(cache.numberFormat)).toHaveLength(0);
-    expect(Object.keys(cache.dateTimeFormat)).toHaveLength(0);
-    expect(Object.keys(cache.relativeTimeFormat)).toHaveLength(0);
-    expect(Object.keys(cache.pluralRules)).toHaveLength(0);
-
     expect(m.formatNumber(12, "precise")).toEqual("12.00");
-    expect(m.formatNumberToParts(12, "precise").map((part) => part.type)).toContain("integer");
-    expect(Object.keys(cache.numberFormat)).toHaveLength(1);
+    expect(child.formatNumberToParts(12, "precise").map((part) => part.type)).toContain("integer");
+    expect(numberFormatSpy).toHaveBeenCalledTimes(1);
 
     expect(m.formatDate(date, "utcDate")).toEqual("05/12/2026");
     expect(m.formatTime(date, "utcTime")).toEqual("08:30");
     expect(m.formatDateToParts(date, "utcDate").map((part) => part.type)).toContain("year");
     expect(m.formatTimeToParts(date, "utcTime").map((part) => part.type)).toContain("hour");
-    expect(Object.keys(cache.dateTimeFormat)).toHaveLength(2);
 
     expect(m.formatRelativeTime(-1, "day", "longAuto")).toEqual("yesterday");
     expect(m.formatRelativeTime(3, "day", "narrowAlways")).toContain("3");
-    expect(Object.keys(cache.relativeTimeFormat)).toHaveLength(2);
 
     expect(m.formatPlural(1)).toEqual("one");
     expect(m.formatPlural(2)).toEqual("other");
-    expect(Object.keys(cache.pluralRules)).toHaveLength(1);
+    numberFormatSpy.mockRestore();
   });
 
   it("partitions formatter caches by locale and resolved options", function () {
-    const cache = createMessagevisorCache();
-    const m = createMessagevisor({ datafile, cache, logLevel: "fatal" });
+    const NumberFormat = Intl.NumberFormat;
+    const numberFormatSpy = jest.spyOn(Intl, "NumberFormat").mockImplementation(function (
+      locale,
+      options,
+    ) {
+      return new NumberFormat(locale, options);
+    } as typeof Intl.NumberFormat);
+    const DateTimeFormat = Intl.DateTimeFormat;
+    const dateTimeFormatSpy = jest.spyOn(Intl, "DateTimeFormat").mockImplementation(function (
+      locale,
+      options,
+    ) {
+      return new DateTimeFormat(locale, options);
+    } as typeof Intl.DateTimeFormat);
+    const m = createMessagevisor({ datafile, logLevel: "fatal" });
 
     m.formatNumber(12, "precise");
     m.formatNumber(12, "percent");
-    expect(Object.keys(cache.numberFormat)).toHaveLength(2);
+    expect(numberFormatSpy).toHaveBeenCalledTimes(2);
 
     m.setDatafile({ ...datafile, locale: "nl-NL", revision: "nl-1" });
     m.setLocale("nl-NL");
     m.formatNumber(12, "precise");
-    expect(Object.keys(cache.numberFormat)).toHaveLength(3);
+    expect(numberFormatSpy).toHaveBeenCalledTimes(3);
 
+    const beforeDateFormats = dateTimeFormatSpy.mock.calls.length;
     m.formatDate("2026-05-12T00:00:00Z", "runtimeDate", { timeZone: "UTC" });
+    const afterUtcFormat = dateTimeFormatSpy.mock.calls.length;
+    expect(afterUtcFormat).toBeGreaterThan(beforeDateFormats);
+    m.formatDate("2026-05-12T00:00:00Z", "runtimeDate", { timeZone: "UTC" });
+    expect(dateTimeFormatSpy).toHaveBeenCalledTimes(afterUtcFormat);
     m.formatDate("2026-05-12T00:00:00Z", "runtimeDate", { timeZone: "Asia/Tokyo" });
-    expect(Object.keys(cache.dateTimeFormat)).toHaveLength(2);
+    expect(dateTimeFormatSpy.mock.calls.length).toBeGreaterThan(afterUtcFormat);
+
+    numberFormatSpy.mockRestore();
+    dateTimeFormatSpy.mockRestore();
+  });
+
+  it("canonicalizes formatter cache keys regardless of option property order", function () {
+    const NumberFormat = Intl.NumberFormat;
+    const numberFormatSpy = jest.spyOn(Intl, "NumberFormat").mockImplementation(function (
+      locale,
+      options,
+    ) {
+      return new NumberFormat(locale, options);
+    } as typeof Intl.NumberFormat);
+    const m = createMessagevisor({ datafile, logLevel: "fatal" });
+
+    m.formatNumber(12, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    m.formatNumber(12, { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+
+    expect(numberFormatSpy).toHaveBeenCalledTimes(1);
+    numberFormatSpy.mockRestore();
+  });
+
+  it("bounds each formatter cache and evicts its oldest entry", function () {
+    const NumberFormat = Intl.NumberFormat;
+    const numberFormatSpy = jest.spyOn(Intl, "NumberFormat").mockImplementation(function (
+      locale,
+      options,
+    ) {
+      return new NumberFormat(locale, options);
+    } as typeof Intl.NumberFormat);
+    const m = createMessagevisor({ datafile, logLevel: "fatal" });
+    const currency = (index: number) =>
+      String.fromCharCode(65 + Math.floor(index / 26), 65 + (index % 26), 65);
+
+    for (let i = 0; i <= 100; i++) {
+      m.formatNumber(12, { style: "currency", currency: currency(i) });
+    }
+    m.formatNumber(12, { style: "currency", currency: currency(0) });
+
+    expect(numberFormatSpy).toHaveBeenCalledTimes(102);
+    numberFormatSpy.mockRestore();
   });
 
   it("falls back to default Intl options for unknown presets", function () {

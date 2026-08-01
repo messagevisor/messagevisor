@@ -1,4 +1,4 @@
-import { createInstance, type FeaturevisorInstance } from "@featurevisor/sdk";
+import { createFeaturevisor, type Featurevisor } from "@featurevisor/sdk";
 import { createMessagevisor } from "@messagevisor/sdk";
 import type { DatafileContent } from "@messagevisor/types";
 
@@ -68,7 +68,7 @@ const datafile: DatafileContent = {
 
 describe("@messagevisor/module-featurevisor", function () {
   it("connects feature and experiment conditions to a Featurevisor instance", function () {
-    const f = createInstance({
+    const f = createFeaturevisor({
       logLevel: "fatal",
       sticky: {
         "new-checkout": {
@@ -95,7 +95,7 @@ describe("@messagevisor/module-featurevisor", function () {
   });
 
   it("supports isDisabled feature conditions", function () {
-    const f = createInstance({
+    const f = createFeaturevisor({
       logLevel: "fatal",
       sticky: {
         "new-checkout": {
@@ -126,7 +126,7 @@ describe("@messagevisor/module-featurevisor", function () {
         calls.push({ method: "getVariation", key: experimentKey, context });
         return "bold";
       },
-    } as unknown as FeaturevisorInstance;
+    } as unknown as Featurevisor;
     const m = createMessagevisor({
       datafile,
       logLevel: "fatal",
@@ -166,7 +166,7 @@ describe("@messagevisor/module-featurevisor", function () {
         calls.push({ method: "getVariation", key: experimentKey, context });
         return context?.plan === "pro" ? "bold" : null;
       },
-    } as unknown as FeaturevisorInstance;
+    } as unknown as Featurevisor;
     const m = createMessagevisor({
       datafile,
       logLevel: "fatal",
@@ -210,7 +210,7 @@ describe("@messagevisor/module-featurevisor", function () {
       getVariation() {
         return null;
       },
-    } as unknown as FeaturevisorInstance;
+    } as unknown as Featurevisor;
     const m = createMessagevisor({
       datafile,
       logLevel: "fatal",
@@ -221,13 +221,11 @@ describe("@messagevisor/module-featurevisor", function () {
   });
 
   it("uses a stable default module name and supports custom names", function () {
-    expect(createFeaturevisorModule({ instance: {} as FeaturevisorInstance }).name).toEqual(
-      "featurevisor",
-    );
+    expect(createFeaturevisorModule({ instance: {} as Featurevisor }).name).toEqual("featurevisor");
     expect(
       createFeaturevisorModule({
         name: "flags",
-        instance: {} as FeaturevisorInstance,
+        instance: {} as Featurevisor,
       }).name,
     ).toEqual("flags");
   });

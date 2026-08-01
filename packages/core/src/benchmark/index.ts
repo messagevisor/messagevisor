@@ -285,7 +285,7 @@ async function createBenchmarkMessagevisor(options: {
 }): Promise<BenchmarkSetup> {
   const { projectConfig, datasource, locale, context, target, revision, message } = options;
   let datafile: DatafileContent | undefined;
-  let defaultFormatsByLocale: Record<string, FormatPresets | undefined> | undefined;
+  let defaultFormatsByLocale: Record<string, FormatPresets> | undefined;
 
   if (message) {
     datafile = target
@@ -294,9 +294,8 @@ async function createBenchmarkMessagevisor(options: {
   } else if (target) {
     datafile = await buildDatafile(projectConfig, datasource, target, locale, revision);
   } else {
-    defaultFormatsByLocale = {
-      [locale]: await resolveBenchmarkFormats(datasource, locale, target),
-    };
+    const resolvedFormats = await resolveBenchmarkFormats(datasource, locale, target);
+    if (resolvedFormats) defaultFormatsByLocale = { [locale]: resolvedFormats };
   }
 
   return {

@@ -3,13 +3,14 @@
   "version": "0.26.0",
   "description": "ICU formatting module for Messagevisor",
   "main": "lib/index.js",
-  "module": "lib/index.js",
   "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
-      "require": "./lib/index.js",
-      "import": "./lib/index.js"
+      "default": "./lib/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -38,7 +39,12 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@messagevisor/sdk": "0.26.0",
     "intl-messageformat": "^10.7.16"
+  },
+  "peerDependencies": {
+    "@messagevisor/sdk": ">=0.26.0 <2"
+  },
+  "devDependencies": {
+    "@messagevisor/sdk": "0.26.0"
   }
 }

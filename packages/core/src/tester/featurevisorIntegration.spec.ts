@@ -1,4 +1,4 @@
-import { createInstance as createFeaturevisor } from "@featurevisor/sdk";
+import { createFeaturevisor } from "@featurevisor/sdk";
 import { createMessagevisor } from "@messagevisor/sdk";
 import type { DatafileContent } from "@messagevisor/types";
 

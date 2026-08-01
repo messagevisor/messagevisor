@@ -6,7 +6,9 @@ import type { Locale, Message, Target, Translation } from "@messagevisor/types";
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
+import { resolveLocaleValue } from "../localeResolution";
 import { getProjectSetExecutions } from "../sets";
+import { matchesPattern, targetIncludesMessage } from "../targeting";
 
 export interface ExportProjectOptions {
   set?: string | string[];
@@ -59,17 +61,6 @@ function toArray(value?: string | string[]): string[] {
   return Array.isArray(value) ? value : [value];
 }
 
-function matchesPattern(key: string, patterns?: string | string[]) {
-  if (!patterns || patterns.length === 0) {
-    return false;
-  }
-
-  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`).test(key);
-  });
-}
-
 async function readAll<T>(
   keys: string[],
   read: (key: string) => Promise<T>,
@@ -82,20 +73,6 @@ function isAvailable(message: Message) {
   return !message.archived;
 }
 
-function resolveLocaleChain(localeKey: string, locales: Record<string, Locale>) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.inheritTranslationsFrom;
-  }
-
-  return chain;
-}
-
 function resolveTranslationStatus(
   translations: Record<string, Translation> | undefined,
   localeKey: string,
@@ -104,22 +81,10 @@ function resolveTranslationStatus(
   value: string;
   status: TranslationStatus;
 } {
-  if (typeof translations?.[localeKey] !== "undefined") {
-    return {
-      value: translations[localeKey],
-      status: "direct",
-    };
-  }
+  const resolved = resolveLocaleValue(translations, localeKey, locales);
 
-  const candidates = resolveLocaleChain(localeKey, locales).reverse();
-
-  for (const candidate of candidates) {
-    if (translations && typeof translations[candidate] !== "undefined") {
-      return {
-        value: translations[candidate],
-        status: "inherited",
-      };
-    }
+  if (resolved) {
+    return { value: resolved.value, status: resolved.direct ? "direct" : "inherited" };
   }
 
   return {
@@ -300,9 +265,6 @@ async function collectRows(
   if (requestedTargets.length > 0) {
     for (const targetKey of requestedTargets) {
       const target = targets[targetKey];
-      const targetIncludeMessages =
-        typeof target.includeMessages === "undefined" ? ["*"] : target.includeMessages;
-      const targetExcludeMessages = target.excludeMessages || [];
       const targetLocales = target.locales?.length ? target.locales : localeKeys;
 
       for (const locale of targetLocales) {
@@ -312,10 +274,7 @@ async function collectRows(
       }
 
       for (const messageKey of messageKeys) {
-        if (
-          matchesPattern(messageKey, targetIncludeMessages) &&
-          !matchesPattern(messageKey, targetExcludeMessages)
-        ) {
+        if (targetIncludesMessage(target, messageKey)) {
           selectedMessageKeys.add(messageKey);
         }
       }

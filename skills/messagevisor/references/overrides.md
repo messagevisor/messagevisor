@@ -127,25 +127,32 @@ See `featurevisor.md` for resolver wiring.
 
 Common operators:
 
-| Operator | Use |
-| --- | --- |
-| `equals` | Exact match |
-| `notEquals` | Not equal |
-| `contains` | Substring or array contains |
-| `notContains` | Does not contain |
-| `startsWith` | String starts with |
-| `endsWith` | String ends with |
-| `greaterThan` | Numeric or date comparison |
-| `greaterThanOrEquals` | Numeric or date comparison |
-| `lessThan` | Numeric or date comparison |
-| `lessThanOrEquals` | Numeric or date comparison |
-| `before` | Date is before |
-| `after` | Date is after |
-| `includes` | Array includes value |
-| `notIncludes` | Array does not include value |
-| `isEnabled` | Feature flag is enabled |
-| `isDisabled` | Feature flag is disabled |
-| `hasVariation` | Experiment has given variation |
+| Operator                | Use                                                           |
+| ----------------------- | ------------------------------------------------------------- |
+| `equals`                | Exact match                                                   |
+| `notEquals`             | Not equal                                                     |
+| `contains`              | Substring or array contains                                   |
+| `notContains`           | Does not contain                                              |
+| `startsWith`            | String starts with                                            |
+| `endsWith`              | String ends with                                              |
+| `matches`, `notMatches` | Strict string regular-expression match; optional `regexFlags` |
+| `greaterThan`           | Numeric or date comparison                                    |
+| `greaterThanOrEquals`   | Numeric or date comparison                                    |
+| `lessThan`              | Numeric or date comparison                                    |
+| `lessThanOrEquals`      | Numeric or date comparison                                    |
+| `before`                | Date is before                                                |
+| `after`                 | Date is after                                                 |
+| `includes`              | Array includes value                                          |
+| `notIncludes`           | Array does not include value                                  |
+| `isEnabled`             | Feature flag is enabled                                       |
+| `isDisabled`            | Feature flag is disabled                                      |
+| `hasVariation`          | Experiment has given variation                                |
+
+Operators do not coerce runtime values. Numeric operators require numbers, string and regex operators require strings, and array operators require arrays. `null` is present for `exists`.
+
+`regexFlags` is valid only for `matches` and `notMatches`, using unique portable flags from `i`, `m`, `s`, and `u`. The `u` flag maps to each SDK's Unicode-aware mode. Character classes and escaped literal backslashes are valid, while lookaround, advanced groups, backreferences, and possessive quantifiers are rejected. Date comparisons require a complete ISO 8601 date-time with a timezone, such as `2026-01-01T00:00:00Z`.
+
+Keep patterns inside the cross-SDK subset. Lookaround, named and noncapturing groups, inline mode groups, backreferences, and possessive quantifiers are rejected by lint and evaluate as non-matches at runtime.
 
 ## Verification
 

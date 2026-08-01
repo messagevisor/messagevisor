@@ -27,6 +27,8 @@ Use JSON output when an agent needs to group errors by file, line, entity, or ru
 - Locale format preset shape and plausible currency codes.
 - ICU syntax and named format references when `lintIcu` is enabled.
 - Namespace and override key separator constraints.
+- Source-locale presence, ICU argument/tag parity, reviewed translation hashes, and stale translations when `sourceLocale` is configured.
+- Archived entity references, target patterns that match nothing, and target context values that violate attribute schemas.
 
 Lint does not prove that copy reads well or that runtime output matches product expectations. Use tests, examples, evaluate, and Catalog review for behavior.
 
@@ -74,6 +76,10 @@ module.exports = {
 ```
 
 Prefer named formats for reusable product copy.
+
+### Stale or structurally incompatible translation
+
+When `sourceLocale` is configured, translated copy must use the same ICU arguments and rich-text tags as the source. A `translationStates.<locale>.sourceHash` identifies the source text that was reviewed; lint reports it as stale after source copy changes. Update the translation, then record the new source hash and workflow status.
 
 ### Set-specific failures
 

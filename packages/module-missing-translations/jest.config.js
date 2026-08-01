@@ -6,6 +6,7 @@ module.exports = {
   testRegex: undefined,
   testMatch: ["<rootDir>/packages/module-missing-translations/src/**/*.spec.ts"],
   moduleNameMapper: {
+    ...base.moduleNameMapper,
     "^@messagevisor/sdk$": "<rootDir>/packages/sdk/src/index.ts",
   },
 };

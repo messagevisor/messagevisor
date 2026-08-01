@@ -40,6 +40,19 @@ import { GroupSegmentTree } from "../components/details/GroupSegmentTree";
 import { MarkdownContent } from "../components/details/MarkdownContent";
 import { TranslationsTable } from "../components/details/TranslationsTable";
 import { UsageLinks } from "../components/details/UsageLinks";
+import { EntityTests } from "../components/details/EntityTests";
+import type { CatalogTestSpec } from "../testModel";
+import {
+  DescriptionField,
+  EntityStatusBadges,
+  hasEntityStatus,
+  LinkedEntityChips,
+  OverviewChip,
+  OverviewMetaPanel,
+  OverviewMetaRow,
+  OverviewPlaceholder,
+  SourceLocaleLink,
+} from "../components/details/Overview";
 import { HistoryTimeline } from "../components/history/HistoryTimeline";
 import { useCatalog } from "../context/CatalogContext";
 import { hashTranslationValue } from "../utils/hashTranslationValue";
@@ -64,6 +77,115 @@ interface EvaluatedMessageExample {
   currency?: string;
   timeZone?: string;
   evaluatedTranslation: unknown;
+}
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return;
+    } catch {
+      // Use the older browser fallback when clipboard access is denied.
+    }
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textarea);
+  }
+  if (!copied) throw new Error("Could not copy entity key");
+}
+
+export function CopyEntityKeyButton(props: { entityKey: string }) {
+  const [status, setStatus] = React.useState<"idle" | "copied" | "error">("idle");
+  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  async function handleCopy() {
+    if (timer.current) clearTimeout(timer.current);
+    try {
+      await copyText(props.entityKey);
+      setStatus("copied");
+    } catch {
+      setStatus("error");
+    }
+    timer.current = setTimeout(() => {
+      setStatus("idle");
+      timer.current = null;
+    }, 2000);
+  }
+
+  const label =
+    status === "copied"
+      ? `Copied ${props.entityKey}`
+      : status === "error"
+        ? `Could not copy ${props.entityKey}`
+        : `Copy ${props.entityKey}`;
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={label}
+        title={label}
+        onClick={handleCopy}
+        className={[
+          "inline-flex h-7 w-7 items-center justify-center rounded-md border outline-none transition-all",
+          "opacity-100 md:opacity-0 md:group-hover:opacity-100",
+          "hover:border-border hover:bg-elevated hover:text-text focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-primary",
+          status === "copied"
+            ? "border-success-outline bg-success-surface text-success !opacity-100"
+            : status === "error"
+              ? "border-danger-outline bg-danger-surface text-danger !opacity-100"
+              : "border-border/70 bg-surface text-faint",
+        ].join(" ")}
+      >
+        {status === "copied" ? (
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <path d="m4 10 3.5 3.5L16 5" />
+          </svg>
+        ) : (
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          >
+            <rect x="6.5" y="6.5" width="9" height="9" rx="1.5" />
+            <path d="M13.5 6.5V5A1.5 1.5 0 0 0 12 3.5H5A1.5 1.5 0 0 0 3.5 5v7A1.5 1.5 0 0 0 5 13.5h1.5" />
+          </svg>
+        )}
+      </button>
+      <span className="sr-only" aria-live="polite">
+        {status === "copied" ? "Entity key copied" : status === "error" ? "Copy failed" : ""}
+      </span>
+    </>
+  );
 }
 
 interface EvaluatedLocaleExample {
@@ -1242,146 +1364,6 @@ function FormatRowsTable(props: {
   );
 }
 
-function SourceLocaleLink(props: { localeKey: string }) {
-  const { setKey } = useEntityDetail();
-
-  return (
-    <Link
-      to={getEntityRoute("locale", props.localeKey, setKey)}
-      className="font-medium text-primary hover:underline"
-    >
-      {props.localeKey}
-    </Link>
-  );
-}
-
-function LinkedTargetBadges(props: { targetKeys?: string[]; setKey?: string }) {
-  const targetKeys = props.targetKeys || [];
-
-  if (targetKeys.length === 0) {
-    return null;
-  }
-
-  return (
-    <>
-      {targetKeys.map((targetKey) => (
-        <OverviewChipLink key={targetKey} to={getEntityRoute("target", targetKey, props.setKey)}>
-          {targetKey}
-        </OverviewChipLink>
-      ))}
-    </>
-  );
-}
-
-function OverviewChip(props: { children: React.ReactNode; className?: string }) {
-  return (
-    <span
-      className={[
-        "inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs text-text",
-        props.className || "",
-      ].join(" ")}
-    >
-      {props.children}
-    </span>
-  );
-}
-
-function OverviewPlaceholder(props: { children: React.ReactNode }) {
-  return <span className="text-xs italic text-faint">{props.children}</span>;
-}
-
-function OverviewChipLink(props: { to: string; children: React.ReactNode }) {
-  return (
-    <Link
-      to={props.to}
-      className="inline-flex items-center rounded-full bg-pill px-2.5 py-0.5 text-xs font-medium text-primary hover:underline"
-    >
-      {props.children}
-    </Link>
-  );
-}
-
-function OverviewMetaPanel(props: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl bg-elevated px-5 py-4">
-      <dl className="space-y-3.5">{props.children}</dl>
-    </div>
-  );
-}
-
-function OverviewMetaRow(props: { label: string; children?: React.ReactNode }) {
-  if (!props.children) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-5">
-      <dt className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-faint sm:w-[7rem]">
-        {props.label}
-      </dt>
-      <dd className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
-        {props.children}
-      </dd>
-    </div>
-  );
-}
-
-function DescriptionField(props: {
-  title?: string;
-  value?: string;
-  fallback?: string;
-  showTopDivider?: boolean;
-}) {
-  const showTopDivider = props.showTopDivider !== false;
-
-  return (
-    <div className={showTopDivider ? "border-t border-border pt-6" : undefined}>
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-faint">
-        {props.title || "Description"}
-      </div>
-      <div className="mt-2 min-w-0 text-sm [overflow-wrap:anywhere]">
-        <MarkdownContent value={props.value || props.fallback} />
-      </div>
-    </div>
-  );
-}
-
-function EntityStatusBadges(props: { entity: Record<string, any> }) {
-  if (!hasEntityStatus(props.entity)) {
-    return null;
-  }
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {props.entity.archived === true && <Badge tone="danger">archived</Badge>}
-      {props.entity.deprecated === true && <Badge tone="warning">deprecated</Badge>}
-      {props.entity.promotable === false && <Badge>not promotable</Badge>}
-    </div>
-  );
-}
-
-function hasEntityStatus(entity: Record<string, any>) {
-  return entity.archived === true || entity.deprecated === true || entity.promotable === false;
-}
-
-function LinkedLocaleChips(props: { localeKeys?: string[]; setKey?: string }) {
-  const localeKeys = props.localeKeys || [];
-
-  if (localeKeys.length === 0) {
-    return null;
-  }
-
-  return (
-    <>
-      {localeKeys.map((localeKey) => (
-        <OverviewChipLink key={localeKey} to={getEntityRoute("locale", localeKey, props.setKey)}>
-          {localeKey}
-        </OverviewChipLink>
-      ))}
-    </>
-  );
-}
-
 export function EntityDetailPage() {
   const { entityPath, entityKey, setKey } = useParams();
   const [detail, setDetail] = React.useState<EntityDetail | null>(null);
@@ -1423,6 +1405,7 @@ export function EntityDetailPage() {
     <div>
       <PageHeader
         title={<EntityKey value={detail.key} className="min-w-0 font-black leading-tight" />}
+        titleAction={<CopyEntityKeyButton entityKey={detail.key} />}
         description={
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-faint">
@@ -1442,50 +1425,58 @@ export function EntityDetailPage() {
 }
 
 function getTabs(type: string, baseRoute: string, duplicatesEnabled = false) {
-  const shared = [
-    { label: "Overview", to: baseRoute, end: true },
-    { label: "History", to: `${baseRoute}/history` },
-  ];
+  const overviewTab = { label: "Overview", to: baseRoute, end: true };
+  const testsTab = { label: "Tests", to: `${baseRoute}/tests` };
+  const historyTab = { label: "History", to: `${baseRoute}/history` };
 
   if (type === "locale") {
     return [
-      shared[0],
+      overviewTab,
       { label: "Formats", to: `${baseRoute}/formats` },
       { label: "Examples", to: `${baseRoute}/examples` },
       ...(duplicatesEnabled ? [{ label: "Duplicates", to: `${baseRoute}/duplicates` }] : []),
-      shared[1],
+      testsTab,
+      historyTab,
     ];
   }
 
   if (type === "message") {
     return [
-      shared[0],
+      overviewTab,
       { label: "Translations", to: `${baseRoute}/translations` },
       { label: "Overrides", to: `${baseRoute}/overrides` },
       { label: "Examples", to: `${baseRoute}/examples` },
-      shared[1],
+      testsTab,
+      historyTab,
     ];
   }
 
   if (type === "target") {
     return [
-      shared[0],
+      overviewTab,
       { label: "Formats", to: `${baseRoute}/formats`, end: false },
       { label: "Messages", to: `${baseRoute}/messages` },
-      shared[1],
+      testsTab,
+      historyTab,
     ];
   }
 
   if (type === "segment") {
     return [
-      shared[0],
+      overviewTab,
       { label: "Conditions", to: `${baseRoute}/conditions` },
       { label: "Usage", to: `${baseRoute}/usage` },
-      shared[1],
+      testsTab,
+      historyTab,
     ];
   }
 
-  return [shared[0], { label: "Usage", to: `${baseRoute}/usage` }, shared[1]];
+  return [overviewTab, { label: "Usage", to: `${baseRoute}/usage` }, historyTab];
+}
+
+export function TestsTab() {
+  const { detail } = useEntityDetail();
+  return <EntityTests tests={(detail.tests || []) as CatalogTestSpec[]} />;
 }
 
 export function EntityOverviewTab() {
@@ -1563,7 +1554,7 @@ function getOverviewMetaRows(
       {
         label: "Targets",
         value: targetKeys?.length ? (
-          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+          <LinkedEntityChips type="target" keys={targetKeys} setKey={setKey} />
         ) : undefined,
       },
       promotableField,
@@ -1581,7 +1572,7 @@ function getOverviewMetaRows(
       {
         label: "Targets",
         value: targetKeys?.length ? (
-          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+          <LinkedEntityChips type="target" keys={targetKeys} setKey={setKey} />
         ) : undefined,
       },
     ]);
@@ -1607,7 +1598,7 @@ function getOverviewMetaRows(
       {
         label: "Targets",
         value: targetKeys?.length ? (
-          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+          <LinkedEntityChips type="target" keys={targetKeys} setKey={setKey} />
         ) : undefined,
       },
       promotableField,
@@ -1636,7 +1627,7 @@ function getOverviewMetaRows(
       {
         label: "Targets",
         value: targetKeys?.length ? (
-          <LinkedTargetBadges targetKeys={targetKeys} setKey={setKey} />
+          <LinkedEntityChips type="target" keys={targetKeys} setKey={setKey} />
         ) : undefined,
       },
     ]);
@@ -1659,7 +1650,7 @@ function getOverviewMetaRows(
     {
       label: "Locales",
       value: localeKeys?.length ? (
-        <LinkedLocaleChips localeKeys={localeKeys} setKey={setKey} />
+        <LinkedEntityChips type="locale" keys={localeKeys} setKey={setKey} />
       ) : undefined,
     },
   ]);
@@ -2361,7 +2352,7 @@ function MessageExampleDetails(props: {
     <div className="min-w-0 space-y-4">
       {props.showLocale !== false && (
         <InputField label="Locale">
-          <SourceLocaleLink localeKey={example.locale} />
+          <SourceLocaleLink localeKey={example.locale} setKey={setKey} />
         </InputField>
       )}
 
@@ -2685,7 +2676,7 @@ function LocaleExampleDetails(props: {
         <SearchHighlight text={localeKey} query={q} />
       </Link>
     ) : (
-      <SourceLocaleLink localeKey={localeKey} />
+      <SourceLocaleLink localeKey={localeKey} setKey={setKey} />
     );
   }
 

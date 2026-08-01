@@ -7,6 +7,7 @@ import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { MessagevisorCLIError } from "../error";
 import { getProjectSetExecutions } from "../sets";
+import { matchesPattern, targetIncludesMessage } from "../targeting";
 
 export interface TypeScriptCodeGenerationOptions {
   set?: string | string[];
@@ -24,17 +25,6 @@ export interface TypeScriptCodeGenerationResult {
 function toArray(value?: string | string[]): string[] {
   if (typeof value === "undefined") return [];
   return Array.isArray(value) ? value : [value];
-}
-
-function matchesPattern(key: string, patterns?: string | string[]) {
-  if (!patterns || patterns.length === 0) {
-    return false;
-  }
-
-  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`).test(key);
-  });
 }
 
 function isAvailable(message: Message) {
@@ -72,15 +62,8 @@ async function collectTargetMessageKeys(
 
   for (const targetKey of targetKeys) {
     const target = (await datasource.readTarget(targetKey)) as Target;
-    const includeMessages =
-      typeof target.includeMessages === "undefined" ? ["*"] : target.includeMessages;
-    const excludeMessages = target.excludeMessages || [];
-
     for (const messageKey of allMessageKeys) {
-      if (
-        matchesPattern(messageKey, includeMessages) &&
-        !matchesPattern(messageKey, excludeMessages)
-      ) {
+      if (targetIncludesMessage(target, messageKey)) {
         selected.push(messageKey);
       }
     }

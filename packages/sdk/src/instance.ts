@@ -12,7 +12,7 @@ import type {
   MessageMeta,
 } from "@messagevisor/types";
 
-import { evaluateCondition, evaluateGroupSegment } from "./conditions";
+import { evaluateCondition, evaluateGroupSegment } from "./conditions.js";
 
 export interface MessagevisorOptions {
   datafile?: DatafileContent | string;
@@ -26,7 +26,6 @@ export interface MessagevisorOptions {
   resolveVariation?: (experimentKey: string, context?: Context) => string | null;
   onDiagnostic?: MessagevisorDiagnosticHandler;
   logLevel?: MessagevisorLogLevel;
-  cache?: MessagevisorCache;
   modules?: MessagevisorModule[];
 }
 
@@ -112,6 +111,8 @@ export interface MessagevisorModule {
   close?: () => void | Promise<void>;
 }
 
+export type MessagevisorModuleUnsubscribe = () => Promise<void>;
+
 export type MessagevisorDiagnosticCode =
   | "sdk_initialized"
   | "missing_translation"
@@ -120,9 +121,12 @@ export type MessagevisorDiagnosticCode =
   | "invalid_datafile"
   | "invalid_message"
   | "unsupported_formatter"
+  | "missing_format"
+  | "invalid_format"
   | "message_override_matched"
   | "deprecated_message"
   | "duplicate_module"
+  | "module_setup_error"
   | "module_close_error"
   | (string & {});
 
@@ -165,13 +169,14 @@ interface MessagevisorModuleDiagnosticSubscription {
   logLevel: MessagevisorLogLevel;
 }
 
-export interface MessagevisorCache {
+interface MessagevisorCache {
   numberFormat: Record<string, Intl.NumberFormat>;
   dateTimeFormat: Record<string, Intl.DateTimeFormat>;
   relativeTimeFormat: Record<string, Intl.RelativeTimeFormat>;
   pluralRules: Record<string, Intl.PluralRules>;
   listFormat: Record<string, any>;
   displayNames: Record<string, any>;
+  order: Record<keyof Omit<MessagevisorCache, "order">, string[]>;
 }
 
 export type MessagevisorEventName =
@@ -196,27 +201,81 @@ export interface MessagevisorSnapshot {
   datafileRevisionsByLocale: Record<LocaleKey, string>;
 }
 
-export interface MessagevisorEvent {
-  type: MessagevisorEventName;
+interface MessagevisorEventBase {
   version: number;
   snapshot: MessagevisorSnapshot;
   previousSnapshot: MessagevisorSnapshot;
-  locale?: LocaleKey | null;
-  previousLocale?: LocaleKey | null;
-  datafile?: DatafileContent;
-  context?: Context;
-  previousContext?: Context;
-  currency?: string;
-  previousCurrency?: string;
-  timeZone?: string;
-  previousTimeZone?: string;
-  diagnostic?: MessagevisorDiagnostic;
 }
 
-export type MessagevisorEventCallback = (event: MessagevisorEvent) => void;
+export interface DatafileSetEventDetails {
+  datafile: DatafileContent;
+  /** Locale whose stored datafile changed. */
+  locale: LocaleKey;
+  /** Locale currently selected for evaluation after the update. */
+  activeLocale: LocaleKey | null;
+  previousLocale: LocaleKey | null;
+  replaced: boolean;
+}
+export interface LocaleSetEventDetails {
+  locale: LocaleKey;
+  previousLocale: LocaleKey | null;
+}
+export interface ContextSetEventDetails {
+  context: Context;
+  previousContext: Context;
+  replaced: boolean;
+}
+export interface CurrencySetEventDetails {
+  currency: string;
+  previousCurrency?: string;
+}
+export interface TimeZoneSetEventDetails {
+  timeZone: string;
+  previousTimeZone?: string;
+}
+export interface ErrorEventDetails {
+  diagnostic: MessagevisorDiagnostic;
+}
+export type ChangeEventDetails =
+  | ({ source: "datafile_set" } & DatafileSetEventDetails)
+  | ({ source: "locale_set" } & LocaleSetEventDetails)
+  | ({ source: "context_set" } & ContextSetEventDetails)
+  | ({ source: "currency_set" } & CurrencySetEventDetails)
+  | ({ source: "timeZone_set" } & TimeZoneSetEventDetails);
+
+export interface MessagevisorEventDetailsByName {
+  change: ChangeEventDetails;
+  error: ErrorEventDetails;
+  datafile_set: DatafileSetEventDetails;
+  locale_set: LocaleSetEventDetails;
+  context_set: ContextSetEventDetails;
+  currency_set: CurrencySetEventDetails;
+  timeZone_set: TimeZoneSetEventDetails;
+}
+
+export type MessagevisorEvent<T extends MessagevisorEventName = MessagevisorEventName> =
+  T extends MessagevisorEventName
+    ? MessagevisorEventBase & { type: T } & MessagevisorEventDetailsByName[T]
+    : never;
+
+export type MessagevisorEventCallback<T extends MessagevisorEventName = MessagevisorEventName> = (
+  event: MessagevisorEvent<T>,
+) => void;
+
+export interface SpawnOptions {
+  locale?: LocaleKey;
+  currency?: string;
+  timeZone?: string;
+}
+
+export type MessagevisorChild = Omit<
+  Messagevisor,
+  "addModule" | "removeModule" | "setDatafile" | "spawn"
+>;
 
 const DEFAULT_CURRENCY = "USD";
 const LOG_PREFIX = "[Messagevisor]";
+const FORMATTER_CACHE_LIMIT = 100;
 
 class MessagevisorCloseError extends Error {
   public readonly errors: unknown[];
@@ -232,7 +291,7 @@ function createEmptyRecord<T>() {
   return {} as Record<string, T>;
 }
 
-export function createMessagevisorCache(): MessagevisorCache {
+function createMessagevisorCache(): MessagevisorCache {
   return {
     numberFormat: createEmptyRecord<Intl.NumberFormat>(),
     dateTimeFormat: createEmptyRecord<Intl.DateTimeFormat>(),
@@ -240,7 +299,33 @@ export function createMessagevisorCache(): MessagevisorCache {
     pluralRules: createEmptyRecord<Intl.PluralRules>(),
     listFormat: createEmptyRecord<any>(),
     displayNames: createEmptyRecord<any>(),
+    order: {
+      numberFormat: [],
+      dateTimeFormat: [],
+      relativeTimeFormat: [],
+      pluralRules: [],
+      listFormat: [],
+      displayNames: [],
+    },
   };
+}
+
+function getFormatterCacheKey(locale: string, options: Record<string, any>) {
+  var keys = Object.keys(options).sort();
+  var parts = [locale];
+  for (var i = 0; i < keys.length; i++) {
+    parts.push(keys[i], JSON.stringify(options[keys[i]]));
+  }
+  return parts.join("|");
+}
+
+function cacheFormatter<T>(values: Record<string, T>, order: string[], key: string, formatter: T) {
+  if (order.length >= FORMATTER_CACHE_LIMIT) {
+    delete values[order.shift() as string];
+  }
+  order.push(key);
+  values[key] = formatter;
+  return formatter;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -347,6 +432,16 @@ export class Messagevisor {
   private timeZone?: string;
   private resolveFlag?: (featureKey: string, context?: Context) => boolean;
   private resolveVariation?: (experimentKey: string, context?: Context) => string | null;
+  private hasOwnFlagResolver = false;
+  private hasOwnVariationResolver = false;
+  private moduleFlagResolvers: Array<{
+    moduleKey: string;
+    resolver: (featureKey: string, context?: Context) => boolean;
+  }> = [];
+  private moduleVariationResolvers: Array<{
+    moduleKey: string;
+    resolver: (experimentKey: string, context?: Context) => string | null;
+  }> = [];
   private onDiagnostic?: MessagevisorDiagnosticHandler;
   private logLevel: MessagevisorLogLevel = "info";
   private cache: MessagevisorCache;
@@ -357,7 +452,14 @@ export class Messagevisor {
   private closed = false;
   private closePromise?: Promise<void>;
   private version = 0;
-  private listeners: Record<MessagevisorEventName, MessagevisorEventCallback[]> = {
+  private ownsModules = true;
+  private parent?: Messagevisor;
+  private parentUnsubscribers: MessagevisorUnsubscribe[] = [];
+  private observedParentDatafileState?: Pick<
+    MessagevisorSnapshot,
+    "datafileLocales" | "datafileRevisionsByLocale" | "direction"
+  >;
+  private listeners: Record<MessagevisorEventName, MessagevisorEventCallback<any>[]> = {
     change: [],
     error: [],
     datafile_set: [],
@@ -367,18 +469,19 @@ export class Messagevisor {
     timeZone_set: [],
   };
 
-  constructor(options: MessagevisorOptions = {}) {
+  constructor(options: MessagevisorOptions = {}, parent?: Messagevisor) {
+    this.parent = parent;
+    this.ownsModules = !parent;
     this.currency = options.currency;
     this.timeZone = options.timeZone;
     this.context = options.context || {};
     this.resolveFlag = options.resolveFlag;
     this.resolveVariation = options.resolveVariation;
+    this.hasOwnFlagResolver = typeof options.resolveFlag !== "undefined";
+    this.hasOwnVariationResolver = typeof options.resolveVariation !== "undefined";
     this.logLevel = options.logLevel || "info";
     this.onDiagnostic = options.onDiagnostic;
-    this.cache = options.cache || createMessagevisorCache();
-    this.setFlagResolver(options.resolveFlag);
-    this.setVariationResolver(options.resolveVariation);
-
+    this.cache = parent?.cache || createMessagevisorCache();
     (options.modules || []).forEach((module) => {
       this.addModule(module);
     });
@@ -397,11 +500,21 @@ export class Messagevisor {
       this.locale = options.locale || null;
     }
 
-    this.reportDiagnostic({
-      level: "info",
-      code: "sdk_initialized",
-      message: "SDK initialized",
-    });
+    if (parent) {
+      this.datafiles = parent.datafiles;
+      this.defaultTranslationsByLocale = parent.defaultTranslationsByLocale;
+      this.defaultFormatsByLocale = parent.defaultFormatsByLocale;
+      this.captureObservedParentDatafileState();
+      this.trackParentSubscription(
+        parent.on("datafile_set", (event) => this.forwardParentDatafileEvent(event)),
+      );
+    } else {
+      this.reportDiagnostic({
+        level: "info",
+        code: "sdk_initialized",
+        message: "SDK initialized",
+      });
+    }
   }
 
   subscribe(callback: () => void): MessagevisorUnsubscribe {
@@ -416,16 +529,56 @@ export class Messagevisor {
     this.logLevel = level;
   }
 
-  on(
-    eventName: MessagevisorEventName,
-    callback: MessagevisorEventCallback,
+  on<T extends MessagevisorEventName>(
+    eventName: T,
+    callback: MessagevisorEventCallback<T>,
   ): MessagevisorUnsubscribe {
     if (this.closed) {
       return () => {};
     }
 
+    return this.addLocalListener(eventName, callback);
+  }
+
+  private captureObservedParentDatafileState() {
+    const snapshot = this.getSnapshot();
+    this.observedParentDatafileState = {
+      datafileLocales: snapshot.datafileLocales.slice(),
+      datafileRevisionsByLocale: { ...snapshot.datafileRevisionsByLocale },
+      direction: snapshot.direction,
+    };
+  }
+
+  private forwardParentDatafileEvent(event: MessagevisorEvent<"datafile_set">) {
+    if (this.closed) return;
+
+    const current = this.getSnapshot();
+    const observed = this.observedParentDatafileState;
+    const previousSnapshot = observed
+      ? {
+          ...current,
+          direction: observed.direction,
+          datafileLocales: observed.datafileLocales.slice(),
+          datafileRevisionsByLocale: { ...observed.datafileRevisionsByLocale },
+        }
+      : current;
+
+    this.emit("datafile_set", previousSnapshot, {
+      datafile: event.datafile,
+      locale: event.locale,
+      activeLocale: this.locale,
+      previousLocale: this.locale,
+      replaced: event.replaced,
+    });
+    this.captureObservedParentDatafileState();
+  }
+
+  private addLocalListener<T extends MessagevisorEventName>(
+    eventName: T,
+    callback: MessagevisorEventCallback<T>,
+  ): MessagevisorUnsubscribe {
     if (this.listeners[eventName].indexOf(callback) === -1) {
-      this.listeners[eventName].push(callback);
+      this.listeners[eventName].push(callback as MessagevisorEventCallback<any>);
     }
 
     return () => {
@@ -433,6 +586,18 @@ export class Messagevisor {
         (listener) => listener !== callback,
       );
     };
+  }
+
+  private trackParentSubscription(unsubscribeParent: MessagevisorUnsubscribe) {
+    let active = true;
+    const unsubscribe = () => {
+      if (!active) return;
+      active = false;
+      unsubscribeParent();
+      this.parentUnsubscribers = this.parentUnsubscribers.filter((entry) => entry !== unsubscribe);
+    };
+    this.parentUnsubscribers.push(unsubscribe);
+    return unsubscribe;
   }
 
   getSnapshot(): MessagevisorSnapshot {
@@ -454,9 +619,24 @@ export class Messagevisor {
     };
   }
 
-  addModule(module: MessagevisorModule) {
+  /** Creates request-local state while sharing parent datafiles, modules, and formatter caches. */
+  spawn(context: Context = {}, options: SpawnOptions = {}): MessagevisorChild {
+    return new Messagevisor(
+      {
+        context: { ...this.context, ...context },
+        locale: options.locale || this.locale || undefined,
+        currency: options.currency || this.currency,
+        timeZone: options.timeZone || this.timeZone,
+        logLevel: this.logLevel,
+        onDiagnostic: this.onDiagnostic,
+      },
+      this,
+    );
+  }
+
+  addModule(module: MessagevisorModule): MessagevisorModuleUnsubscribe {
     if (this.closed) {
-      return;
+      return async () => {};
     }
 
     if (
@@ -469,30 +649,73 @@ export class Messagevisor {
         message: "Duplicate module name",
         moduleName: module.name,
       });
-      return;
+      return async () => {};
     }
 
-    this.runModuleSetup(module);
+    try {
+      this.runModuleSetup(module);
+    } catch (error) {
+      this.clearModuleDiagnosticSubscriptions(module);
+      this.reportDiagnostic({
+        level: "error",
+        code: "module_setup_error",
+        message: "Module setup failed",
+        moduleName: module.name,
+        originalError: error,
+      });
+      void this.closeModule(module).catch(() => {});
+      return async () => {};
+    }
     this.modules.push(module);
+
+    return async () => this.removeModuleInstance(module);
   }
 
-  removeModule(name: string) {
+  async removeModule(name: string): Promise<void> {
     if (this.closed) {
       return;
     }
 
     const removedModules = this.modules.filter((module) => module.name === name);
+    const errors: unknown[] = [];
+    for (const module of removedModules) {
+      try {
+        await this.removeModuleInstance(module);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
 
-    this.modules = this.modules.filter((module) => module.name !== name);
-    removedModules.forEach((module) => this.clearModuleDiagnosticSubscriptions(module));
+    if (errors.length > 0) {
+      throw new MessagevisorCloseError("One or more Messagevisor modules failed to close.", errors);
+    }
   }
 
   setFlagResolver(resolver?: (featureKey: string, context?: Context) => boolean) {
     this.resolveFlag = resolver;
+    this.hasOwnFlagResolver = true;
   }
 
   setVariationResolver(resolver?: (experimentKey: string, context?: Context) => string | null) {
     this.resolveVariation = resolver;
+    this.hasOwnVariationResolver = true;
+  }
+
+  private getFlagResolver(): ((featureKey: string, context?: Context) => boolean) | undefined {
+    const moduleResolver = this.moduleFlagResolvers[this.moduleFlagResolvers.length - 1]?.resolver;
+    if (moduleResolver) return moduleResolver;
+    if (this.hasOwnFlagResolver) return this.resolveFlag;
+    return this.parent?.getFlagResolver();
+  }
+
+  private getVariationResolver():
+    | ((experimentKey: string, context?: Context) => string | null)
+    | undefined {
+    const moduleResolver =
+      this.moduleVariationResolvers[this.moduleVariationResolvers.length - 1]?.resolver;
+    if (moduleResolver) return moduleResolver;
+    if (this.hasOwnVariationResolver) return this.resolveVariation;
+    return this.parent?.getVariationResolver();
   }
 
   setCurrency(currency: string) {
@@ -549,8 +772,10 @@ export class Messagevisor {
 
     this.emit("datafile_set", previousSnapshot, {
       datafile: storedDatafile,
-      locale: this.locale,
+      locale: storedDatafile.locale,
+      activeLocale: this.locale,
       previousLocale,
+      replaced: replace,
     });
   }
 
@@ -563,6 +788,7 @@ export class Messagevisor {
     this.emit("context_set", previousSnapshot, {
       context: { ...this.context },
       previousContext: { ...previousContext },
+      replaced: replace,
     });
   }
 
@@ -650,15 +876,15 @@ export class Messagevisor {
     }
 
     const snapshot = this.getSnapshot();
-    const event: MessagevisorEvent = {
+    const event = {
       type: "error",
       version: this.version,
       snapshot,
       previousSnapshot: snapshot,
       diagnostic,
-    };
+    } as MessagevisorEvent<"error">;
 
-    this.listeners.error.slice().forEach((callback) => callback(event));
+    this.triggerListeners("error", event);
   }
 
   private reportDiagnostic(diagnostic: MessagevisorDiagnosticInput, sourceModuleKey?: string) {
@@ -676,12 +902,20 @@ export class Messagevisor {
         return;
       }
 
-      subscription.handler(normalizedDiagnostic);
+      try {
+        subscription.handler(normalizedDiagnostic);
+      } catch (error) {
+        console.error(error);
+      }
     });
 
     if (shouldLog(this.logLevel, normalizedDiagnostic.level)) {
       if (this.onDiagnostic) {
-        this.onDiagnostic(normalizedDiagnostic);
+        try {
+          this.onDiagnostic(normalizedDiagnostic);
+        } catch (error) {
+          console.error(error);
+        }
       } else {
         const method =
           normalizedDiagnostic.level === "fatal" || normalizedDiagnostic.level === "error"
@@ -760,14 +994,14 @@ export class Messagevisor {
       const matchesConditions = evaluateCondition(override.conditions, {
         context: evaluationContext,
         segments: datafile.segments,
-        resolveFlag: this.resolveFlag,
-        resolveVariation: this.resolveVariation,
+        resolveFlag: this.getFlagResolver(),
+        resolveVariation: this.getVariationResolver(),
       });
       const matchesSegments = evaluateGroupSegment(override.segments, {
         context: evaluationContext,
         segments: datafile.segments,
-        resolveFlag: this.resolveFlag,
-        resolveVariation: this.resolveVariation,
+        resolveFlag: this.getFlagResolver(),
+        resolveVariation: this.getVariationResolver(),
       });
       const matched = matchesConditions && matchesSegments;
 
@@ -875,12 +1109,22 @@ export class Messagevisor {
     }
 
     if (messageKey) {
-      this.reportDiagnostic({
-        level: "error",
-        code: "missing_translation",
-        message: "Missing translation",
-        details: { locale, messageKey, source: "translation" },
-      });
+      const hasDatafile = Boolean(this.datafiles[locale]);
+      this.reportDiagnostic(
+        hasDatafile
+          ? {
+              level: "error",
+              code: "missing_translation",
+              message: "Missing translation",
+              details: { locale, messageKey, source: "translation" },
+            }
+          : {
+              level: "error",
+              code: "missing_datafile",
+              message: "Datafile not found for locale",
+              details: { locale, messageKey, source: "translation" },
+            },
+      );
     }
 
     if (typeof defaultTranslation === "string") {
@@ -900,12 +1144,10 @@ export class Messagevisor {
     };
   }
 
-  private emit(
-    type: Exclude<MessagevisorEventName, "change" | "error">,
+  private emit<T extends Exclude<MessagevisorEventName, "change" | "error">>(
+    type: T,
     previousSnapshot: MessagevisorSnapshot,
-    details: Partial<
-      Omit<MessagevisorEvent, "type" | "version" | "snapshot" | "previousSnapshot">
-    > = {},
+    details: MessagevisorEventDetailsByName[T],
   ) {
     if (this.closed) {
       return;
@@ -913,22 +1155,33 @@ export class Messagevisor {
 
     this.version += 1;
 
-    const event: MessagevisorEvent = {
+    const event = {
       ...details,
       type,
       version: this.version,
       snapshot: this.getSnapshot(),
       previousSnapshot,
-    };
+    } as MessagevisorEvent<T>;
 
-    this.listeners[type].slice().forEach((callback) => callback(event));
+    this.triggerListeners(type, event);
 
-    const changeEvent: MessagevisorEvent = {
+    const changeEvent = {
       ...event,
       type: "change",
-    };
+      source: type,
+    } as unknown as MessagevisorEvent<"change">;
 
-    this.listeners.change.slice().forEach((callback) => callback(changeEvent));
+    this.triggerListeners("change", changeEvent);
+  }
+
+  private triggerListeners<T extends MessagevisorEventName>(type: T, event: MessagevisorEvent<T>) {
+    this.listeners[type].slice().forEach((callback) => {
+      try {
+        callback(event);
+      } catch (error) {
+        console.error(error);
+      }
+    });
   }
 
   private getEvaluationFormats(
@@ -1015,26 +1268,52 @@ export class Messagevisor {
   }
 
   private getCachedNumberFormat(locale: LocaleKey, options: Intl.NumberFormatOptions) {
-    var cacheKey = JSON.stringify({
-      locale,
-      options,
-    });
+    var cacheKey = getFormatterCacheKey(locale, options);
 
     if (!this.cache.numberFormat[cacheKey]) {
-      this.cache.numberFormat[cacheKey] = new Intl.NumberFormat(locale, options);
+      try {
+        cacheFormatter(
+          this.cache.numberFormat,
+          this.cache.order.numberFormat,
+          cacheKey,
+          new Intl.NumberFormat(locale, options),
+        );
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid number format options",
+          originalError: error,
+          details: { locale, options },
+        });
+        throw error;
+      }
     }
 
     return this.cache.numberFormat[cacheKey];
   }
 
   private getCachedDateTimeFormat(locale: LocaleKey, options: Intl.DateTimeFormatOptions) {
-    var cacheKey = JSON.stringify({
-      locale,
-      options,
-    });
+    var cacheKey = getFormatterCacheKey(locale, options);
 
     if (!this.cache.dateTimeFormat[cacheKey]) {
-      this.cache.dateTimeFormat[cacheKey] = new Intl.DateTimeFormat(locale, options);
+      try {
+        cacheFormatter(
+          this.cache.dateTimeFormat,
+          this.cache.order.dateTimeFormat,
+          cacheKey,
+          new Intl.DateTimeFormat(locale, options),
+        );
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid date/time format options",
+          originalError: error,
+          details: { locale, options },
+        });
+        throw error;
+      }
     }
 
     return this.cache.dateTimeFormat[cacheKey];
@@ -1044,27 +1323,64 @@ export class Messagevisor {
     locale: LocaleKey,
     options: Intl.RelativeTimeFormatOptions = {},
   ) {
-    var cacheKey = JSON.stringify({
-      locale,
-      options,
-    });
+    var cacheKey = getFormatterCacheKey(locale, options);
 
     if (!this.cache.relativeTimeFormat[cacheKey]) {
-      this.cache.relativeTimeFormat[cacheKey] = new Intl.RelativeTimeFormat(locale, options);
+      try {
+        cacheFormatter(
+          this.cache.relativeTimeFormat,
+          this.cache.order.relativeTimeFormat,
+          cacheKey,
+          new Intl.RelativeTimeFormat(locale, options),
+        );
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid relative-time format options",
+          originalError: error,
+          details: { locale, options },
+        });
+        throw error;
+      }
     }
 
     return this.cache.relativeTimeFormat[cacheKey];
   }
 
+  private getNamedFormat<T>(
+    locale: LocaleKey,
+    type: keyof FormatPresets,
+    preset: string,
+    presets: Record<string, T> | undefined,
+  ): T | undefined {
+    const format = presets?.[preset];
+    if (typeof format === "undefined") {
+      this.reportDiagnostic({
+        level: "error",
+        code: "missing_format",
+        message: "Named format preset not found",
+        details: { locale, type, preset },
+      });
+    }
+    return format;
+  }
+
   private createModuleApi(module: MessagevisorModule): MessagevisorModuleApi {
     const moduleKey = this.getModuleApiKey(module);
     const setFlagResolver = (resolver?: (featureKey: string, context?: Context) => boolean) => {
-      this.setFlagResolver(resolver);
+      this.moduleFlagResolvers = this.moduleFlagResolvers.filter(
+        (registration) => registration.moduleKey !== moduleKey,
+      );
+      if (resolver) this.moduleFlagResolvers.push({ moduleKey, resolver });
     };
     const setVariationResolver = (
       resolver?: (experimentKey: string, context?: Context) => string | null,
     ) => {
-      this.setVariationResolver(resolver);
+      this.moduleVariationResolvers = this.moduleVariationResolvers.filter(
+        (registration) => registration.moduleKey !== moduleKey,
+      );
+      if (resolver) this.moduleVariationResolvers.push({ moduleKey, resolver });
     };
     const getRevision = (locale?: LocaleKey) => {
       return this.getRevision(locale);
@@ -1149,6 +1465,12 @@ export class Messagevisor {
     this.moduleDiagnosticSubscriptions = this.moduleDiagnosticSubscriptions.filter(
       (subscription) => subscription.moduleKey !== moduleKey,
     );
+    this.moduleFlagResolvers = this.moduleFlagResolvers.filter(
+      (registration) => registration.moduleKey !== moduleKey,
+    );
+    this.moduleVariationResolvers = this.moduleVariationResolvers.filter(
+      (registration) => registration.moduleKey !== moduleKey,
+    );
 
     delete this.moduleApis[moduleKey];
   }
@@ -1159,7 +1481,7 @@ export class Messagevisor {
   ): MessageFormatResult<T> {
     let currentTranslation = translation as unknown;
 
-    for (const module of this.modules) {
+    for (const module of this.getModules()) {
       const nextTranslation = module.transform?.(
         {
           ...payload,
@@ -1183,7 +1505,7 @@ export class Messagevisor {
   ): MessageFormatResult<T> {
     let currentTranslation = translation as unknown;
 
-    for (const module of this.modules) {
+    for (const module of this.getModules()) {
       if (!module.format) {
         continue;
       }
@@ -1334,14 +1656,47 @@ export class Messagevisor {
     }
 
     this.closed = true;
+    this.parentUnsubscribers.slice().forEach((unsubscribe) => unsubscribe());
+    this.parentUnsubscribers = [];
     Object.keys(this.listeners).forEach((eventName) => {
       this.listeners[eventName as MessagevisorEventName] = [];
     });
     this.moduleDiagnosticSubscriptions = [];
     this.moduleApis = {};
 
-    this.closePromise = this.closeModules();
+    this.closePromise = this.ownsModules ? this.closeModules() : Promise.resolve();
     return this.closePromise;
+  }
+
+  private getModules(): MessagevisorModule[] {
+    return this.parent ? this.parent.getModules() : this.modules;
+  }
+
+  private async removeModuleInstance(module: MessagevisorModule): Promise<void> {
+    if (this.modules.indexOf(module) === -1) {
+      return;
+    }
+
+    this.modules = this.modules.filter((registeredModule) => registeredModule !== module);
+    this.clearModuleDiagnosticSubscriptions(module);
+    await this.closeModule(module);
+  }
+
+  private async closeModule(module: MessagevisorModule): Promise<void> {
+    if (!module.close) return;
+
+    try {
+      await module.close();
+    } catch (error) {
+      this.reportDiagnostic({
+        level: "error",
+        code: "module_close_error",
+        message: "Module close failed",
+        moduleName: module.name,
+        originalError: error,
+      });
+      throw error;
+    }
   }
 
   private async closeModules(): Promise<void> {
@@ -1354,16 +1709,9 @@ export class Messagevisor {
       }
 
       try {
-        await module.close();
+        await this.closeModule(module);
       } catch (error) {
         errors.push(error);
-        this.reportDiagnostic({
-          level: "error",
-          code: "module_close_error",
-          message: "Module close failed",
-          moduleName: module.name,
-          originalError: error,
-        });
       }
     }
 
@@ -1383,7 +1731,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.number?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "number", presetOrOptions, evaluationFormats.number)
         : presetOrOptions;
     const finalOptions = { ...(formatOptions || {}) } as Intl.NumberFormatOptions;
 
@@ -1407,7 +1755,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.number?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "number", presetOrOptions, evaluationFormats.number)
         : presetOrOptions;
     const finalOptions = { ...(formatOptions || {}) } as Intl.NumberFormatOptions;
 
@@ -1431,7 +1779,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.date?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "date", presetOrOptions, evaluationFormats.date)
         : presetOrOptions;
 
     return this.getCachedDateTimeFormat(
@@ -1449,7 +1797,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.date?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "date", presetOrOptions, evaluationFormats.date)
         : presetOrOptions;
 
     return this.getCachedDateTimeFormat(
@@ -1467,7 +1815,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.time?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "time", presetOrOptions, evaluationFormats.time)
         : presetOrOptions;
 
     return this.getCachedDateTimeFormat(
@@ -1485,7 +1833,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.time?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "time", presetOrOptions, evaluationFormats.time)
         : presetOrOptions;
 
     return this.getCachedDateTimeFormat(
@@ -1504,7 +1852,12 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.dateTimeRange?.[presetOrOptions]
+        ? this.getNamedFormat(
+            locale,
+            "dateTimeRange",
+            presetOrOptions,
+            evaluationFormats.dateTimeRange,
+          )
         : presetOrOptions;
     const formatter = this.getCachedDateTimeFormat(
       locale,
@@ -1532,7 +1885,7 @@ export class Messagevisor {
     const evaluationFormats = this.getEvaluationFormats(options, locale);
     const formatOptions =
       typeof presetOrOptions === "string"
-        ? evaluationFormats.relative?.[presetOrOptions]
+        ? this.getNamedFormat(locale, "relative", presetOrOptions, evaluationFormats.relative)
         : presetOrOptions;
 
     return this.getCachedRelativeTimeFormat(locale, formatOptions).format(value, unit);
@@ -1544,13 +1897,26 @@ export class Messagevisor {
   ) {
     const { locale: optionLocale, ...pluralOptions } = options;
     const locale = this.getCurrentLocale({ locale: optionLocale });
-    var cacheKey = JSON.stringify({
-      locale,
-      options: pluralOptions,
-    });
+    var cacheKey = getFormatterCacheKey(locale, pluralOptions);
 
     if (!this.cache.pluralRules[cacheKey]) {
-      this.cache.pluralRules[cacheKey] = new Intl.PluralRules(locale, pluralOptions);
+      try {
+        cacheFormatter(
+          this.cache.pluralRules,
+          this.cache.order.pluralRules,
+          cacheKey,
+          new Intl.PluralRules(locale, pluralOptions),
+        );
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid plural format options",
+          originalError: error,
+          details: { locale, options: pluralOptions },
+        });
+        throw error;
+      }
     }
 
     return this.cache.pluralRules[cacheKey].select(value);
@@ -1559,10 +1925,7 @@ export class Messagevisor {
   formatList(values: Array<string>, options: any = {}) {
     const { locale: optionLocale, ...listOptions } = options || {};
     const locale = this.getCurrentLocale({ locale: optionLocale });
-    var cacheKey = JSON.stringify({
-      locale,
-      options: listOptions,
-    });
+    var cacheKey = getFormatterCacheKey(locale, listOptions);
     var ListFormat = (Intl as any).ListFormat;
 
     if (!ListFormat) {
@@ -1577,7 +1940,23 @@ export class Messagevisor {
     }
 
     if (!this.cache.listFormat[cacheKey]) {
-      this.cache.listFormat[cacheKey] = new ListFormat(locale, listOptions);
+      try {
+        cacheFormatter(
+          this.cache.listFormat,
+          this.cache.order.listFormat,
+          cacheKey,
+          new ListFormat(locale, listOptions),
+        );
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid list format options",
+          originalError: error,
+          details: { locale, options: listOptions },
+        });
+        throw error;
+      }
     }
 
     return this.cache.listFormat[cacheKey].format(values);
@@ -1586,10 +1965,7 @@ export class Messagevisor {
   formatListToParts(values: Array<string>, options: any = {}) {
     const { locale: optionLocale, ...listOptions } = options || {};
     const locale = this.getCurrentLocale({ locale: optionLocale });
-    var cacheKey = JSON.stringify({
-      locale,
-      options: listOptions,
-    });
+    var cacheKey = getFormatterCacheKey(locale, listOptions);
     var ListFormat = (Intl as any).ListFormat;
 
     if (!ListFormat) {
@@ -1604,7 +1980,23 @@ export class Messagevisor {
     }
 
     if (!this.cache.listFormat[cacheKey]) {
-      this.cache.listFormat[cacheKey] = new ListFormat(locale, listOptions);
+      try {
+        cacheFormatter(
+          this.cache.listFormat,
+          this.cache.order.listFormat,
+          cacheKey,
+          new ListFormat(locale, listOptions),
+        );
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid list format options",
+          originalError: error,
+          details: { locale, options: listOptions },
+        });
+        throw error;
+      }
     }
 
     if (typeof this.cache.listFormat[cacheKey].formatToParts !== "function") {
@@ -1617,10 +2009,7 @@ export class Messagevisor {
   formatDisplayName(value: string, options: any = {}) {
     const { locale: optionLocale, ...displayNameOptions } = options || {};
     const locale = this.getCurrentLocale({ locale: optionLocale });
-    var cacheKey = JSON.stringify({
-      locale,
-      options: displayNameOptions,
-    });
+    var cacheKey = getFormatterCacheKey(locale, displayNameOptions);
     var DisplayNames = (Intl as any).DisplayNames;
 
     if (!DisplayNames) {
@@ -1635,7 +2024,23 @@ export class Messagevisor {
     }
 
     if (!this.cache.displayNames[cacheKey]) {
-      this.cache.displayNames[cacheKey] = new DisplayNames(locale, displayNameOptions);
+      try {
+        cacheFormatter(
+          this.cache.displayNames,
+          this.cache.order.displayNames,
+          cacheKey,
+          new DisplayNames(locale, displayNameOptions),
+        );
+      } catch (error) {
+        this.reportDiagnostic({
+          level: "error",
+          code: "invalid_format",
+          message: "Invalid display-name format options",
+          originalError: error,
+          details: { locale, options: displayNameOptions },
+        });
+        throw error;
+      }
     }
 
     return this.cache.displayNames[cacheKey].of(value);

@@ -11,9 +11,9 @@ on:
 
 jobs:
   ci:
-    name: Checks
+    name: Checks (Node.js 24.16.0)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -32,14 +32,5 @@ jobs:
       - name: Install dependencies
         run: make install
 
-      - name: Build
-        run: make build
-
-      - name: Lint
-        run: make lint
-
-      - name: Typecheck
-        run: make typecheck
-
-      - name: Test
-        run: make test
+      - name: Check
+        run: make check

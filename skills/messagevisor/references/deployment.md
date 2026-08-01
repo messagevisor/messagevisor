@@ -67,6 +67,10 @@ Use `revisionFromHash: true` on a target when deployment wants content-addressed
 
 Catalog is for human review and debugging. Runtime apps should load built datafiles.
 
+## Hosting guides
+
+Step-by-step pipelines for common hosts live in the docs: [GitHub Actions](https://messagevisor.com/docs/deployment/github-actions), [AWS CloudFront with S3](https://messagevisor.com/docs/deployment/aws-cloudfront), and Cloudflare Workers ([static assets](https://messagevisor.com/docs/deployment/cloudflare-workers-static-assets), [KV](https://messagevisor.com/docs/deployment/cloudflare-workers-kv), [Hono](https://messagevisor.com/docs/deployment/cloudflare-workers-hono)). Fetch on demand rather than reconstructing from memory.
+
 ## CI shape
 
 A conservative CI job:

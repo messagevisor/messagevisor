@@ -8,11 +8,14 @@ import { benchmarkPlugin } from "../benchmark";
 import { mergeFormats, resolveFormats } from "../builder";
 import { configPlugin } from "../config";
 import { createPlugin } from "../create";
+import { diffPlugin } from "../diff";
 import { prunePlugin } from "../prune";
 import { examplesPlugin, resolveExamples } from "../examples";
 import { evaluatePlugin } from "../evaluate/cli";
 import { exportPlugin } from "../exporter";
 import { findDuplicateTranslations, findDuplicatesPlugin } from "../find-duplicates";
+import { findUsagePlugin } from "../find-usage";
+import { targetIncludesMessage } from "../targeting";
 import { generateCodePlugin } from "../generate-code";
 import { importPlugin } from "../importer";
 import { infoPlugin } from "../info";
@@ -22,7 +25,9 @@ import { listPlugin } from "../list";
 import { promotePlugin } from "../promoter";
 import { getProjectSetExecutions } from "../sets";
 import { testPlugin } from "../tester";
-import { getMessagevisorCLIErrorMessage } from "../error";
+import { expandTestAssertions } from "../tester/matrix";
+import { formatMessagevisorCLIError, getMessagevisorCLIErrorMessage } from "../error";
+import { getBuiltinCLIOptions, type CLIOptionDefinitions } from "./options";
 
 export interface ParsedOptions {
   _: string[];
@@ -38,6 +43,7 @@ export interface PluginHandlerOptions {
 
 export interface Plugin {
   command: string;
+  options?: CLIOptionDefinitions;
   handler: (options: PluginHandlerOptions) => Promise<void | boolean>;
   examples: {
     command: string;
@@ -64,6 +70,7 @@ export function getCLIErrorOutput(error: unknown) {
 const projectBasedPlugins = [
   configPlugin,
   createPlugin,
+  diffPlugin,
   prunePlugin,
   examplesPlugin,
   createCatalogPlugin({
@@ -73,11 +80,14 @@ const projectBasedPlugins = [
     getProjectSetExecutions,
     resolveExamples,
     findDuplicateTranslations,
+    targetIncludesMessage,
+    expandTestAssertions,
   }),
   benchmarkPlugin,
   lintPlugin,
   listPlugin,
   findDuplicatesPlugin,
+  findUsagePlugin,
   buildPlugin,
   testPlugin,
   infoPlugin,
@@ -91,7 +101,13 @@ const nonProjectPlugins = [initPlugin];
 
 export async function runCLI(runnerOptions: RunnerOptions) {
   const yargs = require("yargs");
-  let y = yargs(process.argv.slice(2)).usage("Usage: $0 <command> [options]");
+  let y = yargs(process.argv.slice(2))
+    .usage("Usage: $0 <command> [options]")
+    .option("rootDirectoryPath", {
+      type: "string",
+      description: "Messagevisor project directory",
+    })
+    .strictOptions();
   const registeredSubcommands: string[] = [];
   const { rootDirectoryPath, projectConfig, datasource } = runnerOptions;
 
@@ -104,6 +120,11 @@ export async function runCLI(runnerOptions: RunnerOptions) {
 
     y = y.command({
       command: plugin.command,
+      builder(commandYargs: any) {
+        return commandYargs
+          .options({ ...getBuiltinCLIOptions(plugin.command), ...(plugin.options || {}) })
+          .strictOptions();
+      },
       handler: async function (parsed: ParsedOptions) {
         try {
           const result = await plugin.handler({
@@ -117,7 +138,9 @@ export async function runCLI(runnerOptions: RunnerOptions) {
             process.exit(1);
           }
         } catch (error) {
-          console.error(getCLIErrorOutput(error));
+          console.error(
+            formatMessagevisorCLIError(error, { json: parsed.json, pretty: parsed.pretty }),
+          );
           process.exit(1);
         }
       },
@@ -149,3 +172,4 @@ export async function runCLI(runnerOptions: RunnerOptions) {
 }
 
 export { getProjectConfig, Datasource };
+export type { CLIOptionDefinition, CLIOptionDefinitions } from "./options";

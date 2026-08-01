@@ -10,7 +10,14 @@
   "scripts": {
     "build": "lerna run build",
     "test": "lerna run test",
+    "clean": "node scripts/clean.mjs",
+    "test:package-exports": "npm run build && npm run test:package-exports:built",
+    "test:package-exports:built": "node scripts/test-package-exports.mjs",
+    "test:browser": "npm run build --workspace @messagevisor/sdk && npm run test:browser:built",
+    "test:browser:built": "node scripts/test-browser.mjs",
     "bundle-sizes": "node scripts/bundle-sizes.mjs",
+    "test:packages": "npm run build && npm run test:packages:built",
+    "test:packages:built": "node scripts/package-smoke.mjs",
     "typecheck": "lerna run typecheck"
   },
   "author": {
@@ -18,6 +25,9 @@
     "url": "https://fahad19.com"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@swc/core": "^1.13.5",
@@ -28,6 +38,7 @@
     "@types/node": "^22.10.2",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
     "@typescript-eslint/parser": "^8.18.1",
+    "esbuild": "^0.25.0",
     "eslint": "^9.17.0",
     "globals": "^15.14.0",
     "jest": "^30.1.3",

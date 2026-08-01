@@ -15,9 +15,20 @@ import type {
   Override,
   Target,
   Segment,
+  Test,
 } from "@messagevisor/types";
+import {
+  resolveLocaleChain,
+  resolveTranslationRow,
+  type ResolvedTranslationRow,
+} from "./resolveTranslationRow";
 
 import { attachFormatExamplePreviews } from "./formatExamplePreview";
+import {
+  filterCatalogSetExecutions,
+  normalizeSelectedSets,
+  sortCatalogSetKeys,
+} from "./setSelection";
 
 const CLI_FORMAT_GREEN = "\x1b[32m%s\x1b[0m";
 const CLI_FORMAT_DIM = "\x1b[2m%s\x1b[0m";
@@ -198,6 +209,8 @@ export interface CatalogRuntime {
     projectConfig: any,
     datasource: any,
   ) => Promise<CatalogDuplicateTranslationsResult>;
+  targetIncludesMessage: (target: Target | undefined, messageKey: string) => boolean;
+  expandTestAssertions: (test: Test) => Array<Record<string, unknown>>;
 }
 
 export const CATALOG_SCHEMA_VERSION = "1";
@@ -258,12 +271,7 @@ interface CatalogFormatRow {
   examplePreview?: string;
 }
 
-interface CatalogTranslationRow {
-  locale: string;
-  value: string;
-  source: CatalogValueSource;
-  from?: string;
-}
+type CatalogTranslationRow = ResolvedTranslationRow;
 
 interface CatalogEvaluatedMessageExample {
   set?: string;
@@ -444,17 +452,6 @@ function encodeKey(key: string) {
   return encodeURIComponent(key);
 }
 
-function matchesPattern(key: string, patterns?: string | string[]) {
-  if (!patterns || patterns.length === 0) {
-    return false;
-  }
-
-  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`).test(key);
-  });
-}
-
 async function readAll<T>(keys: string[], read: (key: string) => Promise<T>) {
   const result: Record<string, T> = {};
 
@@ -551,17 +548,8 @@ function collectSegmentKeys(
   }
 }
 
-function getTargetMessageKeys(target: Target, messageKeys: string[]) {
-  const includeMessages =
-    typeof target.includeMessages === "undefined" ? ["*"] : target.includeMessages;
-  const excludeMessages = target.excludeMessages || [];
-
-  return messageKeys
-    .filter(
-      (messageKey) =>
-        matchesPattern(messageKey, includeMessages) && !matchesPattern(messageKey, excludeMessages),
-    )
-    .sort();
+function getTargetMessageKeys(runtime: CatalogRuntime, target: Target, messageKeys: string[]) {
+  return messageKeys.filter((key) => runtime.targetIncludesMessage(target, key)).sort();
 }
 
 function getHistoryEntityKey(type: CatalogEntityType | "test", key: string, set?: string) {
@@ -639,24 +627,6 @@ function flattenObjectRows(value: unknown, prefix = ""): { path: string; value: 
   return rows;
 }
 
-function resolveLocaleChain(
-  localeKey: string,
-  locales: Record<string, Locale>,
-  field: "inheritFormatsFrom" | "inheritTranslationsFrom",
-) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.[field];
-  }
-
-  return chain;
-}
-
 function getLocaleFormatSource(
   localeKey: string,
   locales: Record<string, Locale>,
@@ -713,39 +683,6 @@ function getFormatRows(
   });
 
   return attachFormatExamplePreviews(localeKey, effectiveFormats, rows);
-}
-
-function resolveTranslationRow(
-  translations: Record<string, string> | undefined,
-  localeKey: string,
-  locales: Record<string, Locale>,
-): CatalogTranslationRow {
-  if (typeof translations?.[localeKey] !== "undefined") {
-    return {
-      locale: localeKey,
-      value: translations[localeKey],
-      source: "direct",
-    };
-  }
-
-  const chain = resolveLocaleChain(localeKey, locales, "inheritTranslationsFrom").reverse();
-
-  for (const candidate of chain) {
-    if (candidate !== localeKey && typeof translations?.[candidate] !== "undefined") {
-      return {
-        locale: localeKey,
-        value: translations[candidate],
-        source: "inherited",
-        from: candidate,
-      };
-    }
-  }
-
-  return {
-    locale: localeKey,
-    value: "",
-    source: "missing",
-  };
 }
 
 function getDuplicateSetKey(set: string | null | undefined) {
@@ -1407,19 +1344,22 @@ async function buildSetCatalog(
   const outputDirectoryPath = path.join(context.dataDirectoryPath, outputRelativeDirectory);
   const setStartedAt = context.progress.setStart(set);
   const entitiesStartedAt = context.progress.step("Processing entities");
-  const [localeKeys, messageKeys, attributeKeys, segmentKeys, targetKeys] = (await Promise.all([
-    datasource.listLocales(),
-    datasource.listMessages(),
-    datasource.listAttributes(),
-    datasource.listSegments(),
-    datasource.listTargets(),
-  ])) as [string[], string[], string[], string[], string[]];
-  const [locales, messages, attributes, segments, targets] = await Promise.all([
+  const [localeKeys, messageKeys, attributeKeys, segmentKeys, targetKeys, testKeys] =
+    (await Promise.all([
+      datasource.listLocales(),
+      datasource.listMessages(),
+      datasource.listAttributes(),
+      datasource.listSegments(),
+      datasource.listTargets(),
+      datasource.listTests(),
+    ])) as [string[], string[], string[], string[], string[], string[]];
+  const [locales, messages, attributes, segments, targets, tests] = await Promise.all([
     readAll<Locale>(localeKeys, (key) => datasource.readLocale(key)),
     readAll<Message>(messageKeys, (key) => datasource.readMessage(key)),
     readAll<Attribute>(attributeKeys, (key) => datasource.readAttribute(key)),
     readAll<Segment>(segmentKeys, (key) => datasource.readSegment(key)),
     readAll<Target>(targetKeys, (key) => datasource.readTarget(key)),
+    readAll<Test>(testKeys, (key) => datasource.readTest(key)),
   ]);
   context.progress.done(
     entitiesStartedAt,
@@ -1441,9 +1381,40 @@ async function buildSetCatalog(
   const attributesUsedInSegments: Record<string, Set<string>> = {};
   const attributesUsedInMessages: Record<string, Set<string>> = {};
   const segmentsUsedInMessages: Record<string, Set<string>> = {};
+  const testsByEntity: Record<string, Array<Record<string, unknown>>> = {};
+
+  for (const testKey of testKeys) {
+    const test = tests[testKey];
+    const entityType =
+      "message" in test
+        ? "message"
+        : "segment" in test
+          ? "segment"
+          : "locale" in test
+            ? "locale"
+            : "target" in test
+              ? "target"
+              : undefined;
+    if (!entityType || !Array.isArray((test as any).assertions)) continue;
+    const entityKey = (test as any)[entityType];
+    const relationshipKey = `${entityType}:${entityKey}`;
+    if (!testsByEntity[relationshipKey]) testsByEntity[relationshipKey] = [];
+    testsByEntity[relationshipKey].push({
+      key: testKey,
+      entityType,
+      entityKey,
+      promotable: test.promotable,
+      authoredAssertions: test.assertions,
+      assertions: context.runtime.expandTestAssertions(test),
+    });
+  }
 
   for (const targetKey of targetKeys) {
-    targetMessages[targetKey] = getTargetMessageKeys(targets[targetKey], messageKeys);
+    targetMessages[targetKey] = getTargetMessageKeys(
+      context.runtime,
+      targets[targetKey],
+      messageKeys,
+    );
     const targetLocaleKeys = targets[targetKey].locales?.length
       ? targets[targetKey].locales
       : localeKeys;
@@ -1643,6 +1614,7 @@ async function buildSetCatalog(
         ]),
       ),
       targets: sortStrings(Array.from(localeTargets[localeKey] || [])),
+      tests: testsByEntity[`locale:${localeKey}`] || [],
       lastModified: getLastModified(context.historyIndex, "locale", localeKey, set || undefined),
     };
 
@@ -1730,13 +1702,20 @@ async function buildSetCatalog(
       localeKeys,
       localeDirections,
       translations: localeKeys.map((localeKey) =>
-        resolveTranslationRow(message.translations, localeKey, locales),
+        resolveTranslationRow(message.translations, localeKey, locales, {
+          states: message.translationStates,
+          sourceLocale: projectConfig.sourceLocale,
+        }),
       ),
       evaluatedExamples: evaluatedMessageExamplesByKey[messageKey] || [],
-      overrideTranslations: overrides.map((override) => ({
+      tests: testsByEntity[`message:${messageKey}`] || [],
+      overrideTranslations: overrides.map((override: Override) => ({
         key: override.key,
         rows: localeKeys.map((localeKey) =>
-          resolveTranslationRow(override.translations, localeKey, locales),
+          resolveTranslationRow(override.translations, localeKey, locales, {
+            states: override.translationStates,
+            sourceLocale: projectConfig.sourceLocale,
+          }),
         ),
       })),
       lastModified: getLastModified(context.historyIndex, "message", messageKey, set || undefined),
@@ -1914,6 +1893,7 @@ async function buildSetCatalog(
         messages: sortStrings(Array.from(segmentsUsedInMessages[segmentKey] || [])),
       },
       targets: sortStrings(Array.from(segmentTargets[segmentKey] || [])),
+      tests: testsByEntity[`segment:${segmentKey}`] || [],
       lastModified: getLastModified(context.historyIndex, "segment", segmentKey, set || undefined),
     };
 
@@ -1986,6 +1966,7 @@ async function buildSetCatalog(
       formatsByLocale,
       formatRowsByLocale,
       messages: targetMessages[targetKey],
+      tests: testsByEntity[`target:${targetKey}`] || [],
       lastModified: getLastModified(context.historyIndex, "target", targetKey, set || undefined),
     };
 
@@ -2073,63 +2054,6 @@ async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
 
 function getOutputRelativeDirectory(projectConfig: any, set?: string) {
   return projectConfig.sets ? path.join("sets", set || "") : "root";
-}
-
-function normalizeSelectedSets(values: unknown): string[] {
-  const rawValues = Array.isArray(values) ? values : typeof values === "undefined" ? [] : [values];
-  const selectedSets = rawValues
-    .flatMap((value) => (typeof value === "string" ? [value] : []))
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  return Array.from(new Set(selectedSets));
-}
-
-function filterCatalogSetExecutions(
-  executions: Array<{ set: string; projectConfig: any; datasource: any }>,
-  selectedSets: string[] | undefined,
-) {
-  if (!selectedSets || selectedSets.length === 0) {
-    return executions;
-  }
-
-  const selectedSet = new Set(selectedSets);
-  const filtered = executions.filter((execution) => selectedSet.has(execution.set));
-  const missingSets = selectedSets.filter(
-    (set) => !executions.some((execution) => execution.set === set),
-  );
-
-  if (missingSets.length > 0) {
-    throw new Error(`Catalog set not found: ${missingSets.join(", ")}`);
-  }
-
-  return filtered;
-}
-
-function getCatalogSetSortRank(set: string) {
-  const normalizedSet = set.toLowerCase();
-
-  if (normalizedSet.startsWith("dev")) {
-    return 0;
-  }
-
-  if (normalizedSet.startsWith("prod")) {
-    return 2;
-  }
-
-  return 1;
-}
-
-function sortCatalogSetKeys(setKeys: string[]) {
-  return [...setKeys].sort((a, b) => {
-    const rankDiff = getCatalogSetSortRank(a) - getCatalogSetSortRank(b);
-
-    if (rankDiff !== 0) {
-      return rankDiff;
-    }
-
-    return a.localeCompare(b);
-  });
 }
 
 function getDataOutputDirectoryPath(session: CatalogDevSession, projectConfig: any, set?: string) {
@@ -2353,7 +2277,7 @@ async function tryRebuildCatalogMessage(
   const targetMessages = Object.fromEntries(
     targetKeys.map((targetKey) => [
       targetKey,
-      getTargetMessageKeys(targets[targetKey], messageKeys),
+      getTargetMessageKeys(runtime, targets[targetKey], messageKeys),
     ]),
   ) as Record<string, string[]>;
   const writer = new CatalogJsonWriter();
@@ -2428,13 +2352,19 @@ async function tryRebuildCatalogMessage(
       localeKeys,
       localeDirections,
       translations: localeKeys.map((localeKey) =>
-        resolveTranslationRow(message.translations, localeKey, locales),
+        resolveTranslationRow(message.translations, localeKey, locales, {
+          states: message.translationStates,
+          sourceLocale: projectConfig.sourceLocale,
+        }),
       ),
       evaluatedExamples: examples.messages,
-      overrideTranslations: overrides.map((override) => ({
+      overrideTranslations: overrides.map((override: Override) => ({
         key: override.key,
         rows: localeKeys.map((localeKey) =>
-          resolveTranslationRow(override.translations, localeKey, locales),
+          resolveTranslationRow(override.translations, localeKey, locales, {
+            states: override.translationStates,
+            sourceLocale: projectConfig.sourceLocale,
+          }),
         ),
       })),
       lastModified: getLastModified(session.historyIndex, "message", messageKey, request.set),

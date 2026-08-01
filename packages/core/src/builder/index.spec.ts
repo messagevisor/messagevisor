@@ -4,7 +4,7 @@ import * as path from "path";
 
 import { Datasource } from "../datasource";
 import { getProjectConfig } from "../config";
-import { buildProject, buildProjectSets, mergeFormats } from "./index";
+import { buildProject, buildProjectSets, getMessagevisorVersion, mergeFormats } from "./index";
 
 async function writeFile(root: string, relativePath: string, content: string) {
   const filePath = path.join(root, relativePath);
@@ -70,6 +70,10 @@ async function createProject() {
 }
 
 describe("buildProject", function () {
+  it("uses the installed CLI package version in generated datafiles", function () {
+    expect(getMessagevisorVersion()).toBe(require("@messagevisor/cli/package.json").version);
+  });
+
   it("merges format presets by type and style while replacing declared styles", function () {
     const formats = mergeFormats(
       {

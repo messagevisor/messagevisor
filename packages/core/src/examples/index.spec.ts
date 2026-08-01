@@ -31,6 +31,8 @@ async function createProject(configContent = "module.exports = {};\n") {
       "    rawMessage: Hello {name}",
       "    values:",
       "      name: Ada",
+      "    expectedByRuntime:",
+      "      swift: Hello Ada from Swift",
       "    formats:",
       "      number:",
       "        adHoc:",
@@ -74,6 +76,8 @@ async function createProject(configContent = "module.exports = {};\n") {
       "examples:",
       "  - description: Default signin",
       "    locale: en",
+      "    expectedByRuntime:",
+      "      swift: Sign in from Swift",
       "  - matrix:",
       "      locale: [en, en-US]",
       "      age: [17, 21]",
@@ -165,7 +169,9 @@ describe("examplesPlugin", function () {
     expect(
       result.locales.some(
         (entry: any) =>
-          entry.rawMessage === "Hello {name}" && entry.evaluatedTranslation === "Hello Ada",
+          entry.rawMessage === "Hello {name}" &&
+          entry.evaluatedTranslation === "Hello Ada" &&
+          entry.expectedByRuntime.swift === "Hello Ada from Swift",
       ),
     ).toEqual(true);
     expect(
@@ -195,7 +201,8 @@ describe("examplesPlugin", function () {
           entry.message === "auth.signin" &&
           entry.locale === "en" &&
           entry.description === "Default signin" &&
-          entry.evaluatedTranslation === "Sign in",
+          entry.evaluatedTranslation === "Sign in" &&
+          entry.expectedByRuntime.swift === "Sign in from Swift",
       ),
     ).toEqual(true);
     expect(

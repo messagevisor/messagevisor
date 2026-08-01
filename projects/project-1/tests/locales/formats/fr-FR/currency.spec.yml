@@ -72,6 +72,8 @@ assertions:
     values:
       value: 42
     expectedTranslation: "42km"
+    expectedByRuntime:
+      swift: "42\u202Fkm"
   - description: "Unit and percent / kilometer long"
     rawMessage: "{value, number, unitKilometerLong}"
     values:

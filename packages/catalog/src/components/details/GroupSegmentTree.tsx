@@ -26,8 +26,18 @@ function GroupSegmentNode(props: { segment: GroupSegment; setKey?: string }) {
     return <SegmentLeaf segmentKey={props.segment} setKey={props.setKey} />;
   }
 
-  const operator = "and" in props.segment ? "and" : "or" in props.segment ? "or" : "not";
-  const children = props.segment[operator] as GroupSegment[];
+  let operator: "and" | "or" | "not";
+  let children: GroupSegment[];
+  if ("and" in props.segment) {
+    operator = "and";
+    children = props.segment.and;
+  } else if ("or" in props.segment) {
+    operator = "or";
+    children = props.segment.or;
+  } else {
+    operator = "not";
+    children = props.segment.not;
+  }
 
   return (
     <div className="rounded-lg border border-border bg-elevated p-4">

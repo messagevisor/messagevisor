@@ -6,6 +6,8 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "08:30:45 Koordinierte Weltzeit"
+    expectedByRuntime:
+      swift: "08:30:45 Mittlere Greenwich-Zeit"
   - description: "Time / short style"
     rawMessage: "{when, time, shortStyle}"
     values:
@@ -16,16 +18,22 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45"
+    expectedByRuntime:
+      swift: "08:30:45"
   - description: "Time / fractional seconds 3 digits"
     rawMessage: "{when, time, fractional}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45,678"
+    expectedByRuntime:
+      swift: "08:30:45,678"
   - description: "Time / day period long"
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T12:00:00Z"
     expectedTranslation: "12 Uhr mittags"
+    expectedByRuntime:
+      swift: "12\u202FPM"
   - description: "Time / hour12 true"
     rawMessage: "{when, time, hour12}"
     values:
@@ -36,11 +44,15 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30"
+    expectedByRuntime:
+      swift: "08:30"
   - description: "Time / hour cycle h11"
     rawMessage: "{when, time, hourCycle11}"
     values:
       when: "2026-05-12T00:30:45.678Z"
     expectedTranslation: "00:30 AM"
+    expectedByRuntime:
+      swift: "12:30\u202FAM"
   - description: "Time / hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:
@@ -51,6 +63,8 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "08:30 UTC"
+    expectedByRuntime:
+      swift: "08:30 GMT+0"
   - description: "Time / time zone short offset"
     rawMessage: "{when, time, zoneShortOffset}"
     values:
@@ -61,11 +75,15 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "04:30 New York (Ortszeit)"
+    expectedByRuntime:
+      swift: "04:30 GMT-4"
   - description: "Time / time zone long generic"
     rawMessage: "{when, time, zoneLongGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "04:30 Nordamerikanische Ostküstenzeit"
+    expectedByRuntime:
+      swift: "04:30 Nordamerikanische Ostküsten-Sommerzeit"
   - description: "Time / Amsterdam winter"
     rawMessage: "{when, time, amsterdamShort}"
     values:
@@ -81,11 +99,15 @@ assertions:
     values:
       when: "2026-01-15T12:00:00Z"
     expectedTranslation: "7:00"
+    expectedByRuntime:
+      swift: "07:00"
   - description: "Time / New York summer"
     rawMessage: "{when, time, newYorkShort}"
     values:
       when: "2026-07-15T12:00:00Z"
     expectedTranslation: "8:00"
+    expectedByRuntime:
+      swift: "08:00"
   - description: "Time / Riyadh"
     rawMessage: "{when, time, riyadhShort}"
     values:
@@ -107,3 +129,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30"
+
+    expectedByRuntime:
+      swift: "08:30"

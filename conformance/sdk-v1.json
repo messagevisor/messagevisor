@@ -1,0 +1,344 @@
+{
+  "fixtureVersion": 3,
+  "description": "Language-neutral Messagevisor SDK behavioral contract",
+  "runtimeVariability": {
+    "notGuaranteed": [
+      "locale-specific punctuation and spacing",
+      "localized names and relative-time wording",
+      "CLDR-dependent date, time, number, list, and plural output"
+    ],
+    "policy": "Assert semantic behavior portably; use runtime-specific expectations for legitimate host ICU or CLDR output differences."
+  },
+  "portableRegex": {
+    "flags": ["i", "m", "s", "u"],
+    "accepted": [
+      { "pattern": "^checkout-[0-9]+$", "flags": "i", "value": "CHECKOUT-42" },
+      { "pattern": "^(hello)[\\s\\S]+$", "flags": "iu", "value": "HELLO\nWORLD" },
+      { "pattern": "^.$", "flags": "u", "value": "😀" },
+      { "pattern": "^[()?+*]+$", "value": "(?+*" },
+      { "pattern": "^\\\\1$", "value": "\\1" }
+    ],
+    "rejected": [
+      { "name": "lookahead", "pattern": "value(?=x)" },
+      { "name": "lookbehind", "pattern": "(?<=x)value" },
+      { "name": "noncapturing group", "pattern": "(?:value)" },
+      { "name": "named group", "pattern": "(?<name>value)" },
+      { "name": "backreference", "pattern": "(value)\\1" },
+      { "name": "named backreference", "pattern": "(?<name>value)\\k<name>" },
+      { "name": "possessive quantifier", "pattern": "value++" }
+    ]
+  },
+  "conditions": [
+    {
+      "name": "equals is type strict",
+      "context": { "value": "10" },
+      "condition": { "attribute": "value", "operator": "equals", "value": 10 },
+      "expected": false
+    },
+    {
+      "name": "numeric comparison accepts numbers",
+      "context": { "value": 11 },
+      "condition": { "attribute": "value", "operator": "greaterThan", "value": 10 },
+      "expected": true
+    },
+    {
+      "name": "numeric comparison rejects numeric strings",
+      "context": { "value": "11" },
+      "condition": { "attribute": "value", "operator": "greaterThan", "value": 10 },
+      "expected": false
+    },
+    {
+      "name": "string operator accepts strings",
+      "context": { "value": "messagevisor" },
+      "condition": { "attribute": "value", "operator": "startsWith", "value": "message" },
+      "expected": true
+    },
+    {
+      "name": "string operator rejects numbers",
+      "context": { "value": 123 },
+      "condition": { "attribute": "value", "operator": "contains", "value": "2" },
+      "expected": false
+    },
+    {
+      "name": "null exists",
+      "context": { "value": null },
+      "condition": { "attribute": "value", "operator": "exists" },
+      "expected": true
+    },
+    {
+      "name": "missing does not exist",
+      "context": {},
+      "condition": { "attribute": "value", "operator": "exists" },
+      "expected": false
+    },
+    {
+      "name": "negative array operator rejects non-array",
+      "context": { "value": "admin" },
+      "condition": { "attribute": "value", "operator": "notIncludes", "value": "viewer" },
+      "expected": false
+    },
+    {
+      "name": "not negates implicit and",
+      "context": { "a": true, "b": false },
+      "condition": {
+        "not": [
+          { "attribute": "a", "operator": "equals", "value": true },
+          { "attribute": "b", "operator": "equals", "value": true }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "empty not is defensively false",
+      "context": {},
+      "condition": { "not": [] },
+      "expected": false
+    },
+    {
+      "name": "regex matches",
+      "context": { "value": "Checkout-42" },
+      "condition": {
+        "attribute": "value",
+        "operator": "matches",
+        "value": "^checkout-[0-9]+$",
+        "regexFlags": "i"
+      },
+      "expected": true
+    },
+    {
+      "name": "invalid regex does not match",
+      "context": { "value": "anything" },
+      "condition": { "attribute": "value", "operator": "matches", "value": "[" },
+      "expected": false
+    },
+    {
+      "name": "ISO date before comparison",
+      "context": { "value": "2026-01-01T00:00:00.000Z" },
+      "condition": {
+        "attribute": "value",
+        "operator": "before",
+        "value": "2026-02-01T00:00:00.000Z"
+      },
+      "expected": true
+    },
+    {
+      "name": "negative membership rejects a non-array expectation",
+      "context": { "value": "admin" },
+      "condition": { "attribute": "value", "operator": "notIn", "value": "viewer" },
+      "expected": false
+    }
+  ],
+  "segments": [
+    {
+      "name": "wildcard segment conditions match",
+      "segment": "everyone",
+      "context": {},
+      "segments": { "everyone": { "conditions": "*" } },
+      "expected": true
+    },
+    {
+      "name": "missing segments do not match",
+      "segment": "missing",
+      "context": {},
+      "segments": {},
+      "expected": false
+    },
+    {
+      "name": "archived segments do not match",
+      "segment": "archived",
+      "context": {},
+      "segments": { "archived": { "archived": true, "conditions": "*" } },
+      "expected": false
+    },
+    {
+      "name": "segment not negates implicit and",
+      "group": { "not": ["web", "pro"] },
+      "context": { "platform": "web", "plan": "free" },
+      "segments": {
+        "web": { "conditions": { "attribute": "platform", "operator": "equals", "value": "web" } },
+        "pro": { "conditions": { "attribute": "plan", "operator": "equals", "value": "pro" } }
+      },
+      "expected": true
+    }
+  ],
+  "translations": [
+    {
+      "name": "first matching override wins",
+      "message": "welcome",
+      "context": { "plan": "pro" },
+      "expected": "First",
+      "datafile": {
+        "schemaVersion": "1",
+        "messagevisorVersion": "fixture",
+        "revision": "1",
+        "target": "web",
+        "locale": "en",
+        "segments": {},
+        "messages": {
+          "welcome": {
+            "overrides": [
+              {
+                "key": "first",
+                "conditions": { "attribute": "plan", "operator": "equals", "value": "pro" },
+                "translation": "First"
+              },
+              { "key": "second", "conditions": "*", "translation": "Second" }
+            ]
+          }
+        },
+        "translations": { "welcome": "Base" }
+      }
+    },
+    {
+      "name": "empty translation is preserved",
+      "message": "empty",
+      "context": {},
+      "expected": "",
+      "datafile": {
+        "schemaVersion": "1",
+        "messagevisorVersion": "fixture",
+        "revision": "1",
+        "target": "web",
+        "locale": "en",
+        "segments": {},
+        "messages": {},
+        "translations": { "empty": "" }
+      }
+    },
+    {
+      "name": "conditions and segments must both match",
+      "message": "welcome",
+      "context": { "plan": "pro", "platform": "mobile" },
+      "expected": "Base",
+      "datafile": {
+        "schemaVersion": "1",
+        "messagevisorVersion": "fixture",
+        "revision": "1",
+        "target": "web",
+        "locale": "en",
+        "segments": {
+          "web": {
+            "conditions": { "attribute": "platform", "operator": "equals", "value": "web" }
+          }
+        },
+        "messages": {
+          "welcome": {
+            "overrides": [
+              {
+                "key": "pro-web",
+                "conditions": { "attribute": "plan", "operator": "equals", "value": "pro" },
+                "segments": "web",
+                "translation": "Pro web"
+              }
+            ]
+          }
+        },
+        "translations": { "welcome": "Base" }
+      }
+    },
+    {
+      "name": "locale defaults precede the per-call default",
+      "message": "welcome",
+      "context": {},
+      "locale": "en",
+      "defaultTranslations": { "en": { "welcome": "Configured default" } },
+      "defaultTranslation": "Per-call default",
+      "expected": "Configured default"
+    },
+    {
+      "name": "per-call default precedes the message key",
+      "message": "missing",
+      "context": {},
+      "locale": "en",
+      "defaultTranslation": "Per-call default",
+      "expected": "Per-call default",
+      "expectedDiagnosticCodes": ["missing_datafile"]
+    },
+    {
+      "name": "message key is the final fallback",
+      "message": "missing",
+      "context": {},
+      "locale": "en",
+      "expected": "missing",
+      "expectedDiagnosticCodes": ["missing_datafile"]
+    },
+    {
+      "name": "deprecated messages emit a diagnostic",
+      "message": "legacy",
+      "context": {},
+      "expected": "Legacy",
+      "expectedDiagnosticCodes": ["deprecated_message"],
+      "datafile": {
+        "schemaVersion": "1",
+        "messagevisorVersion": "fixture",
+        "revision": "1",
+        "target": "web",
+        "locale": "en",
+        "segments": {},
+        "messages": { "legacy": { "deprecated": true } },
+        "translations": { "legacy": "Legacy" }
+      }
+    }
+  ],
+  "datafiles": {
+    "storageKey": "locale",
+    "mergeByDefault": true,
+    "replaceWithSecondArgument": true,
+    "firstLoadedLocaleBecomesActive": true,
+    "loadingAnotherLocaleDoesNotChangeActiveLocale": true,
+    "invalidDatafileDiagnostic": {
+      "code": "invalid_datafile",
+      "message": "could not parse datafile"
+    }
+  },
+  "modules": {
+    "duplicateCode": "duplicate_module",
+    "setupFailureCode": "module_setup_error",
+    "closeFailureCode": "module_close_error",
+    "closeOrder": "reverse",
+    "removalClosesModule": true,
+    "removalRestoresPreviousResolvers": true,
+    "failedSetupRestoresPreviousResolvers": true,
+    "removalIsIdempotent": true
+  },
+  "diagnostics": {
+    "detailsAlwaysPresent": true,
+    "missingLocaleDatafileCode": "missing_datafile",
+    "missingFormatCode": "missing_format",
+    "invalidFormatCode": "invalid_format"
+  },
+  "events": {
+    "stateEventBeforeChange": true,
+    "childDatafileTrace": [
+      {
+        "type": "datafile_set",
+        "version": 1,
+        "snapshotVersion": 1,
+        "previousSnapshotVersion": 0,
+        "snapshotLocale": "nl",
+        "previousSnapshotLocale": "nl",
+        "datafileLocale": "en",
+        "activeLocale": "nl",
+        "datafileRevision": "2",
+        "snapshotDatafileRevision": "2",
+        "previousSnapshotDatafileRevision": "1"
+      },
+      {
+        "type": "change",
+        "source": "datafile_set",
+        "version": 1,
+        "snapshotVersion": 1,
+        "previousSnapshotVersion": 0,
+        "snapshotLocale": "nl",
+        "previousSnapshotLocale": "nl",
+        "datafileLocale": "en",
+        "activeLocale": "nl",
+        "datafileRevision": "2",
+        "snapshotDatafileRevision": "2",
+        "previousSnapshotDatafileRevision": "1"
+      }
+    ],
+    "childDatafileRevisionAfterClose": "2",
+    "changeSources": ["datafile_set", "locale_set", "context_set", "currency_set", "timeZone_set"]
+  }
+}

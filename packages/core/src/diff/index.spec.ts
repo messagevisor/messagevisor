@@ -1,0 +1,486 @@
+import { execFileSync } from "child_process";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
+import { getProjectConfig } from "../config";
+import { Datasource } from "../datasource";
+import { diffProject, formatMessageDiffMarkdown, formatMessageDiffTerminal } from "./index";
+
+async function write(root: string, relativePath: string, content: string) {
+  const filePath = path.join(root, relativePath);
+  await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.promises.writeFile(filePath, content);
+}
+
+function git(root: string, ...args: string[]) {
+  return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+}
+
+async function createProject() {
+  const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-diff-test-"));
+  await write(root, "messagevisor.config.js", "module.exports = {};\n");
+  await write(root, "locales/en.yml", "description: English\n");
+  await write(
+    root,
+    "messages/greeting.yml",
+    [
+      "translations:",
+      "  en: Hello",
+      "translationStates:",
+      "  en:",
+      "    status: draft",
+      "overrides:",
+      "  - key: formal",
+      "    conditions: '*'",
+      "    translations:",
+      "      en: Good day",
+      "",
+    ].join("\n"),
+  );
+  git(root, "init", "-b", "main");
+  git(root, "config", "user.email", "tests@messagevisor.com");
+  git(root, "config", "user.name", "Messagevisor Tests");
+  git(root, "add", ".");
+  git(root, "commit", "-m", "initial");
+  return root;
+}
+
+function runtime(root: string) {
+  const projectConfig = getProjectConfig(root);
+  return {
+    rootDirectoryPath: root,
+    projectConfig,
+    datasource: new Datasource(projectConfig, root),
+  };
+}
+
+describe("diffProject", function () {
+  it("compares a dirty working tree with HEAD and includes base, override, and workflow changes", async function () {
+    const root = await createProject();
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello there",
+        "  nl: Hallo",
+        "translationStates:",
+        "  en:",
+        "    status: reviewed",
+        "overrides:",
+        "  - key: formal",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Greetings",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await diffProject(runtime(root));
+
+    expect(result.from).toEqual("HEAD");
+    expect(result.to).toEqual("working-tree");
+    expect(result.summary).toEqual({ added: 1, removed: 0, modified: 2, workflow: 0, total: 3 });
+    expect(result.changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "greeting",
+          locale: "en",
+          kind: "modified",
+          before: "Hello",
+          after: "Hello there",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          locale: "nl",
+          kind: "added",
+          after: "Hallo",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          override: "formal",
+          locale: "en",
+          kind: "modified",
+          before: "Good day",
+          after: "Greetings",
+        }),
+      ]),
+    );
+    expect(
+      result.changes.find((change) => !change.override && change.locale === "en")?.afterState
+        ?.status,
+    ).toEqual("reviewed");
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
+  it("compares a clean feature branch against main by default", async function () {
+    const root = await createProject();
+    git(root, "checkout", "-b", "feature/copy");
+    await write(root, "messages/greeting.yml", "translations:\n  en: Welcome\n");
+    git(root, "add", ".");
+    git(root, "commit", "-m", "change copy");
+
+    const result = await diffProject(runtime(root));
+
+    expect(result.from).toEqual("main");
+    expect(result.to).toEqual("working-tree");
+    expect(result.changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "greeting",
+          locale: "en",
+          before: "Hello",
+          after: "Welcome",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          override: "formal",
+          locale: "en",
+          kind: "removed",
+        }),
+      ]),
+    );
+    expect(result.routingChanges).toContainEqual(
+      expect.objectContaining({
+        message: "greeting",
+        override: "formal",
+        kind: "override_removed",
+      }),
+    );
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
+  it("accepts explicit branches and refs on both sides", async function () {
+    const root = await createProject();
+    git(root, "checkout", "-b", "release");
+    await write(root, "messages/greeting.yml", "translations:\n  en: Released copy\n");
+    git(root, "add", ".");
+    git(root, "commit", "-m", "release copy");
+
+    const result = await diffProject({ ...runtime(root), from: "main", to: "release" });
+
+    expect(result.from).toEqual("main");
+    expect(result.to).toEqual("release");
+    expect(result.changes[0]).toEqual(
+      expect.objectContaining({ message: "greeting", before: "Hello", after: "Released copy" }),
+    );
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
+  it("reports override additions, removals, routing expressions, and meaningful order changes", async function () {
+    const root = await createProject();
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello",
+        "overrides:",
+        "  - key: casual",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Hi",
+        "  - key: formal",
+        "    segments:",
+        "      - premium",
+        "    translations:",
+        "      en: Good day",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await diffProject(runtime(root));
+
+    expect(result.routingChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "greeting",
+          override: "casual",
+          kind: "override_added",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          override: "formal",
+          kind: "conditions",
+          before: "*",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          override: "formal",
+          kind: "segments",
+          after: ["premium"],
+        }),
+      ]),
+    );
+    // Adding an override does not count as reordering the overrides that existed on both sides.
+    expect(result.routingChanges).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: "override_order" })]),
+    );
+
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello",
+        "overrides:",
+        "  - key: second",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Second",
+        "  - key: formal",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Good day",
+        "",
+      ].join("\n"),
+    );
+    git(root, "add", ".");
+    git(root, "commit", "-m", "add second override");
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello",
+        "overrides:",
+        "  - key: formal",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Good day",
+        "  - key: second",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Second",
+        "",
+      ].join("\n"),
+    );
+    const reordered = await diffProject(runtime(root));
+    expect(reordered.routingChanges).toContainEqual(
+      expect.objectContaining({
+        kind: "override_order",
+        before: ["second", "formal"],
+        after: ["formal", "second"],
+      }),
+    );
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
+  it("optionally reports downstream resolved-copy changes caused by locale inheritance", async function () {
+    const root = await createProject();
+    await write(root, "locales/en-US.yml", "inheritTranslationsFrom: en\n");
+    git(root, "add", ".");
+    git(root, "commit", "-m", "add inherited locale");
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello there",
+        "overrides:",
+        "  - key: formal",
+        "    conditions: '*'",
+        "    translations:",
+        "      en: Greetings",
+        "",
+      ].join("\n"),
+    );
+
+    const authoredOnly = await diffProject(runtime(root));
+    expect(authoredOnly.resolvedChanges).toBeUndefined();
+
+    const result = await diffProject({ ...runtime(root), resolved: true });
+    expect(result.resolvedChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "greeting",
+          locale: "en-US",
+          kind: "modified",
+          before: "Hello",
+          after: "Hello there",
+          beforeSourceLocale: "en",
+          afterSourceLocale: "en",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          override: "formal",
+          locale: "en-US",
+          before: "Good day",
+          after: "Greetings",
+        }),
+      ]),
+    );
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
+  it("reports deprecation metadata and referenced segment definition changes", async function () {
+    const root = await createProject();
+    await write(root, "segments/premium.yml", "conditions: '*'\n");
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "translations:",
+        "  en: Hello",
+        "overrides:",
+        "  - key: formal",
+        "    segments:",
+        "      - premium",
+        "    translations:",
+        "      en: Good day",
+        "",
+      ].join("\n"),
+    );
+    git(root, "add", ".");
+    git(root, "commit", "-m", "add segment routing");
+
+    await write(
+      root,
+      "segments/premium.yml",
+      "conditions:\n  - attribute: plan\n    operator: equals\n    value: premium\n",
+    );
+    await write(
+      root,
+      "messages/greeting.yml",
+      [
+        "deprecated: true",
+        "deprecationWarning: Use greeting.v2",
+        "translations:",
+        "  en: Hello",
+        "overrides:",
+        "  - key: formal",
+        "    segments:",
+        "      - premium",
+        "    translations:",
+        "      en: Good day",
+        "",
+      ].join("\n"),
+    );
+
+    const result = await diffProject(runtime(root));
+
+    expect(result.routingChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "greeting",
+          override: "formal",
+          segment: "premium",
+          kind: "segment_definition",
+        }),
+        expect.objectContaining({
+          message: "greeting",
+          kind: "deprecation",
+          after: { deprecated: true, deprecationWarning: "Use greeting.v2" },
+        }),
+      ]),
+    );
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
+  it("explains missing refs in shallow checkouts", async function () {
+    const source = await createProject();
+    await write(source, "messages/greeting.yml", "translations:\n  en: Updated\n");
+    git(source, "add", ".");
+    git(source, "commit", "-m", "second commit");
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-shallow-"));
+    execFileSync("git", ["clone", "--depth=1", `file://${source}`, root], {
+      encoding: "utf8",
+    });
+
+    await expect(diffProject({ ...runtime(root), from: "HEAD~1" })).rejects.toThrow(
+      /shallow checkout.*fetch-depth: 0/,
+    );
+    await fs.promises.rm(source, { recursive: true, force: true });
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+
+  it("limits a sets project to repeatable selected sets", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-diff-sets-"));
+    await write(root, "messagevisor.config.js", "module.exports = { sets: true };\n");
+    for (const set of ["dev", "production"]) {
+      await write(root, `sets/${set}/locales/en.yml`, "description: English\n");
+      await write(root, `sets/${set}/messages/greeting.yml`, "translations:\n  en: Hello\n");
+    }
+    git(root, "init", "-b", "main");
+    git(root, "config", "user.email", "tests@messagevisor.com");
+    git(root, "config", "user.name", "Messagevisor Tests");
+    git(root, "add", ".");
+    git(root, "commit", "-m", "initial");
+    await write(root, "sets/dev/messages/greeting.yml", "translations:\n  en: Dev copy\n");
+    await write(
+      root,
+      "sets/production/messages/greeting.yml",
+      "translations:\n  en: Production copy\n",
+    );
+
+    const result = await diffProject({ ...runtime(root), sets: ["dev"] });
+
+    expect(result.changes).toHaveLength(1);
+    expect(result.changes[0]).toEqual(
+      expect.objectContaining({ set: "dev", before: "Hello", after: "Dev copy" }),
+    );
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+});
+
+describe("message diff formatting", function () {
+  const result = {
+    from: "main",
+    to: "working-tree",
+    summary: { added: 0, removed: 0, modified: 1, workflow: 0, total: 1 },
+    routingChanges: [
+      {
+        message: "checkout.title",
+        override: "returning",
+        kind: "conditions" as const,
+        before: "*",
+        after: [{ attribute: "plan", operator: "equals", value: "pro" }],
+      },
+    ],
+    resolvedChanges: [
+      {
+        message: "checkout.title",
+        locale: "en-US",
+        kind: "modified" as const,
+        before: "Old copy",
+        after: "New copy",
+        beforeSourceLocale: "en",
+        afterSourceLocale: "en",
+      },
+    ],
+    changes: [
+      {
+        message: "checkout.title",
+        override: "returning",
+        locale: "en",
+        kind: "modified" as const,
+        before: "Old | copy",
+        after: "New\ncopy",
+      },
+    ],
+  };
+
+  it("renders readable terminal output", function () {
+    expect(formatMessageDiffTerminal(result)).toContain(
+      "MODIFIED checkout.title · override:returning · en",
+    );
+    expect(formatMessageDiffTerminal(result)).toContain("- Old | copy");
+    expect(formatMessageDiffTerminal(result)).toContain(
+      "ROUTING checkout.title · returning · conditions",
+    );
+    expect(formatMessageDiffTerminal(result)).toContain(
+      "RESOLVED MODIFIED checkout.title · base · en-US",
+    );
+  });
+
+  it("renders an escaped PR-friendly Markdown table", function () {
+    const output = formatMessageDiffMarkdown(result);
+    expect(output).toContain("| checkout.title | returning | en | modified |");
+    expect(output).toContain("Old \\| copy");
+    expect(output).toContain("New<br>copy");
+    expect(output).toContain("## Override routing");
+    expect(output).toContain("## Resolved copy");
+    expect(output).toContain("New copy (en)");
+  });
+});

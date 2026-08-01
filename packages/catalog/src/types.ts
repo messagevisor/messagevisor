@@ -48,6 +48,9 @@ export interface TranslationRow {
   value: string;
   source: CatalogValueSource;
   from?: string;
+  status?: "draft" | "translated" | "reviewed";
+  sourceHash?: string;
+  stale?: boolean;
 }
 
 export interface DuplicateTranslationSource {

@@ -1,6 +1,6 @@
 import * as path from "path";
 
-import type { CustomParser } from "@featurevisor/parsers";
+import type { CustomParser } from "@messagevisor/parsers";
 import type {
   FormatPresets,
   Locale,
@@ -13,8 +13,10 @@ import type {
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { mergeFormatPresets } from "../formats";
+import { resolveInheritedLocaleValue, resolveLocaleChain } from "../localeResolution";
 import { formatProjectPath } from "../path";
 import { getProjectSetExecutions } from "../sets";
+import { matchesPattern, targetIncludesMessage } from "../targeting";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 
 type PruneTarget = "translations" | "formats";
@@ -72,17 +74,6 @@ function cloneWithoutKey<T extends Record<string, unknown>>(entity: T): T {
   return JSON.parse(JSON.stringify(withoutKey(entity)));
 }
 
-function matchesPattern(key: string, patterns?: string | string[]) {
-  if (!patterns || patterns.length === 0) {
-    return false;
-  }
-
-  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`).test(key);
-  });
-}
-
 function assertKnownValues(label: string, requested: string[], available: string[]) {
   for (const value of requested) {
     if (!available.includes(value)) {
@@ -116,41 +107,13 @@ async function readAll<T>(
   return Object.fromEntries(entries);
 }
 
-function resolveLocaleChain(
-  localeKey: string,
-  locales: Record<string, Locale>,
-  field: "inheritFormatsFrom" | "inheritTranslationsFrom",
-) {
-  const chain: string[] = [];
-  const seen = new Set<string>();
-  let currentKey: string | undefined = localeKey;
-
-  while (currentKey && !seen.has(currentKey)) {
-    seen.add(currentKey);
-    chain.unshift(currentKey);
-    currentKey = locales[currentKey]?.[field];
-  }
-
-  return chain;
-}
-
 function resolveInheritedTranslationValue(
   translations: Record<string, Translation> | undefined,
   localeKey: string,
   locales: Record<string, Locale>,
 ) {
-  let currentKey = locales[localeKey]?.inheritTranslationsFrom;
-
-  while (currentKey) {
-    if (translations && typeof translations[currentKey] !== "undefined") {
-      return {
-        value: translations[currentKey],
-        inheritedFrom: currentKey,
-      };
-    }
-
-    currentKey = locales[currentKey]?.inheritTranslationsFrom;
-  }
+  const resolved = resolveInheritedLocaleValue(translations, localeKey, locales);
+  return resolved ? { value: resolved.value, inheritedFrom: resolved.sourceLocale } : undefined;
 }
 
 function resolveInheritedFormats(
@@ -289,17 +252,8 @@ async function getSelectedMessageKeys(
   const selected = new Set<string>();
 
   for (const targetKey of requestedTargets) {
-    const includePatterns =
-      typeof targets[targetKey].includeMessages === "undefined"
-        ? ["*"]
-        : targets[targetKey].includeMessages;
-    const excludePatterns = targets[targetKey].excludeMessages || [];
-
     for (const messageKey of messageKeys) {
-      if (
-        matchesPattern(messageKey, includePatterns) &&
-        !matchesPattern(messageKey, excludePatterns)
-      ) {
+      if (targetIncludesMessage(targets[targetKey], messageKey)) {
         selected.add(messageKey);
       }
     }

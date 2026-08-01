@@ -8,6 +8,11 @@ export function getLocaleZodSchema(localeKeys: string[], messageKeys: string[]) 
     z.string(),
     z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])),
   );
+  const expectedByRuntimeSchema = z
+    .record(z.string(), z.string())
+    .refine((value) => Object.keys(value).length > 0, {
+      message: "`expectedByRuntime` must define at least one runtime.",
+    });
 
   const localeExampleSchema = z
     .object({
@@ -19,6 +24,7 @@ export function getLocaleZodSchema(localeKeys: string[], messageKeys: string[]) 
       formats: formatPresetsZodSchema.optional(),
       timeZone: z.string().optional(),
       currency: z.string().optional(),
+      expectedByRuntime: expectedByRuntimeSchema.optional(),
       rawMessage: z.string().optional(),
       message: refineWithMessage(
         z.string(),

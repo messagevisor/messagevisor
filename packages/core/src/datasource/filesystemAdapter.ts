@@ -1,8 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
+import * as crypto from "crypto";
 import { gzipSync } from "zlib";
 
-import type { CustomParser } from "@featurevisor/parsers";
+import type { CustomParser } from "@messagevisor/parsers";
 import type {
   Attribute,
   DatafileContent,
@@ -14,9 +15,16 @@ import type {
 } from "@messagevisor/types";
 
 import { formatDatafilePath, type ProjectConfig } from "../config";
+import {
+  Adapter,
+  type ApplyEntityMutationsOptions,
+  type EntityDocument,
+  type EntityMutation,
+  type EntityMutationResult,
+  type EntityType,
+} from "./adapter";
+import { assertPathWithinDirectory, assertValidEntityKey, omitDerivedEntityKey } from "./entityKey";
 import type { DatafileFile, WriteDatafileOptions } from "./index";
-
-export type EntityType = "locale" | "message" | "segment" | "attribute" | "target" | "test";
 
 const ENTITY_DIRECTORIES: Record<EntityType, keyof ProjectConfig> = {
   locale: "localesDirectoryPath",
@@ -28,13 +36,9 @@ const ENTITY_DIRECTORIES: Record<EntityType, keyof ProjectConfig> = {
 };
 
 const TEST_SPEC_SUFFIX = ".spec";
+let atomicWriteSequence = 0;
 
-export class FilesystemAdapter {
-  constructor(
-    private config: ProjectConfig,
-    private rootDirectoryPath?: string,
-  ) {}
-
+export class FilesystemAdapter extends Adapter {
   private get parser() {
     return this.config.parser as CustomParser;
   }
@@ -59,10 +63,12 @@ export class FilesystemAdapter {
   }
 
   private getEntityPath(type: EntityType, key: string) {
+    const segments = assertValidEntityKey(this.config, key);
     const extension = `.${this.parser.extension}`;
-    const basePath = path.join(
-      this.getEntityDirectory(type),
-      ...key.split(this.config.namespaceCharacter),
+    const directoryPath = this.getEntityDirectory(type);
+    const basePath = assertPathWithinDirectory(
+      directoryPath,
+      path.join(directoryPath, ...segments),
     );
 
     if (type === "test") {
@@ -85,9 +91,12 @@ export class FilesystemAdapter {
   }
 
   private getEntityWritePath(type: EntityType, key: string) {
-    return (
-      path.join(this.getEntityDirectory(type), ...key.split(this.config.namespaceCharacter)) +
-      `${type === "test" ? TEST_SPEC_SUFFIX : ""}.${this.parser.extension}`
+    const directoryPath = this.getEntityDirectory(type);
+    const segments = assertValidEntityKey(this.config, key);
+    return assertPathWithinDirectory(
+      directoryPath,
+      path.join(directoryPath, ...segments) +
+        `${type === "test" ? TEST_SPEC_SUFFIX : ""}.${this.parser.extension}`,
     );
   }
 
@@ -140,9 +149,82 @@ export class FilesystemAdapter {
     return this.parser.parse<T>(content, filePath);
   }
 
+  private getContentVersion(content: string | Buffer) {
+    return crypto.createHash("sha256").update(content).digest("hex");
+  }
+
+  private async getFileVersion(filePath: string): Promise<string | null> {
+    try {
+      return this.getContentVersion(await fs.promises.readFile(filePath));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  }
+
   private async writeFile(filePath: string, content: unknown) {
     await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.promises.writeFile(filePath, this.parser.stringify(content, filePath));
+    await this.writeTextAtomically(filePath, this.parser.stringify(content, filePath));
+  }
+
+  private async writeTextAtomically(filePath: string, content: string | Buffer) {
+    const temporaryPath = path.join(
+      path.dirname(filePath),
+      `.${path.basename(filePath)}.${process.pid}.${Date.now()}.${atomicWriteSequence++}.tmp`,
+    );
+    await fs.promises.writeFile(temporaryPath, content);
+
+    try {
+      await fs.promises.rename(temporaryPath, filePath);
+    } catch (error) {
+      await fs.promises.rm(temporaryPath, { force: true });
+      throw error;
+    }
+  }
+
+  private async acquireEditorialLock() {
+    const lockPath = path.join(this.config.stateDirectoryPath, "editorial.lock");
+    await fs.promises.mkdir(path.dirname(lockPath), { recursive: true });
+    const deadline = Date.now() + 2000;
+
+    while (true) {
+      try {
+        const handle = await fs.promises.open(lockPath, "wx");
+        await handle.writeFile(`${process.pid}\n`);
+        let released = false;
+        return async () => {
+          if (released) return;
+          released = true;
+          await handle.close();
+          await fs.promises.rm(lockPath, { force: true });
+        };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+
+        try {
+          const owner = Number.parseInt(await fs.promises.readFile(lockPath, "utf8"), 10);
+          if (Number.isInteger(owner)) process.kill(owner, 0);
+        } catch (ownerError) {
+          if ((ownerError as NodeJS.ErrnoException).code === "ESRCH") {
+            const stalePath = `${lockPath}.stale-${process.pid}-${crypto.randomUUID()}`;
+            try {
+              await fs.promises.rename(lockPath, stalePath);
+              await fs.promises.rm(stalePath, { force: true });
+            } catch (recoveryError) {
+              if ((recoveryError as NodeJS.ErrnoException).code !== "ENOENT") {
+                throw recoveryError;
+              }
+            }
+            continue;
+          }
+        }
+
+        if (Date.now() >= deadline) {
+          throw new Error("Another editorial mutation is currently in progress.");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+    }
   }
 
   async listEntities(type: EntityType): Promise<string[]> {
@@ -181,21 +263,134 @@ export class FilesystemAdapter {
     ).sort();
   }
 
-  entityExists(type: EntityType, key: string) {
-    return fs.existsSync(this.getEntityPath(type, key));
+  async entityExists(type: EntityType, key: string): Promise<boolean> {
+    try {
+      await fs.promises.access(this.getEntityPath(type, key));
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    }
   }
 
   async readEntity<T>(type: EntityType, key: string): Promise<T> {
     const entity = await this.readFile<T>(this.getEntityPath(type, key));
 
+    return { ...(entity as Record<string, unknown>), key } as T;
+  }
+
+  async readEntityDocument<T>(type: EntityType, key: string): Promise<EntityDocument<T>> {
+    const filePath = this.getEntityPath(type, key);
+    const content = await fs.promises.readFile(filePath, "utf8");
+    const entity = this.parser.parse<T>(content, filePath);
+
     return {
+      type,
       key,
-      ...entity,
+      entity: { ...(entity as Record<string, unknown>), key } as T,
+      version: this.getContentVersion(content),
     };
   }
 
-  async writeEntity<T>(type: EntityType, key: string, entity: T): Promise<void> {
-    await this.writeFile(this.getEntityWritePath(type, key), entity);
+  async writeEntity<T>(type: EntityType, key: string, entity: T): Promise<T> {
+    const persistedEntity = omitDerivedEntityKey(entity);
+    await this.writeFile(this.getEntityWritePath(type, key), persistedEntity);
+    return { ...(persistedEntity as Record<string, unknown>), key } as T;
+  }
+
+  async deleteEntity(type: EntityType, key: string): Promise<void> {
+    const entityPath = this.getEntityPath(type, key);
+
+    if (fs.existsSync(entityPath)) {
+      await fs.promises.unlink(entityPath);
+    }
+  }
+
+  async applyEntityMutations(
+    mutations: EntityMutation[],
+    options: ApplyEntityMutationsOptions = {},
+  ): Promise<EntityMutationResult[]> {
+    const releaseLock = await this.acquireEditorialLock();
+    try {
+      return await this.applyEntityMutationsWithLock(mutations, options);
+    } finally {
+      await releaseLock();
+    }
+  }
+
+  private async applyEntityMutationsWithLock(
+    mutations: EntityMutation[],
+    options: ApplyEntityMutationsOptions,
+  ): Promise<EntityMutationResult[]> {
+    const identities = mutations.map((mutation) => `${mutation.type}\0${mutation.key}`);
+    if (new Set(identities).size !== identities.length) {
+      throw new Error("A mutation batch cannot contain the same entity more than once.");
+    }
+    const snapshots = new Map<string, Buffer | null>();
+    const paths = mutations.map((mutation) => this.getEntityPath(mutation.type, mutation.key));
+
+    for (let index = 0; index < mutations.length; index++) {
+      const mutation = mutations[index];
+      const filePath = paths[index];
+      const version = await this.getFileVersion(filePath);
+
+      if (typeof mutation.expectedVersion !== "undefined" && mutation.expectedVersion !== version) {
+        throw new Error(
+          `Entity conflict for ${mutation.type} "${mutation.key}": expected version ${mutation.expectedVersion ?? "missing"}, found ${version ?? "missing"}.`,
+        );
+      }
+
+      if (!snapshots.has(filePath)) {
+        snapshots.set(filePath, version === null ? null : await fs.promises.readFile(filePath));
+      }
+    }
+
+    if (options.dryRun) {
+      return mutations.map((mutation, index) => {
+        if (mutation.operation === "delete") {
+          return { type: mutation.type, key: mutation.key, operation: "delete", version: null };
+        }
+        const content = this.parser.stringify(omitDerivedEntityKey(mutation.entity), paths[index]);
+        return {
+          type: mutation.type,
+          key: mutation.key,
+          operation: "write",
+          version: this.getContentVersion(content),
+        };
+      });
+    }
+
+    const results: EntityMutationResult[] = [];
+
+    try {
+      for (let index = 0; index < mutations.length; index++) {
+        const mutation = mutations[index];
+        const filePath = paths[index];
+
+        if (mutation.operation === "delete") {
+          await fs.promises.rm(filePath, { force: true });
+          results.push({ ...mutation, version: null });
+          continue;
+        }
+
+        const persisted = omitDerivedEntityKey(mutation.entity);
+        await this.writeFile(filePath, persisted);
+        results.push({
+          type: mutation.type,
+          key: mutation.key,
+          operation: mutation.operation,
+          version: await this.getFileVersion(filePath),
+        });
+      }
+    } catch (error) {
+      for (const [filePath, content] of Array.from(snapshots.entries()).reverse()) {
+        if (content === null) await fs.promises.rm(filePath, { force: true });
+        else await this.writeTextAtomically(filePath, content);
+      }
+      throw error;
+    }
+
+    return results;
   }
 
   async readRevision() {
@@ -213,7 +408,7 @@ export class FilesystemAdapter {
 
   async writeRevision(revision: string) {
     await fs.promises.mkdir(this.config.stateDirectoryPath, { recursive: true });
-    await fs.promises.writeFile(
+    await this.writeTextAtomically(
       path.join(this.config.stateDirectoryPath, this.config.revisionFileName),
       revision,
     );
@@ -226,7 +421,7 @@ export class FilesystemAdapter {
     );
 
     await fs.promises.mkdir(path.dirname(datafilePath), { recursive: true });
-    await fs.promises.writeFile(
+    await this.writeTextAtomically(
       datafilePath,
       options.pretty ? JSON.stringify(datafileContent, null, 2) : JSON.stringify(datafileContent),
     );

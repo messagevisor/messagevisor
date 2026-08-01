@@ -104,6 +104,7 @@ npx messagevisor <command> [options]
 | `info`              | Show entity counts                                                |
 | `lint`              | Validate project definitions                                      |
 | `list`              | Query messages, locales, targets, attributes, segments, and tests |
+| `diff`              | Review authored copy changes between Git states                   |
 | `evaluate`          | Debug one message, raw ICU string, or segment quickly             |
 | `examples`          | Resolve authored message and locale examples                      |
 | `test`              | Run Messagevisor test specs                                       |
@@ -111,6 +112,7 @@ npx messagevisor <command> [options]
 | `catalog`           | Build, serve, and watch the Catalog in dev mode                   |
 | `export` / `import` | Exchange translations through CSV or JSON                         |
 | `find-duplicates`   | Find duplicate resolved translation values                        |
+| `find-usage`        | Find authored entity and format references                        |
 | `prune`             | Remove redundant inherited translations or formats                |
 | `promote`           | Move changes between sets                                         |
 | `generate-code`     | Generate typed TypeScript helpers from message keys               |
@@ -121,7 +123,11 @@ See the [CLI docs](https://messagevisor.com/docs/cli) for all options. The faste
 npx messagevisor lint
 npx messagevisor evaluate --message=<key> --locale=<locale> --target=<target>
 npx messagevisor test --keyPattern=<key>
+npx messagevisor diff
+npx messagevisor diff --resolved
 ```
+
+`diff` compares `HEAD` with a dirty working tree, or `main`/`master` with the current branch when clean. Use `--from` and `--to` for explicit refs and `--format=markdown` for a PR-friendly report. It reports authored copy, workflow, and override routing changes; add `--resolved` to include downstream locale-inheritance impact.
 
 ## Catalog
 
@@ -184,6 +190,7 @@ npx messagevisor catalog
 | [`@messagevisor/vue`](./packages/vue)                                                 | Vue bindings                                                                                |
 | [`@messagevisor/react-intl-compat`](./packages/react-intl-compat)                     | Compatibility layer for react-intl style APIs                                               |
 | [`@messagevisor/catalog`](./packages/catalog)                                         | Static Catalog generator and UI                                                             |
+| [`@messagevisor/parsers`](./packages/parsers)                                         | YAML and JSON authoring parsers                                                             |
 | [`@messagevisor/module-icu`](./packages/module-icu)                                   | ICU message formatting module                                                               |
 | [`@messagevisor/module-interpolation`](./packages/module-interpolation)               | Lightweight string interpolation module                                                     |
 | [`@messagevisor/module-featurevisor`](./packages/module-featurevisor)                 | Featurevisor feature and experiment condition integration                                   |

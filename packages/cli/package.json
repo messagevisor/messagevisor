@@ -3,10 +3,13 @@
   "version": "0.26.0",
   "description": "CLI package of Messagevisor",
   "main": "bin.js",
-  "types": "lib/index.d.ts",
   "bin": {
     "messagevisor": "bin.js"
   },
+  "files": [
+    "bin.js",
+    "lib"
+  ],
   "scripts": {
     "transpile": "rimraf lib && tsc --project tsconfig.cjs.json",
     "dist": "echo 'Nothing to dist here'",
@@ -31,6 +34,9 @@
     "url": "https://github.com/messagevisor/messagevisor/issues"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "@messagevisor/core": "0.26.0"
   }

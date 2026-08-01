@@ -1,11 +1,12 @@
 import * as path from "path";
 import * as util from "util";
 
-import { Parser, parsers } from "@featurevisor/parsers";
+import { Parser, parsers } from "@messagevisor/parsers";
 import type { MessagevisorModule } from "@messagevisor/sdk";
 
 import { FilesystemAdapter } from "../datasource/filesystemAdapter";
 import type { Plugin } from "../cli";
+import type { AdapterConstructor } from "../datasource/adapter";
 
 export const LOCALES_DIRECTORY_NAME = "locales";
 export const MESSAGES_DIRECTORY_NAME = "messages";
@@ -31,6 +32,7 @@ export const DEFAULT_SETS = false;
 export const SCHEMA_VERSION = "1";
 
 export interface ProjectConfig {
+  sourceLocale?: string;
   promotionFlows?: Array<{
     from: string;
     to: string;
@@ -54,13 +56,14 @@ export interface ProjectConfig {
   catalogDirectoryPath: string;
   datafileNamePattern: string;
   revisionFileName: string;
-  adapter: any;
+  adapter: AdapterConstructor;
   plugins: Plugin[];
   parser: Parser;
 }
 
 export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
   const baseConfig: ProjectConfig = {
+    sourceLocale: undefined,
     namespaceCharacter: DEFAULT_NAMESPACE_CHARACTER,
     exportOverrideKeySeparator: DEFAULT_EXPORT_OVERRIDE_KEY_SEPARATOR,
     lintIcu: DEFAULT_LINT_ICU,
@@ -87,6 +90,23 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
   };
 
   const customConfig = require(path.join(rootDirectoryPath, CONFIG_MODULE_NAME));
+
+  if (typeof customConfig !== "object" || customConfig === null || Array.isArray(customConfig)) {
+    throw new Error("Invalid Messagevisor configuration: expected an object export.");
+  }
+
+  const unknownConfigKeys = Object.keys(customConfig).filter(
+    (key) => !Object.prototype.hasOwnProperty.call(baseConfig, key),
+  );
+
+  if (unknownConfigKeys.length > 0) {
+    throw new Error(
+      `Unknown Messagevisor configuration option${unknownConfigKeys.length === 1 ? "" : "s"}: ${unknownConfigKeys
+        .sort()
+        .join(", ")}.`,
+    );
+  }
+
   const mergedConfig: Record<string, any> = {};
 
   Object.keys(baseConfig).forEach((key) => {
@@ -134,6 +154,15 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
 
   if (typeof finalConfig.lintIcu !== "boolean") {
     throw new Error(`Invalid lintIcu: ${finalConfig.lintIcu}. It must be a boolean.`);
+  }
+
+  if (
+    typeof finalConfig.sourceLocale !== "undefined" &&
+    (typeof finalConfig.sourceLocale !== "string" || finalConfig.sourceLocale.length === 0)
+  ) {
+    throw new Error(
+      `Invalid sourceLocale: ${finalConfig.sourceLocale}. It must be a non-empty string.`,
+    );
   }
 
   if (!Array.isArray(finalConfig.modules)) {

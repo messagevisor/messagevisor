@@ -10,12 +10,12 @@ Use tests for behavior that must not change silently. Use examples for documenta
 
 ## Test locations
 
-| Subject | Path | Top-level field |
-| --- | --- | --- |
-| Message | `tests/messages/<path>.spec.yml` | `message` |
-| Segment | `tests/segments/<key>.spec.yml` | `segment` |
-| Locale | `tests/locales/<key>.spec.yml` | `locale` |
-| Target | `tests/targets/<key>.spec.yml` | `target` |
+| Subject | Path                             | Top-level field |
+| ------- | -------------------------------- | --------------- |
+| Message | `tests/messages/<path>.spec.yml` | `message`       |
+| Segment | `tests/segments/<key>.spec.yml`  | `segment`       |
+| Locale  | `tests/locales/<key>.spec.yml`   | `locale`        |
+| Target  | `tests/targets/<key>.spec.yml`   | `target`        |
 
 ## Message test
 
@@ -41,7 +41,7 @@ assertions:
     expectedTranslation: Welcome back, Ada. Your Pro workspace is ready.
 ```
 
-With feature flags:
+With feature flags and experiment variations (they map to `feature`/`experiment` conditions on overrides, and can be combined on one assertion):
 
 ```yml
 message: checkout.banner
@@ -51,6 +51,12 @@ assertions:
     withFlags:
       new-checkout: true
     expectedTranslation: Finish checkout
+
+  - locale: en-US
+    target: web
+    withVariations:
+      checkout-copy-test: treatment
+    expectedTranslation: Express checkout
 ```
 
 ## Segment test

@@ -1,15 +1,26 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import type { Attribute, Locale, Message } from "@messagevisor/types";
+import type {
+  Attribute,
+  FormatPresets,
+  GroupSegment,
+  Locale,
+  Message,
+  Segment,
+  Target,
+  Test,
+} from "@messagevisor/types";
 import type { ZodError, ZodTypeAny } from "zod";
 
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
+import { assertValidEntityKey } from "../datasource/entityKey";
 import { getAttributeZodSchema } from "./attributeSchema";
 import { checkLocaleCircularDependency } from "./checkLocaleCircularDependency";
-import { getConditionsZodSchema } from "./conditionSchema";
+import { contextValueMatchesAttribute, getConditionsZodSchema } from "./conditionSchema";
 import { lintMessageIcuFormatStyles } from "./icuStyleLint";
+import { lintTranslationContracts } from "./translationContractLint";
 import { getLocaleZodSchema } from "./localeSchema";
 import { getMessageZodSchema } from "./messageSchema";
 import { getLintIssuesFromZodError } from "./printError";
@@ -24,6 +35,38 @@ import {
 import { formatProjectPath, getProjectRootDirectoryPath } from "../path";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN, CLI_FORMAT_RED, colorize } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
+import { matchesPattern, normalizePatterns } from "../targeting";
+
+function collectGroupSegmentKeys(
+  value: GroupSegment | GroupSegment[] | "*" | undefined,
+  result = new Set<string>(),
+) {
+  if (!value || value === "*") return result;
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectGroupSegmentKeys(entry, result));
+    return result;
+  }
+  if (typeof value === "string") {
+    result.add(value);
+    return result;
+  }
+  if ("and" in value) collectGroupSegmentKeys(value.and, result);
+  else if ("or" in value) collectGroupSegmentKeys(value.or, result);
+  else collectGroupSegmentKeys(value.not, result);
+  return result;
+}
+
+function collectFormatKeys(locales: Record<string, Locale>, target: Target) {
+  const keys = new Set<string>();
+  const add = (formats?: FormatPresets) => {
+    for (const [type, presets] of Object.entries(formats || {})) {
+      for (const preset of Object.keys(presets || {})) keys.add(`${type}.${preset}`);
+    }
+  };
+  Object.values(locales).forEach((locale) => add(locale.formats));
+  Object.values(target.formats || {}).forEach(add);
+  return keys;
+}
 
 export type LintEntityType =
   | "locale"
@@ -59,10 +102,16 @@ export interface LintResult {
   duration: number;
 }
 
-const ENTITY_NAME_REGEX_ERROR = "Names must be alphanumeric and can contain _, -, /, and .";
+const ENTITY_NAME_REGEX_ERROR =
+  "Names must use non-empty namespace segments containing only letters, numbers, _, and -.";
 
 function isValidEntityKey(projectConfig: ProjectConfig, key: string) {
-  return /^[a-zA-Z0-9_\-/]+$/.test(key.split(projectConfig.namespaceCharacter).join(""));
+  try {
+    assertValidEntityKey(projectConfig, key);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getParserExtension(projectConfig: ProjectConfig) {
@@ -223,6 +272,20 @@ export async function lintProject(
     datasource.readAttribute(key),
   );
   const messagesByKey = await readAll<Message>(messageKeys, (key) => datasource.readMessage(key));
+  const segmentsByKey = await readAll<Segment>(segmentKeys, (key) => datasource.readSegment(key));
+  const targetsByKey = await readAll<Target>(targetKeys, (key) => datasource.readTarget(key));
+  const testsByKey = await readAll<Test>(testKeys, (key) => datasource.readTest(key));
+
+  if (projectConfig.sourceLocale && !localeKeys.includes(projectConfig.sourceLocale)) {
+    recordError({
+      filePath: "messagevisor.config.js",
+      entityType: "project",
+      entityKey: "messagevisor.config.js",
+      message: `Unknown sourceLocale "${projectConfig.sourceLocale}".`,
+      path: ["sourceLocale"],
+      code: "unknown_source_locale",
+    });
+  }
 
   const localeZodSchema = getLocaleZodSchema(localeKeys, messageKeys);
   const attributeZodSchema = getAttributeZodSchema();
@@ -286,6 +349,26 @@ export async function lintProject(
       );
     }
 
+    for (const [messageKey, message] of Object.entries(messagesByKey)) {
+      if (!shouldLintKey(messageKey) || message.archived) continue;
+      (message.overrides || []).forEach((override, overrideIndex) => {
+        for (const segmentKey of Array.from(collectGroupSegmentKeys(override.segments))) {
+          if (!segmentsByKey[segmentKey]?.archived) continue;
+          recordError({
+            filePath: formatProjectPath(
+              projectConfig,
+              getFullPathFromKey(projectConfig, "message", messageKey),
+            ),
+            entityType: "message",
+            entityKey: messageKey,
+            message: `Active override references archived segment "${segmentKey}".`,
+            path: ["overrides", overrideIndex, "segments"],
+            code: "archived_segment_reference",
+          });
+        }
+      });
+    }
+
     if (projectConfig.lintIcu !== false) {
       errors.push(
         ...lintMessageIcuFormatStyles(
@@ -297,6 +380,18 @@ export async function lintProject(
         ),
       );
     }
+
+    if (projectConfig.sourceLocale && localeKeys.includes(projectConfig.sourceLocale)) {
+      errors.push(
+        ...lintTranslationContracts(
+          Object.fromEntries(Object.entries(messagesByKey).filter(([key]) => shouldLintKey(key))),
+          projectConfig.sourceLocale,
+          (key) =>
+            formatProjectPath(projectConfig, getFullPathFromKey(projectConfig, "message", key)),
+          { checkMessageContract: projectConfig.lintIcu !== false },
+        ),
+      );
+    }
   }
 
   if (!options.entityType || options.entityType === "target") {
@@ -305,11 +400,122 @@ export async function lintProject(
         datasource.readTarget(entityKey),
       );
     }
+
+    for (const [targetKey, target] of Object.entries(targetsByKey)) {
+      if (!shouldLintKey(targetKey)) continue;
+      const targetPath = formatProjectPath(
+        projectConfig,
+        getFullPathFromKey(projectConfig, "target", targetKey),
+      );
+
+      for (const [field, patterns] of [
+        ["includeMessages", target.includeMessages],
+        ["excludeMessages", target.excludeMessages],
+      ] as const) {
+        for (const pattern of normalizePatterns(patterns)) {
+          if (messageKeys.length === 0) continue;
+          if (messageKeys.some((key) => matchesPattern(key, pattern))) continue;
+          recordError({
+            filePath: targetPath,
+            entityType: "target",
+            entityKey: targetKey,
+            message: `${field} pattern "${pattern}" does not match any message.`,
+            path: [field],
+            code: "unmatched_target_pattern",
+            value: pattern,
+          });
+        }
+      }
+
+      const formatKeys = collectFormatKeys(localesByKey, target);
+      for (const [field, filters] of [
+        ["includeFormats", target.includeFormats],
+        ["excludeFormats", target.excludeFormats],
+      ] as const) {
+        for (const [type, patterns] of Object.entries(filters || {})) {
+          const availableTypeKeys = Array.from(formatKeys).filter((key) =>
+            key.startsWith(`${type}.`),
+          );
+          for (const pattern of normalizePatterns(patterns)) {
+            if (availableTypeKeys.length === 0) continue;
+            if (
+              availableTypeKeys.some(
+                (key) =>
+                  key.startsWith(`${type}.`) && matchesPattern(key.slice(type.length + 1), pattern),
+              )
+            ) {
+              continue;
+            }
+            recordError({
+              filePath: targetPath,
+              entityType: "target",
+              entityKey: targetKey,
+              message: `${field}.${type} pattern "${pattern}" does not match any format preset.`,
+              path: [field, type],
+              code: "unmatched_target_format_pattern",
+              value: pattern,
+            });
+          }
+        }
+      }
+
+      for (const [attributeKey, value] of Object.entries(target.context || {})) {
+        const attribute = attributesByKey[attributeKey];
+        if (!attribute) {
+          recordError({
+            filePath: targetPath,
+            entityType: "target",
+            entityKey: targetKey,
+            message: `Target context references unknown attribute "${attributeKey}".`,
+            path: ["context", attributeKey],
+            code: "unknown_target_context_attribute",
+          });
+        } else if (!contextValueMatchesAttribute(attribute, value)) {
+          recordError({
+            filePath: targetPath,
+            entityType: "target",
+            entityKey: targetKey,
+            message: `Target context value for "${attributeKey}" does not match its attribute schema.`,
+            path: ["context", attributeKey],
+            code: "invalid_target_context_value",
+            value,
+          });
+        }
+      }
+    }
   }
 
   if (!options.entityType || options.entityType === "test") {
     for (const key of testKeys.filter(shouldLintKey)) {
       await lintEntity("test", key, testZodSchema, (entityKey) => datasource.readTest(entityKey));
+    }
+
+    for (const [testKey, test] of Object.entries(testsByKey)) {
+      if (!shouldLintKey(testKey)) continue;
+      const testPath = formatProjectPath(
+        projectConfig,
+        getFullPathFromKey(projectConfig, "test", testKey),
+      );
+      if ("message" in test && messagesByKey[test.message]?.archived) {
+        recordError({
+          filePath: testPath,
+          entityType: "test",
+          entityKey: testKey,
+          message: `Test references archived message "${test.message}".`,
+          path: ["message"],
+          code: "archived_message_reference",
+        });
+      }
+      if ("segment" in test && segmentsByKey[test.segment]?.archived) {
+        recordError({
+          filePath: testPath,
+          entityType: "test",
+          entityKey: testKey,
+          message: `Test references archived segment "${test.segment}".`,
+          path: ["segment"],
+          code: "archived_segment_reference",
+        });
+      }
     }
   }
 

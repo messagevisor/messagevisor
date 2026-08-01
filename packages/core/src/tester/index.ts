@@ -391,7 +391,7 @@ async function runTest(
                 currency: rawAssertion.currency,
                 timeZone: rawAssertion.timeZone,
               })
-            : messagevisor.translate<string>(rawAssertion.message, values, {
+            : messagevisor.translate<string>(rawAssertion.message as string, values, {
                 context: rawAssertion.context as any,
                 formats: rawAssertion.formats,
                 currency: rawAssertion.currency,

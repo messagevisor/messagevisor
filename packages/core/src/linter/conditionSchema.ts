@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type { Attribute } from "@messagevisor/types";
+import { getPortableRegexError } from "@messagevisor/sdk";
 import { z } from "zod";
 
 import { refineWithMessage } from "./zodHelpers";
@@ -7,6 +8,7 @@ import { refineWithMessage } from "./zodHelpers";
 const commonOperators = ["equals", "notEquals"];
 const numericOperators = ["greaterThan", "greaterThanOrEquals", "lessThan", "lessThanOrEquals"];
 const stringOperators = ["contains", "notContains", "startsWith", "endsWith"];
+const regexOperators = ["matches", "notMatches"];
 const dateOperators = ["before", "after"];
 const arrayOperators = ["includes", "notIncludes"];
 const membershipOperators = ["in", "notIn"];
@@ -133,14 +135,27 @@ function matchesSchemaValue(schema: SchemaNode, value: unknown): boolean {
   }
 
   if (schema.type === "array") {
-    return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+    return (
+      Array.isArray(value) &&
+      value.every((entry) =>
+        schema.items ? matchesSchemaValue(schema.items as SchemaNode, entry) : true,
+      )
+    );
   }
 
   if (schema.type === "object") {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+    return Object.entries(value as Record<string, unknown>).every(([key, entry]) => {
+      const child = schema.properties?.[key] || schema.additionalProperties;
+      return child ? matchesSchemaValue(child, entry) : !schema.properties;
+    });
   }
 
   return true;
+}
+
+export function contextValueMatchesAttribute(attribute: Attribute, value: unknown): boolean {
+  return matchesSchemaValue(attribute as SchemaNode, value);
 }
 
 function matchesLeafValue(leaf: ResolvedLeaf, value: unknown): boolean {
@@ -196,7 +211,7 @@ function validateAttributeAwareCondition(
   }
 
   if (
-    stringOperators.includes(data.operator) &&
+    [...stringOperators, ...regexOperators].includes(data.operator) &&
     !leafTypes.some((type) => ["string", "date"].includes(type))
   ) {
     addIssue(ctx, `Operator "${data.operator}" can only be used with string or date attributes.`);
@@ -266,6 +281,7 @@ export function getConditionsZodSchema(attributesByKey: Record<string, Attribute
           ...commonOperators,
           ...numericOperators,
           ...stringOperators,
+          ...regexOperators,
           ...dateOperators,
           ...arrayOperators,
           ...membershipOperators,
@@ -281,7 +297,12 @@ export function getConditionsZodSchema(attributesByKey: Record<string, Attribute
             z.null(),
           ])
           .optional(),
-        regexFlags: z.never().optional(),
+        regexFlags: z
+          .string()
+          .refine((value) => /^[imsu]+$/.test(value) && new Set(value).size === value.length, {
+            message: "regexFlags must contain unique characters from: i, m, s, u",
+          })
+          .optional(),
       })
       .strict()
       .superRefine((data, ctx) => {
@@ -298,10 +319,40 @@ export function getConditionsZodSchema(attributesByKey: Record<string, Attribute
         }
 
         if (
-          [...stringOperators, ...dateOperators, ...arrayOperators].includes(data.operator) &&
+          [...stringOperators, ...regexOperators, ...dateOperators, ...arrayOperators].includes(
+            data.operator,
+          ) &&
           typeof data.value !== "string"
         ) {
           addIssue(ctx, `when operator is "${data.operator}", value must be a string`);
+        }
+
+        if (!regexOperators.includes(data.operator) && typeof data.regexFlags !== "undefined") {
+          addIssue(ctx, "regexFlags is only supported by matches and notMatches", ["regexFlags"]);
+        }
+
+        if (
+          dateOperators.includes(data.operator) &&
+          !(data.value instanceof Date) &&
+          (typeof data.value !== "string" ||
+            !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(
+              data.value,
+            ))
+        ) {
+          addIssue(
+            ctx,
+            `when operator is "${data.operator}", value must be a portable ISO 8601 date-time with a timezone`,
+            ["value"],
+          );
+        }
+
+        if (regexOperators.includes(data.operator) && typeof data.value === "string") {
+          const portableRegexError = getPortableRegexError(data.value, data.regexFlags);
+          if (portableRegexError) {
+            addIssue(ctx, `Regular expression ${portableRegexError} in the cross-SDK subset`, [
+              "value",
+            ]);
+          }
         }
 
         if (membershipOperators.includes(data.operator) && !Array.isArray(data.value)) {

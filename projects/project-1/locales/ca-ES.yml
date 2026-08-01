@@ -83,6 +83,8 @@ examples:
     values:
       value: 1234
 
+    expectedByRuntime:
+      swift: "Grouping min2: 1.234"
   - description: "Number / grouping off"
     rawMessage: "Grouping off: {value, number, groupingOff}"
     values:
@@ -93,11 +95,15 @@ examples:
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Compact short: 1,2\u00A0M"
   - description: "Number / compact long"
     rawMessage: "Compact long: {value, number, compactLong}"
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Compact long: 1,2\u00A0M"
   - description: "Number / scientific notation"
     rawMessage: "Scientific notation: {value, number, scientific}"
     values:
@@ -193,6 +199,8 @@ examples:
     values:
       value: 1.234
 
+    expectedByRuntime:
+      swift: "Rounding priority less precision: 1,234"
   - description: "Number / strip zeros if integer"
     rawMessage: "Strip zeros if integer: {value, number, stripIfInteger}"
     values:
@@ -274,6 +282,8 @@ examples:
     values:
       value: 42
 
+    expectedByRuntime:
+      swift: "Kilometer narrow: 42km"
   - description: "Unit and percent / kilometer long"
     rawMessage: "Kilometer long: {value, number, unitKilometerLong}"
     values:
@@ -299,6 +309,8 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Medium date: 12 maig 2026"
   - description: "Date / short style"
     rawMessage: "Short date style: {when, date, shortStyle}"
     values:
@@ -324,11 +336,15 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Weekday short: dt, 12 maig 2026"
   - description: "Date / weekday narrow"
     rawMessage: "Weekday narrow: {when, date, weekdayNarrow}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Weekday narrow: dt., 12 MG 2026"
   - description: "Date / month long"
     rawMessage: "Month long: {when, date, monthLong}"
     values:
@@ -339,26 +355,36 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Month short: 12 maig 2026"
   - description: "Date / month narrow"
     rawMessage: "Month narrow: {when, date, monthNarrow}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Month narrow: 12 MG 2026"
   - description: "Date / era long"
     rawMessage: "Era long: {when, date, eraLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Era long: 12 de maig de 2026 després de Crist"
   - description: "Date / era short"
     rawMessage: "Era short: {when, date, eraShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Era short: 12 maig 2026 dC"
   - description: "Date / era narrow"
     rawMessage: "Era narrow: {when, date, eraNarrow}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Era narrow: 12 maig 2026 dC"
   - description: "Date / Arabic digits"
     rawMessage: "Arabic date digits: {when, date, arabicNumeric}"
     values:
@@ -369,31 +395,43 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Buddhist calendar: 12 de maig del 2569"
   - description: "Date / Japanese era calendar"
     rawMessage: "Japanese era calendar: {when, date, japaneseEra}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Japanese era calendar: 12 de maig de 8 Reiwa"
   - description: "Date / format matcher basic"
     rawMessage: "Format matcher basic: {when, date, matcherBasic}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Format matcher basic: 12 maig 2026"
   - description: "Date / format matcher best fit"
     rawMessage: "Format matcher best fit: {when, date, matcherBestFit}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Format matcher best fit: 12 maig 2026"
   - description: "Time / full style"
     rawMessage: "Full time: {when, time, fullStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Full time: 8:30:45 Hora del meridià de Greenwich"
   - description: "Time / long style"
     rawMessage: "Long time: {when, time, longStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Long time: 8:30:45 GMT"
   - description: "Time / medium style"
     rawMessage: "Medium time: {when, time, mediumStyle}"
     values:
@@ -434,16 +472,22 @@ examples:
     values:
       when: "2026-05-12T12:00:00Z"
 
+    expectedByRuntime:
+      swift: "Day period long: 12\u202Fp.\u202Fm."
   - description: "Time / day period short"
     rawMessage: "Day period short: {when, time, dayPeriodShort}"
     values:
       when: "2026-05-12T12:00:00Z"
 
+    expectedByRuntime:
+      swift: "Day period short: 12\u202Fp.\u202Fm."
   - description: "Time / day period narrow"
     rawMessage: "Day period narrow: {when, time, dayPeriodNarrow}"
     values:
       when: "2026-05-12T12:00:00Z"
 
+    expectedByRuntime:
+      swift: "Day period narrow: 12\u202Fp.\u202Fm."
   - description: "Time / hour12 true"
     rawMessage: "Hour12 true: {when, time, hour12}"
     values:
@@ -459,6 +503,8 @@ examples:
     values:
       when: "2026-05-12T00:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour cycle h11: 12:30\u202Fa.\u202Fm."
   - description: "Time / hour cycle h12"
     rawMessage: "Hour cycle h12: {when, time, hourCycle12}"
     values:
@@ -469,21 +515,29 @@ examples:
     values:
       when: "2026-05-12T00:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour cycle h23: 0:30"
   - description: "Time / hour cycle h24"
     rawMessage: "Hour cycle h24: {when, time, hourCycle24}"
     values:
       when: "2026-05-12T00:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour cycle h24: 0:30"
   - description: "Time / time zone short"
     rawMessage: "Time zone short: {when, time, zoneShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone short: 8:30 GMT"
   - description: "Time / time zone long"
     rawMessage: "Time zone long: {when, time, zoneLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone long: 8:30 Hora del meridià de Greenwich"
   - description: "Time / time zone short offset"
     rawMessage: "Time zone short offset: {when, time, zoneShortOffset}"
     values:
@@ -494,16 +548,22 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone long offset: 14:15 Hora del Nepal"
   - description: "Time / time zone short generic"
     rawMessage: "Time zone short generic: {when, time, zoneShortGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone short generic: 4:30 GMT-4"
   - description: "Time / time zone long generic"
     rawMessage: "Time zone long generic: {when, time, zoneLongGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone long generic: 4:30 Hora d’estiu oriental d’Amèrica del Nord"
   - description: "Time / format matcher basic"
     rawMessage: "Format matcher basic: {when, time, matcherBasic}"
     values:

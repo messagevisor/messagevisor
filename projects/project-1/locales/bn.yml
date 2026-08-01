@@ -48,156 +48,218 @@ examples:
     values:
       value: 1234.567
 
+    expectedByRuntime:
+      swift: "Decimal max 2: 1,234.57"
   - description: "Number / fixed 2 decimals"
     rawMessage: "Fixed 2 decimals: {value, number, decimalFixed}"
     values:
       value: 1234.5
 
+    expectedByRuntime:
+      swift: "Fixed 2 decimals: 1,234.50"
   - description: "Number / padded integer"
     rawMessage: "Padded integer: {value, number, integerPadded}"
     values:
       value: 12
 
+    expectedByRuntime:
+      swift: "Padded integer: 0,012"
   - description: "Number / 3 significant digits"
     rawMessage: "3 significant digits: {value, number, significant3}"
     values:
       value: 12345.678
 
+    expectedByRuntime:
+      swift: "3 significant digits: 12,300"
   - description: "Number / significant digit range"
     rawMessage: "Significant digit range: {value, number, significantRange}"
     values:
       value: 12345.678
 
+    expectedByRuntime:
+      swift: "Significant digit range: 12,346"
   - description: "Number / grouping auto"
     rawMessage: "Grouping auto: {value, number, groupingAuto}"
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Grouping auto: 12,34,567"
   - description: "Number / grouping always"
     rawMessage: "Grouping always: {value, number, groupingAlways}"
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Grouping always: 12,34,567"
   - description: "Number / grouping min2"
     rawMessage: "Grouping min2: {value, number, groupingMin2}"
     values:
       value: 1234
 
+    expectedByRuntime:
+      swift: "Grouping min2: 1,234"
   - description: "Number / grouping off"
     rawMessage: "Grouping off: {value, number, groupingOff}"
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Grouping off: 1234567"
   - description: "Number / compact short"
     rawMessage: "Compact short: {value, number, compactShort}"
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Compact short: 12\u00A0লা"
   - description: "Number / compact long"
     rawMessage: "Compact long: {value, number, compactLong}"
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Compact long: 12\u00A0লা"
   - description: "Number / scientific notation"
     rawMessage: "Scientific notation: {value, number, scientific}"
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Scientific notation: 1.235E6"
   - description: "Number / engineering notation"
     rawMessage: "Engineering notation: {value, number, engineering}"
     values:
       value: 1234567
 
+    expectedByRuntime:
+      swift: "Engineering notation: 1.235E6"
   - description: "Number / sign auto"
     rawMessage: "Sign auto: {value, number, signAuto}"
     values:
       value: -1234.5
 
+    expectedByRuntime:
+      swift: "Sign auto: -1,235"
   - description: "Number / sign never"
     rawMessage: "Sign never: {value, number, signNever}"
     values:
       value: -1234.5
 
+    expectedByRuntime:
+      swift: "Sign never: 1,235"
   - description: "Number / sign always"
     rawMessage: "Sign always: {value, number, signAlways}"
     values:
       value: 1234.5
 
+    expectedByRuntime:
+      swift: "Sign always: +1,235"
   - description: "Number / sign except zero"
     rawMessage: "Sign except zero: {value, number, signExceptZero}"
     values:
       value: 0
 
+    expectedByRuntime:
+      swift: "Sign except zero: 0"
   - description: "Number / sign negative"
     rawMessage: "Sign negative: {value, number, signNegative}"
     values:
       value: -1234.5
 
+    expectedByRuntime:
+      swift: "Sign negative: -1,235"
   - description: "Number / rounding increment 5"
     rawMessage: "Rounding increment 5: {value, number, roundingFive}"
     values:
       value: 1.234
 
+    expectedByRuntime:
+      swift: "Rounding increment 5: 1.25"
   - description: "Number / rounding ceil"
     rawMessage: "Rounding ceil: {value, number, roundingCeil}"
     values:
       value: 1.234
 
+    expectedByRuntime:
+      swift: "Rounding ceil: 2"
   - description: "Number / rounding floor"
     rawMessage: "Rounding floor: {value, number, roundingFloor}"
     values:
       value: 1.987
 
+    expectedByRuntime:
+      swift: "Rounding floor: 1"
   - description: "Number / rounding expand"
     rawMessage: "Rounding expand: {value, number, roundingExpand}"
     values:
       value: -1.234
 
+    expectedByRuntime:
+      swift: "Rounding expand: -2"
   - description: "Number / rounding trunc"
     rawMessage: "Rounding trunc: {value, number, roundingTrunc}"
     values:
       value: -1.987
 
+    expectedByRuntime:
+      swift: "Rounding trunc: -1"
   - description: "Number / rounding half ceil"
     rawMessage: "Rounding half ceil: {value, number, roundingHalfCeil}"
     values:
       value: 1.5
 
+    expectedByRuntime:
+      swift: "Rounding half ceil: 2"
   - description: "Number / rounding half floor"
     rawMessage: "Rounding half floor: {value, number, roundingHalfFloor}"
     values:
       value: 1.5
 
+    expectedByRuntime:
+      swift: "Rounding half floor: 1"
   - description: "Number / rounding half expand"
     rawMessage: "Rounding half expand: {value, number, roundingHalfExpand}"
     values:
       value: 1.5
 
+    expectedByRuntime:
+      swift: "Rounding half expand: 2"
   - description: "Number / rounding half trunc"
     rawMessage: "Rounding half trunc: {value, number, roundingHalfTrunc}"
     values:
       value: 1.5
 
+    expectedByRuntime:
+      swift: "Rounding half trunc: 1"
   - description: "Number / rounding half even"
     rawMessage: "Rounding half even: {value, number, roundingHalfEven}"
     values:
       value: 2.5
 
+    expectedByRuntime:
+      swift: "Rounding half even: 2"
   - description: "Number / rounding priority more precision"
     rawMessage: "Rounding priority more precision: {value, number, roundingPriorityMore}"
     values:
       value: 1.234
 
+    expectedByRuntime:
+      swift: "Rounding priority more precision: 1.234"
   - description: "Number / rounding priority less precision"
     rawMessage: "Rounding priority less precision: {value, number, roundingPriorityLess}"
     values:
       value: 1.234
 
+    expectedByRuntime:
+      swift: "Rounding priority less precision: 1.234"
   - description: "Number / strip zeros if integer"
     rawMessage: "Strip zeros if integer: {value, number, stripIfInteger}"
     values:
       value: 12
 
+    expectedByRuntime:
+      swift: "Strip zeros if integer: 12"
   - description: "Number / Arabic digits"
     rawMessage: "Arabic digits: {value, number, arabicDigits}"
     values:
@@ -208,157 +270,219 @@ examples:
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "Default money: 1,234.50৳"
   - description: "Currency / symbol display"
     rawMessage: "Currency symbol: {amount, number, moneySymbol}"
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "Currency symbol: 1,234.50৳"
   - description: "Currency / code display"
     rawMessage: "Currency code: {amount, number, moneyCode}"
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "Currency code: 1,234.50\u00A0BDT"
   - description: "Currency / narrow symbol display"
     rawMessage: "Currency narrow symbol: {amount, number, moneyNarrow}"
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "Currency narrow symbol: 1,234.50৳"
   - description: "Currency / name display"
     rawMessage: "Currency name: {amount, number, moneyName}"
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "Currency name: 1,234.50 (অজানা মুদ্রা)"
   - description: "Currency / accounting sign"
     rawMessage: "Accounting sign: {amount, number, moneyAccounting}"
     values:
       amount: -1234.5
 
+    expectedByRuntime:
+      swift: "Accounting sign: (1,234.50৳)"
   - description: "Currency / runtime currency"
     rawMessage: "Runtime currency: {amount, number, moneyRuntimeCurrency}"
     currency: EUR
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "Runtime currency: 1,234.50\u00A0EUR"
   - description: "Currency / GBP"
     rawMessage: "GBP: {amount, number, moneyGbp}"
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "GBP: 1,234.50£"
   - description: "Currency / JPY"
     rawMessage: "JPY: {amount, number, moneyJpy}"
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "JPY: 1,235\u00A0JP¥"
   - description: "Currency / EUR"
     rawMessage: "EUR: {amount, number, moneyEur}"
     values:
       amount: 1234.5
 
+    expectedByRuntime:
+      swift: "EUR: 1,234.50€"
   - description: "Unit and percent / percent"
     rawMessage: "Percent: {value, number, percent}"
     values:
       value: 0.125
 
+    expectedByRuntime:
+      swift: "Percent: 12.5%"
   - description: "Unit and percent / percent fixed"
     rawMessage: "Percent fixed: {value, number, percentFixed}"
     values:
       value: 0.125
 
+    expectedByRuntime:
+      swift: "Percent fixed: 12.50%"
   - description: "Unit and percent / kilometer short"
     rawMessage: "Kilometer short: {value, number, unitKilometerShort}"
     values:
       value: 42
 
+    expectedByRuntime:
+      swift: "Kilometer short: 42 কিমি"
   - description: "Unit and percent / kilometer narrow"
     rawMessage: "Kilometer narrow: {value, number, unitKilometerNarrow}"
     values:
       value: 42
 
+    expectedByRuntime:
+      swift: "Kilometer narrow: 42 কিমি"
   - description: "Unit and percent / kilometer long"
     rawMessage: "Kilometer long: {value, number, unitKilometerLong}"
     values:
       value: 42
 
+    expectedByRuntime:
+      swift: "Kilometer long: 42 কিলোমিটার"
   - description: "Unit and percent / meter long"
     rawMessage: "Meter long: {value, number, unitMeterLong}"
     values:
       value: 42
 
+    expectedByRuntime:
+      swift: "Meter long: 42 মিটার"
   - description: "Date / full style"
     rawMessage: "Full date: {when, date, fullStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Full date: মঙ্গলবার, 12 মে, 2026"
   - description: "Date / long style"
     rawMessage: "Long date: {when, date, longStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Long date: 12 মে, 2026"
   - description: "Date / medium style"
     rawMessage: "Medium date: {when, date, mediumStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Medium date: 12 মে, 2026"
   - description: "Date / short style"
     rawMessage: "Short date style: {when, date, shortStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Short date style: 12/5/26"
   - description: "Date / explicit short fields"
     rawMessage: "Explicit short fields: {when, date, short}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Explicit short fields: 12/5/26"
   - description: "Date / numeric fields"
     rawMessage: "Numeric fields: {when, date, numeric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Numeric fields: 12/05/2026"
   - description: "Date / weekday long"
     rawMessage: "Weekday long: {when, date, weekdayLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Weekday long: মঙ্গলবার, 12 মে, 2026"
   - description: "Date / weekday short"
     rawMessage: "Weekday short: {when, date, weekdayShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Weekday short: মঙ্গল, 12 মে, 2026"
   - description: "Date / weekday narrow"
     rawMessage: "Weekday narrow: {when, date, weekdayNarrow}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Weekday narrow: ম, 12 মে, 2026"
   - description: "Date / month long"
     rawMessage: "Month long: {when, date, monthLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Month long: 12 মে, 2026"
   - description: "Date / month short"
     rawMessage: "Month short: {when, date, monthShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Month short: 12 মে, 2026"
   - description: "Date / month narrow"
     rawMessage: "Month narrow: {when, date, monthNarrow}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Month narrow: 12 মে, 2026"
   - description: "Date / era long"
     rawMessage: "Era long: {when, date, eraLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Era long: 12 মে, 2026 খ্রিস্টাব্দ"
   - description: "Date / era short"
     rawMessage: "Era short: {when, date, eraShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Era short: 12 মে, 2026 খৃষ্টাব্দ"
   - description: "Date / era narrow"
     rawMessage: "Era narrow: {when, date, eraNarrow}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Era narrow: 12 মে, 2026 খৃষ্টাব্দ"
   - description: "Date / Arabic digits"
     rawMessage: "Arabic date digits: {when, date, arabicNumeric}"
     values:
@@ -369,151 +493,211 @@ examples:
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Buddhist calendar: 12 মে, 2569"
   - description: "Date / Japanese era calendar"
     rawMessage: "Japanese era calendar: {when, date, japaneseEra}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Japanese era calendar: 12 মে, 8 Reiwa"
   - description: "Date / format matcher basic"
     rawMessage: "Format matcher basic: {when, date, matcherBasic}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Format matcher basic: 12 মে, 2026"
   - description: "Date / format matcher best fit"
     rawMessage: "Format matcher best fit: {when, date, matcherBestFit}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Format matcher best fit: 12 মে, 2026"
   - description: "Time / full style"
     rawMessage: "Full time: {when, time, fullStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Full time: 8:30:45 AM গ্রীনিচ মিন টাইম"
   - description: "Time / long style"
     rawMessage: "Long time: {when, time, longStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Long time: 8:30:45 AM GMT +0"
   - description: "Time / medium style"
     rawMessage: "Medium time: {when, time, mediumStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Medium time: 8:30:45 AM"
   - description: "Time / short style"
     rawMessage: "Short time style: {when, time, shortStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Short time style: 8:30 AM"
   - description: "Time / hour and minute"
     rawMessage: "Hour and minute: {when, time, short}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour and minute: 8:30 AM"
   - description: "Time / seconds"
     rawMessage: "With seconds: {when, time, seconds}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "With seconds: 8:30:45 AM"
   - description: "Time / fractional seconds 1 digit"
     rawMessage: "Fractional seconds 1 digit: {when, time, fractional1}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Fractional seconds 1 digit: 8:30:45.6 AM"
   - description: "Time / fractional seconds 2 digits"
     rawMessage: "Fractional seconds 2 digits: {when, time, fractional2}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Fractional seconds 2 digits: 8:30:45.67 AM"
   - description: "Time / fractional seconds 3 digits"
     rawMessage: "Fractional seconds 3 digits: {when, time, fractional}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Fractional seconds 3 digits: 8:30:45.678 AM"
   - description: "Time / day period long"
     rawMessage: "Day period long: {when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T12:00:00Z"
 
+    expectedByRuntime:
+      swift: "Day period long: 12\u202FPM"
   - description: "Time / day period short"
     rawMessage: "Day period short: {when, time, dayPeriodShort}"
     values:
       when: "2026-05-12T12:00:00Z"
 
+    expectedByRuntime:
+      swift: "Day period short: 12\u202FPM"
   - description: "Time / day period narrow"
     rawMessage: "Day period narrow: {when, time, dayPeriodNarrow}"
     values:
       when: "2026-05-12T12:00:00Z"
 
+    expectedByRuntime:
+      swift: "Day period narrow: 12\u202FPM"
   - description: "Time / hour12 true"
     rawMessage: "Hour12 true: {when, time, hour12}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour12 true: 8:30 AM"
   - description: "Time / hour12 false"
     rawMessage: "Hour12 false: {when, time, hour24}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour12 false: 08:30"
   - description: "Time / hour cycle h11"
     rawMessage: "Hour cycle h11: {when, time, hourCycle11}"
     values:
       when: "2026-05-12T00:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour cycle h11: 12:30 AM"
   - description: "Time / hour cycle h12"
     rawMessage: "Hour cycle h12: {when, time, hourCycle12}"
     values:
       when: "2026-05-12T00:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour cycle h12: 12:30 AM"
   - description: "Time / hour cycle h23"
     rawMessage: "Hour cycle h23: {when, time, hourCycle23}"
     values:
       when: "2026-05-12T00:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour cycle h23: 00:30"
   - description: "Time / hour cycle h24"
     rawMessage: "Hour cycle h24: {when, time, hourCycle24}"
     values:
       when: "2026-05-12T00:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Hour cycle h24: 00:30"
   - description: "Time / time zone short"
     rawMessage: "Time zone short: {when, time, zoneShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone short: 8:30 AM GMT +0"
   - description: "Time / time zone long"
     rawMessage: "Time zone long: {when, time, zoneLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone long: 8:30 AM গ্রীনিচ মিন টাইম"
   - description: "Time / time zone short offset"
     rawMessage: "Time zone short offset: {when, time, zoneShortOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone short offset: 2:15 PM GMT +5:45"
   - description: "Time / time zone long offset"
     rawMessage: "Time zone long offset: {when, time, zoneLongOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone long offset: 2:15 PM নেপাল সময়"
   - description: "Time / time zone short generic"
     rawMessage: "Time zone short generic: {when, time, zoneShortGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone short generic: 4:30 AM GMT -4"
   - description: "Time / time zone long generic"
     rawMessage: "Time zone long generic: {when, time, zoneLongGeneric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Time zone long generic: 4:30 AM পূর্বাঞ্চলের দিবালোক সময়"
   - description: "Time / format matcher basic"
     rawMessage: "Format matcher basic: {when, time, matcherBasic}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Format matcher basic: 8:30:45 AM"
   - description: "Time / format matcher best fit"
     rawMessage: "Format matcher best fit: {when, time, matcherBestFit}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
+    expectedByRuntime:
+      swift: "Format matcher best fit: 8:30:45 AM"
   - description: "Basics / reference a message"
     message: auth.installApp
 
@@ -527,130 +711,194 @@ examples:
     rawMessage: "{value, number, decimal}"
     values:
       value: -1234.567
+    expectedByRuntime:
+      swift: "-1,234.57"
   - description: Number / decimal zero
     rawMessage: "{value, number, decimal}"
     values:
       value: 0
+    expectedByRuntime:
+      swift: "0"
   - description: Number / decimal sub-unit
     rawMessage: "{value, number, decimal}"
     values:
       value: 0.01234
+    expectedByRuntime:
+      swift: "0.01"
   - description: Number / minimum 2 fraction digits integer
     rawMessage: "{value, number, fractionMin2}"
     values:
       value: 12
+    expectedByRuntime:
+      swift: "12.00"
   - description: Number / minimum 2 fraction digits fraction
     rawMessage: "{value, number, fractionMin2}"
     values:
       value: 12.3
+    expectedByRuntime:
+      swift: "12.30"
   - description: Number / maximum 4 fraction digits
     rawMessage: "{value, number, fractionMax4}"
     values:
       value: 1.234567
+    expectedByRuntime:
+      swift: "1.2346"
   - description: Number / standard notation
     rawMessage: "{value, number, standard}"
     values:
       value: 1234567
+    expectedByRuntime:
+      swift: "12,34,567"
   - description: Number / grouping below threshold
     rawMessage: "{value, number, groupingAuto}"
     values:
       value: 999
+    expectedByRuntime:
+      swift: "999"
   - description: Number / grouping at four digits
     rawMessage: "{value, number, groupingAuto}"
     values:
       value: 1000
+    expectedByRuntime:
+      swift: "1,000"
   - description: Number / compact short thousands
     rawMessage: "{value, number, compactShort}"
     values:
       value: 12500
+    expectedByRuntime:
+      swift: "13\u00A0হা"
   - description: Number / compact short negative
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
+    expectedByRuntime:
+      swift: "-13\u00A0লা"
   - description: Number / compact long thousands
     rawMessage: "{value, number, compactLong}"
     values:
       value: 12500
+    expectedByRuntime:
+      swift: "13\u00A0হা"
   - description: Number / scientific sub-unit
     rawMessage: "{value, number, scientific}"
     values:
       value: 0.001234
+    expectedByRuntime:
+      swift: "1.234E-3"
   - description: Number / engineering sub-unit
     rawMessage: "{value, number, engineering}"
     values:
       value: 0.001234
+    expectedByRuntime:
+      swift: "1.234E-3"
   - description: Number / sign always zero
     rawMessage: "{value, number, signAlways}"
     values:
       value: 0
+    expectedByRuntime:
+      swift: "+0"
   - description: Number / sign except zero positive
     rawMessage: "{value, number, signExceptZero}"
     values:
       value: 12
+    expectedByRuntime:
+      swift: "+12"
   - description: Number / sign except zero negative
     rawMessage: "{value, number, signExceptZero}"
     values:
       value: -12
+    expectedByRuntime:
+      swift: "-12"
   - description: Number / sign negative positive
     rawMessage: "{value, number, signNegative}"
     values:
       value: 12
+    expectedByRuntime:
+      swift: "12"
   - description: Number / rounding increment below midpoint
     rawMessage: "{value, number, roundingFive}"
     values:
       value: 1.224
+    expectedByRuntime:
+      swift: "1.20"
   - description: Number / rounding increment at midpoint
     rawMessage: "{value, number, roundingFive}"
     values:
       value: 1.225
+    expectedByRuntime:
+      swift: "1.25"
   - description: Number / rounding ceil negative
     rawMessage: "{value, number, roundingCeil}"
     values:
       value: -1.9
+    expectedByRuntime:
+      swift: "-1"
   - description: Number / rounding floor negative
     rawMessage: "{value, number, roundingFloor}"
     values:
       value: -1.1
+    expectedByRuntime:
+      swift: "-2"
   - description: Number / rounding expand positive
     rawMessage: "{value, number, roundingExpand}"
     values:
       value: 1.1
+    expectedByRuntime:
+      swift: "2"
   - description: Number / rounding trunc positive
     rawMessage: "{value, number, roundingTrunc}"
     values:
       value: 1.9
+    expectedByRuntime:
+      swift: "1"
   - description: Number / rounding half ceil negative tie
     rawMessage: "{value, number, roundingHalfCeil}"
     values:
       value: -1.5
+    expectedByRuntime:
+      swift: "-1"
   - description: Number / rounding half floor negative tie
     rawMessage: "{value, number, roundingHalfFloor}"
     values:
       value: -1.5
+    expectedByRuntime:
+      swift: "-2"
   - description: Number / rounding half expand negative tie
     rawMessage: "{value, number, roundingHalfExpand}"
     values:
       value: -1.5
+    expectedByRuntime:
+      swift: "-2"
   - description: Number / rounding half trunc negative tie
     rawMessage: "{value, number, roundingHalfTrunc}"
     values:
       value: -1.5
+    expectedByRuntime:
+      swift: "-1"
   - description: Number / rounding half even odd tie
     rawMessage: "{value, number, roundingHalfEven}"
     values:
       value: 3.5
+    expectedByRuntime:
+      swift: "4"
   - description: Number / rounding priority auto
     rawMessage: "{value, number, roundingPriorityAuto}"
     values:
       value: 1.234
+    expectedByRuntime:
+      swift: "1.234"
   - description: Number / trailing zero auto integer
     rawMessage: "{value, number, trailingZeroAuto}"
     values:
       value: 12
+    expectedByRuntime:
+      swift: "12.00"
   - description: Number / strip zeros fraction
     rawMessage: "{value, number, stripIfInteger}"
     values:
       value: 12.3
+    expectedByRuntime:
+      swift: "12.30"
   - description: Number / Latin digits
     rawMessage: "{value, number, latinDigits}"
     values:
@@ -659,71 +907,105 @@ examples:
     rawMessage: "{amount, number, money}"
     values:
       amount: 0
+    expectedByRuntime:
+      swift: "0.00৳"
   - description: Currency / default negative
     rawMessage: "{amount, number, money}"
     values:
       amount: -1234.5
+    expectedByRuntime:
+      swift: "-1,234.50৳"
   - description: Currency / accounting positive
     rawMessage: "{amount, number, moneyAccounting}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      swift: "1,234.50৳"
   - description: Currency / runtime GBP
     rawMessage: "{amount, number, moneyRuntimeCurrency}"
     currency: GBP
     values:
       amount: 1234.5
+    expectedByRuntime:
+      swift: "1,234.50\u00A0GBP"
   - description: Currency / JPY zero decimals
     rawMessage: "{amount, number, moneyJpy}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      swift: "1,235\u00A0JP¥"
   - description: Unit and percent / percent zero
     rawMessage: "{value, number, percent}"
     values:
       value: 0
+    expectedByRuntime:
+      swift: "0%"
   - description: Unit and percent / percent negative
     rawMessage: "{value, number, percent}"
     values:
       value: -0.125
+    expectedByRuntime:
+      swift: "-12.5%"
   - description: Unit and percent / kilometer singular long
     rawMessage: "{value, number, unitKilometerLong}"
     values:
       value: 1
+    expectedByRuntime:
+      swift: "1 কিলোমিটার"
   - description: Unit and percent / kilometer plural long
     rawMessage: "{value, number, unitKilometerLong}"
     values:
       value: 2
+    expectedByRuntime:
+      swift: "2 কিলোমিটার"
   - description: Date / year numeric only
     rawMessage: "{when, date, yearNumeric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "2026"
   - description: Date / year 2-digit only
     rawMessage: "{when, date, yearTwoDigit}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "26"
   - description: Date / month numeric only
     rawMessage: "{when, date, monthNumericOnly}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "5"
   - description: Date / month 2-digit only
     rawMessage: "{when, date, monthTwoDigitOnly}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "05"
   - description: Date / day numeric only
     rawMessage: "{when, date, dayNumericOnly}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "12"
   - description: Date / day 2-digit only
     rawMessage: "{when, date, dayTwoDigitOnly}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "12"
   - description: Date / Gregorian calendar
     rawMessage: "{when, date, gregorianLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "12 মে, 2026"
   - description: Date / Islamic calendar
     rawMessage: "{when, date, islamicLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "25 জ্বিলকদ, 1447"
   - description: Date / Latin digits
     rawMessage: "{when, date, latinNumeric}"
     values:
@@ -732,88 +1014,130 @@ examples:
     rawMessage: "{when, date, numeric}"
     values:
       when: "2028-02-29T12:00:00Z"
+    expectedByRuntime:
+      swift: "29/02/2028"
   - description: Date / year boundary UTC
     rawMessage: "{when, date, numeric}"
     values:
       when: "2026-01-01T00:30:00Z"
+    expectedByRuntime:
+      swift: "01/01/2026"
   - description: Date / year boundary New York
     rawMessage: "{when, date, numeric}"
     timeZone: America/New_York
     values:
       when: "2026-01-01T00:30:00Z"
+    expectedByRuntime:
+      swift: "31/12/2025"
   - description: Time / hour numeric only
     rawMessage: "{when, time, hourNumericOnly}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "8\u202FAM"
   - description: Time / hour 2-digit only
     rawMessage: "{when, time, hourTwoDigitOnly}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "8\u202FAM"
   - description: Time / minute numeric only
     rawMessage: "{when, time, minuteNumericOnly}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "30"
   - description: Time / second numeric only
     rawMessage: "{when, time, secondNumericOnly}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "45"
   - description: Time / morning day period
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T08:00:00Z"
+    expectedByRuntime:
+      swift: "8\u202FAM"
   - description: Time / noon day period
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T12:00:00Z"
+    expectedByRuntime:
+      swift: "12\u202FPM"
   - description: Time / evening day period
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T19:00:00Z"
+    expectedByRuntime:
+      swift: "7\u202FPM"
   - description: Time / midnight hour cycle h11
     rawMessage: "{when, time, hourCycle11}"
     values:
       when: "2026-05-12T00:00:00Z"
+    expectedByRuntime:
+      swift: "12:00 AM"
   - description: Time / midnight hour cycle h12
     rawMessage: "{when, time, hourCycle12}"
     values:
       when: "2026-05-12T00:00:00Z"
+    expectedByRuntime:
+      swift: "12:00 AM"
   - description: Time / midnight hour cycle h23
     rawMessage: "{when, time, hourCycle23}"
     values:
       when: "2026-05-12T00:00:00Z"
+    expectedByRuntime:
+      swift: "00:00"
   - description: Time / midnight hour cycle h24
     rawMessage: "{when, time, hourCycle24}"
     values:
       when: "2026-05-12T00:00:00Z"
+    expectedByRuntime:
+      swift: "00:00"
   - description: Time / Amsterdam winter
     rawMessage: "{when, time, amsterdamShort}"
     values:
       when: "2026-01-15T12:00:00Z"
+    expectedByRuntime:
+      swift: "1:00 PM"
   - description: Time / Amsterdam summer
     rawMessage: "{when, time, amsterdamShort}"
     values:
       when: "2026-07-15T12:00:00Z"
+    expectedByRuntime:
+      swift: "2:00 PM"
   - description: Time / New York winter
     rawMessage: "{when, time, newYorkShort}"
     values:
       when: "2026-01-15T12:00:00Z"
+    expectedByRuntime:
+      swift: "7:00 AM"
   - description: Time / New York summer
     rawMessage: "{when, time, newYorkShort}"
     values:
       when: "2026-07-15T12:00:00Z"
+    expectedByRuntime:
+      swift: "8:00 AM"
   - description: Time / Riyadh
     rawMessage: "{when, time, riyadhShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "11:30 AM"
   - description: Time / Tokyo
     rawMessage: "{when, time, tokyoShort}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "5:30 PM"
   - description: Time / per-call Tokyo override
     rawMessage: "{when, time, seconds}"
     timeZone: Asia/Tokyo
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      swift: "5:30:45 PM"
   - description: Time / Latin digits
     rawMessage: "{when, time, latinTime}"
     values:

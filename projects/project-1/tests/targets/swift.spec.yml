@@ -1,0 +1,36 @@
+target: swift
+
+assertions:
+  - description: Swift target includes project messages and resolved locale formats
+    locale: en-US
+    expectedToIncludeMessages:
+      - auth.signin
+      - billing.checkoutTotal
+      - playground.formatStress
+    expectedFormats:
+      number:
+        money:
+          style: currency
+          currency: USD
+        roundingHalfEven:
+          maximumFractionDigits: 0
+          roundingMode: halfEven
+      time:
+        hourCycle24:
+          hour: 2-digit
+          minute: 2-digit
+          hourCycle: h24
+    rawMessage: "Swift amount: {amount, number, money}"
+    values:
+      amount: 12
+    expectedTranslation: "Swift amount: $12.00"
+
+  - description: Swift target exposes non-Latin locale data without business context
+    locale: bn
+    expectedToIncludeMessages:
+      - billing.checkoutTotal
+      - playground.formatExtreme
+    rawMessage: "{value, number, latinDigits}"
+    values:
+      value: 1234.5
+    expectedTranslation: "1,234.5"

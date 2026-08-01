@@ -86,6 +86,8 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 May 2569 BE"
+    expectedByRuntime:
+      swift: "12 May 2569"
   - description: "Date / Japanese era calendar"
     rawMessage: "{when, date, japaneseEra}"
     values:
@@ -141,6 +143,8 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "25 Dhuʻl-Qiʻdah 1447 AH"
+    expectedByRuntime:
+      swift: "25 Dhuʻl-Qiʻdah 1447"
   - description: "Date / Latin digits"
     rawMessage: "{when, date, latinNumeric}"
     values:

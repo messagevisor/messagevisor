@@ -181,7 +181,7 @@ export async function initProject(
         tar.x({
           cwd: directoryPath,
           strip: 3,
-          filter: (archivePath, entry) => {
+          filter: (archivePath: string, entry: { type?: string }) => {
             if (!archivePath.startsWith(projectArchivePath)) {
               return false;
             }
@@ -198,7 +198,7 @@ export async function initProject(
             }
 
             const destinationPath = path.join(directoryPath, relativePath);
-            const entryType = (entry as any).type;
+            const entryType = entry.type;
 
             if (entryType !== "Directory" && fs.existsSync(destinationPath)) {
               skippedConflictCount += 1;

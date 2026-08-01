@@ -32,10 +32,31 @@ export function getMessageZodSchema(
     exportOverrideKeySeparator: string;
   },
 ) {
+  function validateTranslationStates(
+    translations: Record<string, string>,
+    states: Record<string, { status: string; sourceHash?: string }> | undefined,
+    ctx: z.RefinementCtx,
+    path: (string | number)[],
+  ) {
+    for (const locale of Object.keys(states || {})) {
+      if (typeof translations[locale] === "undefined") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Translation state for locale "${locale}" requires a translation for that locale.`,
+          path: [...path, locale],
+        });
+      }
+    }
+  }
   const matrixZodSchema = z.record(
     z.string(),
     z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])),
   );
+  const expectedByRuntimeSchema = z
+    .record(z.string(), z.string())
+    .refine((value) => Object.keys(value).length > 0, {
+      message: "`expectedByRuntime` must define at least one runtime.",
+    });
 
   const messageExampleLocaleSchema = refineWithMessage(
     z.string(),
@@ -54,6 +75,7 @@ export function getMessageZodSchema(
       formats: z.record(z.string(), z.unknown()).optional(),
       timeZone: z.string().optional(),
       currency: z.string().optional(),
+      expectedByRuntime: expectedByRuntimeSchema.optional(),
     })
     .strict();
 
@@ -70,6 +92,25 @@ export function getMessageZodSchema(
       message: "At least one translation is required",
     });
 
+  const translationStates = z
+    .record(
+      refineWithMessage(
+        z.string(),
+        (value) => localeKeys.includes(value),
+        (value) => `Unknown locale "${value}"`,
+      ),
+      z
+        .object({
+          status: z.enum(["draft", "translated", "reviewed"]),
+          sourceHash: z
+            .string()
+            .regex(/^[a-f0-9]{64}$/)
+            .optional(),
+        })
+        .strict(),
+    )
+    .optional();
+
   const conditionsZodSchema = getConditionsZodSchema(attributesByKey);
   const groupSegmentZodSchema = getGroupSegmentZodSchema(segmentKeys);
 
@@ -82,9 +123,13 @@ export function getMessageZodSchema(
       conditions: conditionsZodSchema.optional(),
       segments: groupSegmentZodSchema.optional(),
       translations: localeTranslations,
+      translationStates,
     })
     .strict()
     .superRefine((data, ctx) => {
+      validateTranslationStates(data.translations, data.translationStates, ctx, [
+        "translationStates",
+      ]);
       if (!data.conditions && !data.segments) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -108,10 +153,14 @@ export function getMessageZodSchema(
       meta: z.record(z.string(), valueZodSchema).optional(),
       examples: z.array(messageExampleZodSchema).optional(),
       translations: localeTranslations,
+      translationStates,
       overrides: z.array(overrideZodSchema).optional(),
     })
     .strict()
     .superRefine((data, ctx) => {
+      validateTranslationStates(data.translations, data.translationStates, ctx, [
+        "translationStates",
+      ]);
       const overrideKeys = new Set<string>();
 
       for (let index = 0; index < (data.overrides || []).length; index++) {

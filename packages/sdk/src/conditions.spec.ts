@@ -91,9 +91,9 @@ describe("evaluateCondition", function () {
       [{ attribute: "platform", operator: "notEquals", value: "web" }, false],
       [{ attribute: "platform", operator: "exists" }, true],
       [{ attribute: "missing", operator: "exists" }, false],
-      [{ attribute: "missingValue", operator: "exists" }, false],
+      [{ attribute: "missingValue", operator: "exists" }, true],
       [{ attribute: "missing", operator: "notExists" }, true],
-      [{ attribute: "missingValue", operator: "notExists" }, true],
+      [{ attribute: "missingValue", operator: "notExists" }, false],
       [{ attribute: "platform", operator: "notExists" }, false],
       [{ attribute: "user.company.tier", operator: "equals", value: "enterprise" }, true],
     ];
@@ -144,6 +144,7 @@ describe("evaluateCondition", function () {
       [{ attribute: "createdAt", operator: "after", value: "2025-01-01T00:00:00Z" }, true],
       [{ attribute: "createdAt", operator: "after", value: "2025-01-03T00:00:00Z" }, false],
       [{ attribute: "createdAt", operator: "before", value: "not-a-date" }, false],
+      [{ attribute: "createdAt", operator: "before", value: "2025-01-03" }, false],
       [{ attribute: "missing", operator: "after", value: "2025-01-01T00:00:00Z" }, false],
     ];
 
@@ -152,18 +153,65 @@ describe("evaluateCondition", function () {
     });
   });
 
+  it("rejects stateful or non-portable regular-expression flags", function () {
+    expect(
+      evaluateCondition(
+        { attribute: "email", operator: "matches", value: "example", regexFlags: "g" },
+        { context },
+      ),
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { attribute: "email", operator: "matches", value: "EXAMPLE", regexFlags: "i" },
+        { context },
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    "value(?=x)",
+    "(?<=x)value",
+    "(?:value)",
+    "(?<name>value)",
+    "(value)\\1",
+    "(?<name>value)\\k<name>",
+    "value++",
+  ])("defensively rejects nonportable regular expression %s", function (value) {
+    expect(
+      evaluateCondition(
+        { attribute: "name", operator: "matches", value },
+        { context: { name: "valuex" } },
+      ),
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { attribute: "name", operator: "notMatches", value },
+        { context: { name: "other" } },
+      ),
+    ).toBe(false);
+  });
+
+  it("supports the portable regex flags and ordinary capture groups", function () {
+    expect(
+      evaluateCondition(
+        { attribute: "value", operator: "matches", value: "^(hello)[\\s\\S]+$", regexFlags: "iu" },
+        { context: { value: "HELLO\nWORLD" } },
+      ),
+    ).toBe(true);
+  });
+
   it("evaluates array and membership operators", function () {
     const cases: Array<[Condition, boolean]> = [
       [{ attribute: "roles", operator: "includes", value: "admin" }, true],
       [{ attribute: "roles", operator: "includes", value: "owner" }, false],
       [{ attribute: "roles", operator: "notIncludes", value: "owner" }, true],
       [{ attribute: "roles", operator: "notIncludes", value: "admin" }, false],
-      [{ attribute: "platform", operator: "notIncludes", value: "web" }, true],
+      [{ attribute: "platform", operator: "notIncludes", value: "web" }, false],
       [{ attribute: "region", operator: "in", value: ["EU", "NA"] }, true],
       [{ attribute: "region", operator: "in", value: ["US", "NA"] }, false],
       [{ attribute: "region", operator: "notIn", value: ["US", "NA"] }, true],
       [{ attribute: "region", operator: "notIn", value: ["EU", "NA"] }, false],
-      [{ attribute: "region", operator: "notIn", value: "EU" as any }, true],
+      [{ attribute: "region", operator: "notIn", value: "EU" as any }, false],
     ];
 
     cases.forEach(([condition, expected]) => {

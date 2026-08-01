@@ -3,6 +3,7 @@ import type { Attribute, Locale, Message, Target, Segment, Test } from "@message
 import type { DatafileFile } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
+import { matchesPattern } from "../targeting";
 import { CLI_FORMAT_GREEN, CLI_FORMAT_YELLOW, colorize } from "../tester/cliFormat";
 import {
   expandLocaleAssertions,
@@ -38,17 +39,6 @@ function toArray(value: unknown): string[] {
 
 function toRegex(pattern: string) {
   return new RegExp(pattern, "i");
-}
-
-function matchesPattern(key: string, patterns?: string | string[]) {
-  if (!patterns || patterns.length === 0) {
-    return false;
-  }
-
-  return (Array.isArray(patterns) ? patterns : [patterns]).some((pattern) => {
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-    return new RegExp(`^${escaped}$`).test(key);
-  });
 }
 
 function parseBooleanOption(name: string, value: unknown): boolean {

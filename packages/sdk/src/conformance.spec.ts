@@ -1,4 +1,4 @@
-import type { DatafileContent } from "@messagevisor/types";
+import type { Context, DatafileContent } from "@messagevisor/types";
 
 import { createMessagevisor } from "./index";
 import type { MessagevisorModule } from "./instance";
@@ -380,11 +380,11 @@ describe("SDK conformance scenarios", function () {
   it("passes merged context to feature and experiment resolvers", function () {
     const resolverContexts: any[] = [];
     const { m } = createConformanceMessagevisor({
-      resolveFlag: (featureKey, context) => {
+      resolveFlag: (featureKey: string, context?: Context) => {
         resolverContexts.push({ type: "flag", featureKey, context });
         return featureKey === "checkout-copy" && context?.platform === "web";
       },
-      resolveVariation: (experimentKey, context) => {
+      resolveVariation: (experimentKey: string, context?: Context) => {
         resolverContexts.push({ type: "experiment", experimentKey, context });
         return context?.account && (context.account as any).plan === "pro" ? "b" : "a";
       },

@@ -3,13 +3,14 @@
   "version": "0.26.0",
   "description": "react-intl compatibility layer for Messagevisor",
   "main": "lib/index.js",
-  "module": "lib/index.js",
   "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
-      "require": "./lib/index.js",
-      "import": "./lib/index.js"
+      "default": "./lib/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -38,13 +39,16 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@messagevisor/react": "0.26.0",
-    "@messagevisor/sdk": "0.26.0"
+    "@messagevisor/types": "0.26.0"
   },
   "peerDependencies": {
+    "@messagevisor/react": ">=0.26.0 <2",
+    "@messagevisor/sdk": ">=0.26.0 <2",
     "react": ">=16.8.0"
   },
   "devDependencies": {
+    "@messagevisor/react": "0.26.0",
+    "@messagevisor/sdk": "0.26.0",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "react": "^19.0.0",

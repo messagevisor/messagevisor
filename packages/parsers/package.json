@@ -1,0 +1,47 @@
+{
+  "name": "@messagevisor/parsers",
+  "version": "0.26.0",
+  "description": "Source file parsers for Messagevisor projects",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "transpile": "rimraf lib && tsc --project tsconfig.cjs.json",
+    "dist": "echo 'Nothing to dist here'",
+    "build": "npm run transpile",
+    "test": "jest --config jest.config.js --verbose",
+    "typecheck": "tsc --noEmit --skipLibCheck -p tsconfig.typecheck.json"
+  },
+  "author": {
+    "name": "Fahad Heylaal",
+    "url": "https://fahad19.com"
+  },
+  "homepage": "https://messagevisor.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/messagevisor/messagevisor.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/messagevisor/messagevisor/issues"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  }
+}

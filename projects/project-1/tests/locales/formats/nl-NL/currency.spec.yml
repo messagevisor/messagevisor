@@ -21,11 +21,15 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "$\u00A01.234,50"
+    expectedByRuntime:
+      swift: "US$\u00A01.234,50"
   - description: "Currency / name display"
     rawMessage: "{amount, number, moneyName}"
     values:
       amount: 1234.5
     expectedTranslation: "1.234,50 Amerikaanse dollar"
+    expectedByRuntime:
+      swift: "1.234,50 euro"
   - description: "Currency / accounting sign"
     rawMessage: "{amount, number, moneyAccounting}"
     values:

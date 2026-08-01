@@ -33,6 +33,7 @@ export interface ResolvedLocaleExample {
   formats?: FormatPresets;
   currency?: string;
   timeZone?: string;
+  expectedByRuntime?: Record<string, string>;
   evaluatedTranslation: unknown;
   evaluationInput?: ExampleEvaluationInput;
 }
@@ -49,6 +50,7 @@ export interface ResolvedMessageExample {
   formats?: FormatPresets;
   currency?: string;
   timeZone?: string;
+  expectedByRuntime?: Record<string, string>;
   evaluatedTranslation: unknown;
   evaluationInput?: ExampleEvaluationInput;
 }
@@ -267,6 +269,7 @@ function expandLocaleExample(
         formats: example.formats,
         currency: example.currency,
         timeZone: example.timeZone,
+        expectedByRuntime: example.expectedByRuntime,
       },
     ];
   }
@@ -288,6 +291,9 @@ function expandLocaleExample(
     formats: applyCombinationToValue(example.formats, combination) as FormatPresets | undefined,
     currency: applyCombinationToValue(example.currency, combination) as string | undefined,
     timeZone: applyCombinationToValue(example.timeZone, combination) as string | undefined,
+    expectedByRuntime: applyCombinationToValue(example.expectedByRuntime, combination) as
+      | Record<string, string>
+      | undefined,
   }));
 }
 
@@ -328,6 +334,7 @@ function expandMessageExample(
         formats: example.formats,
         currency: example.currency,
         timeZone: example.timeZone,
+        expectedByRuntime: example.expectedByRuntime,
       },
     ];
   }
@@ -347,6 +354,9 @@ function expandMessageExample(
     formats: applyCombinationToValue(example.formats, combination) as FormatPresets | undefined,
     currency: applyCombinationToValue(example.currency, combination) as string | undefined,
     timeZone: applyCombinationToValue(example.timeZone, combination) as string | undefined,
+    expectedByRuntime: applyCombinationToValue(example.expectedByRuntime, combination) as
+      | Record<string, string>
+      | undefined,
   }));
 }
 

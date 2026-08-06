@@ -11,6 +11,23 @@ async function createProject(configContent: string) {
 }
 
 describe("getProjectConfig", function () {
+  it("reloads changed configuration instead of returning the require cache", async function () {
+    const root = await createProject('module.exports = { sourceLocale: "en" };\n');
+    expect(getProjectConfig(root).sourceLocale).toBe("en");
+
+    await fs.promises.writeFile(
+      path.join(root, "messagevisor.config.js"),
+      'module.exports = { sourceLocale: "nl" };\n',
+    );
+
+    // Jest maintains its own module registry, unlike Node's native require cache.
+    // Reload this module so the assertion exercises the same fresh-load path used
+    // by the CLI and Catalog in production.
+    jest.resetModules();
+    const { getProjectConfig: getReloadedProjectConfig } = require("./index");
+    expect(getReloadedProjectConfig(root).sourceLocale).toBe("nl");
+  });
+
   it("defaults lintIcu to true", async function () {
     const root = await createProject("module.exports = {};\n");
 

@@ -6,11 +6,13 @@ Run commands inside a Messagevisor project:
 npx messagevisor <command> [options]
 ```
 
-The global `--rootDirectoryPath=/absolute/path` option makes the CLI resolve the project from that path even when the current shell is elsewhere.
+The CLI searches upwards from the current directory for `messagevisor.config.js`. The global `--rootDirectoryPath=/absolute/path` option starts project discovery from another path.
 
 Use `--json --pretty` for machine-readable output when a command supports it. Many commands also support `--set=<name>` in `sets: true` projects.
 
 With `--json`, command failures use a stable `error` envelope containing `code`, `message`, and optional `details`. Inspect those fields instead of parsing terminal prose.
+
+Unknown commands, options, extra positional arguments, invalid option values, and invalid regular expressions fail with a non-zero exit code. Only pass `--set` when sets are enabled.
 
 ## Quick loop while editing
 
@@ -219,6 +221,8 @@ npx messagevisor catalog export --hashRouter
 npx messagevisor catalog serve
 ```
 
+Run `catalog export` before `catalog serve`. Serve requires existing output and rejects export-only options.
+
 In sets projects, Catalog includes all sets by default. Use repeatable `--set=<name>` with `catalog` or `catalog export` to generate only selected sets. The Catalog set switcher remains visible for sets projects and orders `dev*` sets first, `prod*` sets last.
 
 ## Translation exchange and cleanup
@@ -246,6 +250,8 @@ npx messagevisor import payload.json --from-json --json-path=data.translations -
 ```
 
 Import previews by default. Use `--apply` only after reviewing the plan.
+
+Use either the positional input file or `--input`, not both.
 
 ### `find-usage`
 

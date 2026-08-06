@@ -148,7 +148,7 @@ npx messagevisor catalog --with-duplicates
 npx messagevisor catalog export --with-translation-search --with-duplicates
 ```
 
-`catalog serve` only serves already generated output. It does not build optional search or duplicate indexes.
+`catalog serve` requires and serves already generated output. Run `catalog export` first. It does not build optional search or duplicate indexes.
 
 For sets-based projects, catalog generation includes all sets by default. Pass `--set=<name>` one or more times to generate only selected sets.
 

@@ -393,6 +393,31 @@ describe("listPlugin", function () {
     }
   });
 
+  it("rejects contradictory and inapplicable filters", async function () {
+    const root = await createProject();
+    const { datasource } = getDatasource(root);
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await expect(
+        listPlugin.handler({
+          datasource,
+          parsed: { messages: true, withOverrides: true, withoutOverrides: true },
+        }),
+      ).resolves.toEqual(false);
+      expect(errorSpy).toHaveBeenLastCalledWith(
+        "Use either --withOverrides or --withoutOverrides, not both.",
+      );
+
+      await expect(
+        listPlugin.handler({ datasource, parsed: { locales: true, archived: true } }),
+      ).resolves.toEqual(false);
+      expect(errorSpy).toHaveBeenLastCalledWith("Option --archived cannot be used with --locales.");
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it("errors when attributes are filtered by tests", async function () {
     const root = await createProject();
     const { datasource } = getDatasource(root);
@@ -446,9 +471,13 @@ describe("listPlugin", function () {
           },
         }),
       ).resolves.toEqual(false);
-      expect(errorSpy).toHaveBeenCalledWith(
-        "Pass --set=<set> when using --json in a project with sets enabled.",
-      );
+      expect(JSON.parse(errorSpy.mock.calls[0][0])).toEqual({
+        error: {
+          code: "cli_error",
+          message: "Pass --set=<set> when using --json in a project with sets enabled.",
+          details: {},
+        },
+      });
     } finally {
       errorSpy.mockRestore();
     }

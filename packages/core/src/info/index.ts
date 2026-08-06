@@ -1,4 +1,5 @@
 import type { Datasource } from "../datasource";
+import { MessagevisorCLIError } from "../error";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
 
 export async function getProjectInfo(datasource: Datasource) {
@@ -25,6 +26,11 @@ export const infoPlugin = {
   command: "info",
   handler: async ({ datasource, parsed }: any) => {
     const projectConfig = datasource.getConfig();
+    if (!projectConfig.sets && parsed.set) {
+      throw new MessagevisorCLIError(
+        "Option --set can only be used when project sets are enabled.",
+      );
+    }
     assertProjectSetJsonSelection(projectConfig, parsed.set, parsed.json);
 
     if (projectConfig.sets) {

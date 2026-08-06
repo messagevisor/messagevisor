@@ -17,6 +17,12 @@ export async function getProjectSetExecutions(
   selectedSet?: string,
 ): Promise<ProjectSetExecution[]> {
   if (!projectConfig.sets) {
+    if (selectedSet) {
+      throw new MessagevisorCLIError(
+        "Option --set can only be used when project sets are enabled.",
+      );
+    }
+
     return [{ set: "", projectConfig, datasource }];
   }
 

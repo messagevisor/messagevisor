@@ -78,6 +78,28 @@ async function createProject(configContent = "module.exports = {};\n") {
 }
 
 describe("evaluatePlugin", function () {
+  it("requires exactly one evaluation subject", async function () {
+    const root = await createProject();
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await expect(
+        evaluatePlugin.handler({
+          projectConfig,
+          datasource,
+          parsed: { message: "auth.signin", segment: "adult", locale: "en" },
+        }),
+      ).resolves.toEqual(false);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Pass exactly one of --message=<key>, --rawMessage=<message>, or --segment=<key>.",
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it("evaluates segments using context without requiring a locale", async function () {
     const root = await createProject();
     const projectConfig = getProjectConfig(root);
@@ -359,7 +381,7 @@ describe("evaluatePlugin", function () {
       ).resolves.toEqual(false);
 
       expect(errorSpy).toHaveBeenCalledWith(
-        "Pass either --message=<key> or --rawMessage=<message>, not both",
+        "Pass exactly one of --message=<key>, --rawMessage=<message>, or --segment=<key>.",
       );
     } finally {
       errorSpy.mockRestore();

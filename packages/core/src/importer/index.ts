@@ -237,7 +237,7 @@ function getInputFilePath(
     throw new MessagevisorCLIError(
       options.fromJson
         ? "Pass a JSON file path or URL: messagevisor import <jsonFilePathOrUrl> --from-json --locale=<locale>."
-        : "Pass a CSV file path: messagevisor import <csvFilePath>.",
+        : "Pass an input file path: messagevisor import <file>.",
     );
   }
 
@@ -1091,14 +1091,20 @@ function printImportResult(projectConfig: ProjectConfig, result: ImportProjectRe
 }
 
 export const importPlugin = {
-  command: "import [input]",
+  command: "import [file]",
   handler: async ({ projectConfig, datasource, parsed }: any) => {
     try {
+      if (parsed.file && parsed.input) {
+        throw new MessagevisorCLIError(
+          "Provide the import file either as a positional argument or with --input, not both.",
+        );
+      }
+
       const result = await importProjectSets(
         projectConfig,
         datasource,
         {
-          input: parsed.input || parsed.csvFilePath,
+          input: parsed.file || parsed.input,
           set: parsed.set,
           locale: parsed.locale,
           createMissing: parsed.createMissing,
@@ -1114,7 +1120,7 @@ export const importPlugin = {
 
       printImportResult(projectConfig, result);
     } catch (error) {
-      if (printMessagevisorCLIError(error)) {
+      if (printMessagevisorCLIError(error, parsed)) {
         return false;
       }
 

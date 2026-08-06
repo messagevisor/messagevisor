@@ -1241,7 +1241,7 @@ export const promotePlugin = {
         audit: parsed.audit,
       });
     } catch (error) {
-      if (printMessagevisorCLIError(error)) {
+      if (printMessagevisorCLIError(error, parsed)) {
         return false;
       }
 

@@ -262,7 +262,7 @@ export const findDuplicatesPlugin = {
 
       printPlainResult(result, projectConfig.sets);
     } catch (error) {
-      if (printMessagevisorCLIError(error)) {
+      if (printMessagevisorCLIError(error, parsed)) {
         return false;
       }
 

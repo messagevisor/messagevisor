@@ -14,7 +14,7 @@
     "transpile": "rimraf lib && tsc --project tsconfig.cjs.json",
     "dist": "echo 'Nothing to dist here'",
     "build": "npm run transpile",
-    "test": "echo 'Nothing to test in this package'",
+    "test": "jest --config jest.config.js --verbose",
     "typecheck": "tsc --noEmit --skipLibCheck -p tsconfig.typecheck.json"
   },
   "author": {

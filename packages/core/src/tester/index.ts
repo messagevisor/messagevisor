@@ -22,6 +22,7 @@ import {
 } from "./matrix";
 import { prettyDuration } from "./prettyDuration";
 import { printTestResult } from "./printTestResult";
+import { parseRegexOption } from "../cli/validation";
 import type {
   TestAssertionError,
   TestProjectOptions,
@@ -118,7 +119,7 @@ function shouldRunAssertion(description: string, options: TestProjectOptions) {
     return true;
   }
 
-  return new RegExp(options.assertionPattern).test(description);
+  return parseRegexOption("--assertionPattern", options.assertionPattern).test(description);
 }
 
 function getAssertionPrefix(assertion: { assertionIndex?: number; matrixIndex?: number }) {
@@ -501,7 +502,9 @@ export async function testProject(
 ): Promise<TestProjectResult> {
   const startTime = Date.now();
   const testKeys = await datasource.listTests();
-  const keyPattern = options.keyPattern ? new RegExp(options.keyPattern) : null;
+  const keyPattern = options.keyPattern
+    ? parseRegexOption("--keyPattern", options.keyPattern)
+    : null;
   const revision = await datasource.readRevision();
   const results: TestResult[] = [];
 

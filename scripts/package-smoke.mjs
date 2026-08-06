@@ -1,6 +1,6 @@
 /* global process */
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
@@ -37,7 +37,16 @@ const manifestsByName = new Map();
 const packagePathsByName = new Map();
 // Core optionally discovers the host CLI version for generated datafile metadata.
 // It is guarded at runtime and core must remain independently installable.
-const optionalHostImports = new Map([["@messagevisor/core", new Set(["@messagevisor/cli"])]]);
+const optionalHostImports = new Map([
+  [
+    "@messagevisor/core",
+    new Set([
+      "@messagevisor/cli",
+      // This name appears inside generated React source text, not as a core runtime import.
+      "@messagevisor/react",
+    ]),
+  ],
+]);
 
 function linkExternalDependency(name) {
   const destination = join(modulesRoot, name);
@@ -274,6 +283,95 @@ try {
       stdio: "inherit",
     },
   );
+
+  const cliBin = join(packagePathsByName.get("@messagevisor/cli"), "bin.js");
+  const projectOneRoot = join(root, "projects", "project-1");
+  const runPackedCLI = (args, expectedStatus = 0) => {
+    const result = spawnSync(process.execPath, [cliBin, ...args], {
+      cwd: temporaryRoot,
+      encoding: "utf8",
+    });
+
+    if (result.status !== expectedStatus) {
+      throw new Error(
+        `Packed CLI ${args.join(" ")} exited ${result.status}; expected ${expectedStatus}.\n${result.stdout}\n${result.stderr}`,
+      );
+    }
+
+    return result;
+  };
+
+  const versionResult = runPackedCLI(["--version"]);
+  if (!versionResult.stdout.includes(manifestsByName.get("@messagevisor/cli").version)) {
+    throw new Error(`Packed CLI returned an unexpected version: ${versionResult.stdout}`);
+  }
+
+  const nestedProjectResult = runPackedCLI([
+    "info",
+    "--rootDirectoryPath",
+    join(projectOneRoot, "messages"),
+    "--json",
+  ]);
+  const nestedProjectInfo = JSON.parse(nestedProjectResult.stdout);
+  if (nestedProjectInfo.messages < 1 || nestedProjectInfo.locales < 1) {
+    throw new Error("Packed CLI did not discover project-1 from a nested directory.");
+  }
+
+  const unknownCommandResult = runPackedCLI(
+    ["unknown-command", "--rootDirectoryPath", projectOneRoot],
+    1,
+  );
+  if (!unknownCommandResult.stderr.includes('Unknown command "unknown-command"')) {
+    throw new Error(`Packed CLI did not reject an unknown command: ${unknownCommandResult.stderr}`);
+  }
+
+  const structuredErrorResult = runPackedCLI(
+    ["find-usage", "--rootDirectoryPath", projectOneRoot, "--json"],
+    1,
+  );
+  const structuredError = JSON.parse(structuredErrorResult.stderr);
+  if (structuredError.error?.code !== "cli_error") {
+    throw new Error(`Packed CLI returned an invalid JSON error: ${structuredErrorResult.stderr}`);
+  }
+
+  const missingProjectResult = runPackedCLI(
+    ["lint", "--rootDirectoryPath", temporaryRoot, "--json"],
+    1,
+  );
+  const missingProjectError = JSON.parse(missingProjectResult.stderr);
+  if (missingProjectError.error?.code !== "project_not_found") {
+    throw new Error(
+      `Packed CLI returned an invalid missing-project error: ${missingProjectResult.stderr}`,
+    );
+  }
+
+  const helpWithoutProjectResult = runPackedCLI([
+    "lint",
+    "--rootDirectoryPath",
+    temporaryRoot,
+    "--help",
+  ]);
+  if (!helpWithoutProjectResult.stdout.includes("messagevisor lint")) {
+    throw new Error("Packed CLI could not show command help outside a project.");
+  }
+
+  const globalOptionBeforeInitResult = runPackedCLI([
+    "--rootDirectoryPath",
+    temporaryRoot,
+    "init",
+    "--help",
+  ]);
+  if (!globalOptionBeforeInitResult.stdout.includes("messagevisor init")) {
+    throw new Error("Packed CLI could not parse a global option before init.");
+  }
+
+  const dashedAssetsResult = runPackedCLI(
+    ["catalog", "export", "--rootDirectoryPath", projectOneRoot, "--no-assets", "--port=3001"],
+    1,
+  );
+  if (!dashedAssetsResult.stderr.includes("--port can only be used")) {
+    throw new Error(`Packed CLI rejected --no-assets incorrectly: ${dashedAssetsResult.stderr}`);
+  }
 
   console.log(`Validated ${manifests.length} packed Messagevisor packages.`);
 } finally {

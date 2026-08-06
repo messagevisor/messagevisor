@@ -26,17 +26,18 @@ describe("getCLIErrorOutput", function () {
 
 describe("runCLI", function () {
   const originalArgv = process.argv;
+  const originalExitCode = process.exitCode;
 
   afterEach(function () {
     process.argv = originalArgv;
+    process.exitCode = originalExitCode;
     jest.restoreAllMocks();
   });
 
-  it("exits with a failure code when a command handler returns false", async function () {
+  it("sets a failure code when a command handler returns false", async function () {
     process.argv = ["node", "messagevisor", "expected-failure"];
-    const exitSpy = jest.spyOn(process, "exit").mockImplementation(() => undefined as never);
 
-    await runCLI({
+    const successful = await runCLI({
       rootDirectoryPath: "/tmp/messagevisor-test",
       projectConfig: {
         plugins: [
@@ -50,13 +51,14 @@ describe("runCLI", function () {
       datasource: {} as any,
     });
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(successful).toBe(false);
+    expect(process.exitCode).toBe(1);
   });
 
   it("rejects unknown command options before invoking a handler", async function () {
     process.argv = ["node", "messagevisor", "strict-command", "--typo=true"];
     const handler = jest.fn(async () => undefined);
-    const exitSpy = jest.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    jest.spyOn(console, "error").mockImplementation(() => undefined);
 
     await runCLI({
       rootDirectoryPath: "/tmp/messagevisor-test",
@@ -67,7 +69,7 @@ describe("runCLI", function () {
     });
 
     expect(handler).not.toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it("accepts options declared by custom plugins", async function () {
@@ -101,5 +103,116 @@ describe("runCLI", function () {
         parsed: expect.objectContaining({ dryRun: true, locale: ["en", "nl"] }),
       }),
     );
+  });
+
+  it("accepts positional arguments declared by commands", async function () {
+    process.argv = ["node", "messagevisor", "custom-command", "export"];
+    const handler = jest.fn(async () => undefined);
+
+    await runCLI({
+      rootDirectoryPath: "/tmp/messagevisor-test",
+      projectConfig: {
+        plugins: [
+          {
+            command: "custom-command [subcommand]",
+            handler,
+            examples: [],
+          },
+        ],
+      } as any,
+      datasource: {} as any,
+    });
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parsed: expect.objectContaining({ subcommand: "export" }),
+      }),
+    );
+  });
+
+  it("awaits asynchronous command handlers", async function () {
+    process.argv = ["node", "messagevisor", "async-command"];
+    let completed = false;
+
+    await runCLI({
+      rootDirectoryPath: "/tmp/messagevisor-test",
+      projectConfig: {
+        plugins: [
+          {
+            command: "async-command",
+            handler: async () => {
+              await new Promise((resolve) => setTimeout(resolve, 10));
+              completed = true;
+            },
+            examples: [],
+          },
+        ],
+      } as any,
+      datasource: {} as any,
+    });
+
+    expect(completed).toBe(true);
+  });
+
+  it("rejects unexpected positional arguments", async function () {
+    process.argv = ["node", "messagevisor", "strict-command", "unexpected"];
+    const handler = jest.fn(async () => undefined);
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await runCLI({
+      rootDirectoryPath: "/tmp/messagevisor-test",
+      projectConfig: {
+        plugins: [{ command: "strict-command", handler, examples: [] }],
+      } as any,
+      datasource: {} as any,
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith("Unknown argument: unexpected");
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("prints structured parser failures when JSON output is requested", async function () {
+    process.argv = ["node", "messagevisor", "strict-command", "--unknown", "--json"];
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await runCLI({
+      rootDirectoryPath: "/tmp/messagevisor-test",
+      projectConfig: {
+        plugins: [
+          {
+            command: "strict-command",
+            options: { json: { type: "boolean" } },
+            handler: async () => undefined,
+            examples: [],
+          },
+        ],
+      } as any,
+      datasource: {} as any,
+    });
+
+    expect(JSON.parse(errorSpy.mock.calls[0][0])).toEqual({
+      error: {
+        code: "invalid_cli_arguments",
+        message: "Unknown argument: unknown",
+        details: {},
+      },
+    });
+  });
+
+  it("rejects duplicate project plugin commands", async function () {
+    process.argv = ["node", "messagevisor", "config"];
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await runCLI({
+      rootDirectoryPath: "/tmp/messagevisor-test",
+      projectConfig: {
+        plugins: [{ command: "config", handler: async () => undefined, examples: [] }],
+      } as any,
+      datasource: {} as any,
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith('CLI command "config" is already registered.');
+    expect(process.exitCode).toBe(1);
   });
 });

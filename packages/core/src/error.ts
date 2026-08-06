@@ -5,6 +5,7 @@ export class MessagevisorCLIError extends Error {
 
   constructor(message: string, options: { code?: string; details?: Record<string, unknown> } = {}) {
     super(message);
+    Object.setPrototypeOf(this, MessagevisorCLIError.prototype);
     this.name = "MessagevisorCLIError";
     this.cliMessage = message;
     this.code = options.code || "cli_error";
@@ -49,21 +50,37 @@ export function formatMessagevisorCLIError(
   options: { json?: boolean; pretty?: boolean } = {},
 ) {
   const cliError = getMessagevisorCLIError(error);
-  if (!cliError) return error;
+  if (!cliError) {
+    if (!options.json) return error;
+
+    const message = error instanceof Error ? error.message : String(error);
+    return JSON.stringify(
+      { error: { code: "internal_error", message, details: {} } },
+      null,
+      options.pretty ? 2 : 0,
+    );
+  }
+
+  const envelope = {
+    error: {
+      code: cliError.code,
+      message: cliError.cliMessage,
+      details: cliError.details,
+    },
+  };
+
   return options.json
-    ? JSON.stringify(cliError.toJSON(), null, options.pretty ? 2 : 0)
+    ? JSON.stringify(envelope, null, options.pretty ? 2 : 0)
     : cliError.cliMessage;
 }
 
-export function printMessagevisorCLIError(error: unknown) {
+export function printMessagevisorCLIError(error: unknown, options: { [key: string]: any } = {}) {
   const cliError = getMessagevisorCLIError(error);
 
   if (!cliError) {
     return false;
   }
 
-  const json = process.argv.includes("--json");
-  const pretty = process.argv.includes("--pretty");
-  console.error(formatMessagevisorCLIError(cliError, { json, pretty }));
+  console.error(formatMessagevisorCLIError(cliError, options));
   return true;
 }

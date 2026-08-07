@@ -12,4 +12,4 @@ Use GitHub's [private vulnerability reporting form](https://github.com/messagevi
 
 You should receive an initial response within seven days. We will coordinate investigation, remediation, release timing, and disclosure with the reporter.
 
-This policy covers Messagevisor packages and generated artifacts. Vulnerabilities in an application's hosting, CDN, repository permissions, or deployment configuration should be reported to that application's owner.
+This policy covers Messagevisor packages and generated artifacts. Vulnerabilities in an application's hosting, CDN, repository permissions, or deployment configuration should be reported to that application's owner

@@ -313,7 +313,7 @@ export const findUsagePlugin = {
         });
       }
     } catch (error) {
-      if (printMessagevisorCLIError(error)) return false;
+      if (printMessagevisorCLIError(error, parsed)) return false;
       throw error;
     }
   },

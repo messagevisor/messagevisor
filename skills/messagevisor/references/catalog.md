@@ -26,7 +26,7 @@ npx messagevisor catalog serve --port=3100
 | `catalog export` | Static export for CI artifacts or private hosting |
 | `catalog serve`  | Serve an already generated catalog                |
 
-`catalog serve` does not build optional indexes. It only reflects what was generated.
+`catalog serve` requires an existing export. It does not build missing output or optional indexes and only reflects what was generated.
 
 Entity detail pages show related authored test specifications in a **Tests** tab. Matrix assertions appear as their expanded test-runner cases.
 
@@ -93,3 +93,4 @@ Publish the generated `catalog/` directory to an internal static host. Use brows
 - Catalog is not an editor.
 - Catalog is not runtime data. Do not fetch its JSON files from application code.
 - Catalog examples are documentation and debugging aids. Tests still live under `tests/` and run with `npx messagevisor test`.
+- Dev mode reloads project configuration, datasource state, and watched definition paths when `messagevisor.config.js` changes.

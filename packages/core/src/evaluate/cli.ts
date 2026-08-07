@@ -31,6 +31,12 @@ export const evaluatePlugin = {
   command: "evaluate",
   handler: async ({ projectConfig, datasource, parsed }: any) => {
     try {
+      if (!projectConfig.sets && parsed.set) {
+        throw new MessagevisorCLIError(
+          "Option --set can only be used when project sets are enabled.",
+        );
+      }
+
       if (projectConfig.sets && !parsed.set) {
         throw new MessagevisorCLIError("Pass --set=<set>");
       }
@@ -45,9 +51,16 @@ export const evaluatePlugin = {
       const context = parsed.context ? parseJsonOption("--context", parsed.context) : {};
       const values = parsed.values ? parseJsonOption("--values", parsed.values) : undefined;
 
-      if (parsed.message && parsed.rawMessage) {
+      const subjects = [parsed.message, parsed.rawMessage, parsed.segment].filter(Boolean);
+      if (subjects.length > 1) {
         throw new MessagevisorCLIError(
-          "Pass either --message=<key> or --rawMessage=<message>, not both",
+          "Pass exactly one of --message=<key>, --rawMessage=<message>, or --segment=<key>.",
+        );
+      }
+
+      if (subjects.length === 0) {
+        throw new MessagevisorCLIError(
+          "Pass --message=<key>, --rawMessage=<message>, or --segment=<key>",
         );
       }
 
@@ -98,11 +111,9 @@ export const evaluatePlugin = {
         return;
       }
 
-      throw new MessagevisorCLIError(
-        "Pass --message=<key>, --rawMessage=<message>, or --segment=<key>",
-      );
+      throw new MessagevisorCLIError("Unable to evaluate the requested subject.");
     } catch (error) {
-      if (printMessagevisorCLIError(error)) {
+      if (printMessagevisorCLIError(error, parsed)) {
         return false;
       }
 

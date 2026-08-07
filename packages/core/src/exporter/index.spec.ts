@@ -368,6 +368,11 @@ describe("exportProject", function () {
         delimiter: "::",
       }),
     ).rejects.toThrow("--delimiter must be a single character.");
+    await expect(
+      exportProject(projectConfig, datasource, {
+        lineEnding: "invalid" as any,
+      }),
+    ).rejects.toThrow("--lineEnding must be either lf or crlf.");
   });
 });
 

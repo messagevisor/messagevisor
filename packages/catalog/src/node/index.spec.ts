@@ -1614,7 +1614,7 @@ describe("catalog plugin", function () {
     jest.useRealTimers();
   });
 
-  function createPlugin() {
+  function createPlugin(sets = false) {
     const plugin = createCatalogPlugin(catalogRuntime, {
       exportCatalog: exportMock,
       serveCatalog: serveMock,
@@ -1622,6 +1622,8 @@ describe("catalog plugin", function () {
     const rootDirectoryPath = "/tmp/messagevisor-project";
     const projectConfig = {
       catalogDirectoryPath: path.join(rootDirectoryPath, "catalog"),
+      setsDirectoryPath: path.join(rootDirectoryPath, "sets"),
+      sets,
     };
 
     return {
@@ -1683,7 +1685,7 @@ describe("catalog plugin", function () {
   });
 
   it("forwards repeated set options for dev catalog mode", async function () {
-    const { handler } = createPlugin();
+    const { handler } = createPlugin(true);
 
     await handler({ _: ["catalog"], set: ["storefront", "admin", "storefront"] });
 
@@ -1736,7 +1738,7 @@ describe("catalog plugin", function () {
   });
 
   it("forwards set option for export subcommand", async function () {
-    const { handler } = createPlugin();
+    const { handler } = createPlugin(true);
 
     await handler({
       _: ["catalog", "export"],
@@ -1759,21 +1761,7 @@ describe("catalog plugin", function () {
       _: ["catalog", "serve"],
       subcommand: "serve",
       port: 3103,
-      "with-duplicates": true,
-      "with-translation-search": true,
     });
-    expect(serveMock).toHaveBeenLastCalledWith(
-      expect.any(String),
-      expect.any(Object),
-      expect.any(Object),
-      expect.not.objectContaining({ withTranslationSearch: true }),
-    );
-    expect(serveMock).toHaveBeenLastCalledWith(
-      expect.any(String),
-      expect.any(Object),
-      expect.any(Object),
-      expect.not.objectContaining({ withDuplicates: true }),
-    );
     expect(serveMock).toHaveBeenLastCalledWith(
       expect.any(String),
       expect.any(Object),
@@ -1791,7 +1779,7 @@ describe("catalog plugin", function () {
   });
 
   it("forwards set option for serve subcommand", async function () {
-    const { handler } = createPlugin();
+    const { handler } = createPlugin(true);
 
     await handler({
       _: ["catalog", "serve"],
@@ -1805,6 +1793,19 @@ describe("catalog plugin", function () {
       expect.any(Object),
       expect.objectContaining({ sets: ["storefront", "admin"] }),
     );
+  });
+
+  it("rejects export-only options for serve subcommand", async function () {
+    const { handler } = createPlugin();
+
+    await expect(
+      handler({
+        _: ["catalog", "serve"],
+        subcommand: "serve",
+        withDuplicates: true,
+      }),
+    ).rejects.toThrow("can only be used with `catalog` or `catalog export`");
+    expect(serveMock).not.toHaveBeenCalled();
   });
 
   it("lets serveCatalog apply its default port when no port option is provided", async function () {
@@ -1831,5 +1832,49 @@ describe("catalog plugin", function () {
     expect(output).not.toContain("Processing entities");
     expect(serveMock).toHaveBeenCalledTimes(1);
     expect(exportMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("catalog server request safety", function () {
+  it("requires an existing export before serving", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-serve-"));
+
+    await expect(
+      catalogApi.serveCatalog(root, { catalogDirectoryPath: path.join(root, "catalog") }, {}, {}),
+    ).rejects.toThrow("Run `messagevisor catalog export` first");
+  });
+
+  it("validates the server port before listening", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-port-"));
+    const catalogDirectoryPath = path.join(root, "catalog");
+    await fs.promises.mkdir(catalogDirectoryPath);
+
+    await expect(
+      catalogApi.serveCatalog(root, { catalogDirectoryPath }, {}, { port: -1 }),
+    ).rejects.toThrow("integer from 0 to 65535");
+  });
+
+  it("keeps resolved files inside the Catalog output directory", function () {
+    const outputDirectoryPath = "/tmp/messagevisor-catalog";
+
+    expect(
+      __catalogDevInternals.resolveCatalogRequestFilePath(outputDirectoryPath, "/index.html"),
+    ).toEqual({
+      requestedPath: "/index.html",
+      filePath: path.join(outputDirectoryPath, "index.html"),
+    });
+    expect(
+      __catalogDevInternals.resolveCatalogRequestFilePath(
+        outputDirectoryPath,
+        "/../messagevisor-catalog-secret",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("rejects malformed encoded request URLs", function () {
+    expect(__catalogDevInternals.decodeCatalogRequestUrl("/%E0%A4%A")).toBeUndefined();
+    expect(__catalogDevInternals.decodeCatalogRequestUrl("/data/root.json?cache=1")).toBe(
+      "/data/root.json",
+    );
   });
 });

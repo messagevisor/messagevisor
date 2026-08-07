@@ -14,6 +14,7 @@ import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { buildMessageDatafile, resolveFormats } from "../builder";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
+import { parseRegexOption } from "../cli/validation";
 import { applyCombinationToValue, getMatrixCombinations } from "../matrix";
 import { getProjectSetExecutions } from "../sets";
 import { colorize } from "../tester/cliFormat";
@@ -134,11 +135,7 @@ function parseOptionalPattern(name: string, value: unknown): RegExp | undefined 
     return value;
   }
 
-  try {
-    return new RegExp(String(value), "i");
-  } catch (error: any) {
-    throw new MessagevisorCLIError(`Invalid ${name}: ${error.message}`);
-  }
+  return parseRegexOption(name, value, "i");
 }
 
 function getExampleFilters(
@@ -833,7 +830,7 @@ export const examplesPlugin: Plugin = {
 
       printPlainExamples(results, projectConfig.sets);
     } catch (error) {
-      if (printMessagevisorCLIError(error)) {
+      if (printMessagevisorCLIError(error, parsed)) {
         return false;
       }
 

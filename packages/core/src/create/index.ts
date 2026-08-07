@@ -251,6 +251,12 @@ export const createPlugin: Plugin = {
   command: "create",
   handler: async ({ projectConfig, datasource, parsed }) => {
     try {
+      if (!projectConfig.sets && parsed.set) {
+        throw new MessagevisorCLIError(
+          "Option --set can only be used when project sets are enabled.",
+        );
+      }
+
       if (projectConfig.sets && !parsed.set) {
         throw new MessagevisorCLIError("Pass --set=<set>");
       }
@@ -272,7 +278,7 @@ export const createPlugin: Plugin = {
 
       printSummary(summary);
     } catch (error) {
-      if (printMessagevisorCLIError(error)) {
+      if (printMessagevisorCLIError(error, parsed)) {
         return false;
       }
 

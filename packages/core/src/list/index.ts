@@ -5,6 +5,7 @@ import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
 import { matchesPattern } from "../targeting";
 import { CLI_FORMAT_GREEN, CLI_FORMAT_YELLOW, colorize } from "../tester/cliFormat";
+import { parseRegexOption } from "../cli/validation";
 import {
   expandLocaleAssertions,
   expandMessageAssertions,
@@ -38,7 +39,7 @@ function toArray(value: unknown): string[] {
 }
 
 function toRegex(pattern: string) {
-  return new RegExp(pattern, "i");
+  return parseRegexOption("regular expression", pattern, "i");
 }
 
 function parseBooleanOption(name: string, value: unknown): boolean {
@@ -142,10 +143,49 @@ function getSelectedEntityType(options: any): ListType {
 }
 
 function validateFilters(entityType: EntityType, options: any) {
+  const opposingFilters = [
+    ["withTests", "withoutTests"],
+    ["withFormats", "withoutFormats"],
+    ["withContext", "withoutContext"],
+    ["withMeta", "withoutMeta"],
+    ["withOverrides", "withoutOverrides"],
+  ];
+
+  for (const [withOption, withoutOption] of opposingFilters) {
+    if (options[withOption] && options[withoutOption]) {
+      throw new MessagevisorCLIError(`Use either --${withOption} or --${withoutOption}, not both.`);
+    }
+  }
+
   if ((options.withTests || options.withoutTests) && entityType === "attributes") {
     throw new MessagevisorCLIError(
       "--with-tests and --without-tests are not supported for attributes.",
     );
+  }
+
+  const allowedEntityTypesByOption: Record<string, EntityType[]> = {
+    target: ["messages"],
+    locale: ["messages", "targets"],
+    type: ["attributes"],
+    archived: ["messages", "segments", "attributes"],
+    deprecated: ["messages"],
+    inheritFormatsFrom: ["locales"],
+    inheritTranslationsFrom: ["locales"],
+    withContext: ["targets"],
+    withoutContext: ["targets"],
+    withFormats: ["locales", "targets"],
+    withoutFormats: ["locales", "targets"],
+    withMeta: ["messages"],
+    withoutMeta: ["messages"],
+    withOverrides: ["messages"],
+    withoutOverrides: ["messages"],
+    applyMatrix: ["tests"],
+  };
+
+  for (const [option, allowedEntityTypes] of Object.entries(allowedEntityTypesByOption)) {
+    if (typeof options[option] !== "undefined" && !allowedEntityTypes.includes(entityType)) {
+      throw new MessagevisorCLIError(`Option --${option} cannot be used with --${entityType}.`);
+    }
   }
 }
 
@@ -482,6 +522,11 @@ export const listPlugin = {
   handler: async ({ datasource, parsed }: any) => {
     try {
       const projectConfig = datasource.getConfig();
+      if (!projectConfig.sets && parsed.set) {
+        throw new MessagevisorCLIError(
+          "Option --set can only be used when project sets are enabled.",
+        );
+      }
       const entityType = getSelectedEntityType(parsed);
       assertProjectSetJsonSelection(projectConfig, parsed.set, parsed.json);
 
@@ -528,7 +573,7 @@ export const listPlugin = {
 
       printEntityList(entityType, result);
     } catch (error) {
-      if (printMessagevisorCLIError(error)) {
+      if (printMessagevisorCLIError(error, parsed)) {
         return false;
       }
 

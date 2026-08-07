@@ -937,7 +937,28 @@ describe("importPlugin", function () {
       ).resolves.toEqual(false);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Pass a CSV file path: messagevisor import <csvFilePath>.",
+        "Pass an input file path: messagevisor import <file>.",
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it("rejects positional and named input paths together", async function () {
+    const root = await createProject();
+    const { projectConfig, datasource } = getDatasource(root);
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      await expect(
+        importPlugin.handler({
+          projectConfig,
+          datasource,
+          parsed: { file: "first.csv", input: "second.csv" },
+        }),
+      ).resolves.toEqual(false);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Provide the import file either as a positional argument or with --input, not both.",
       );
     } finally {
       consoleErrorSpy.mockRestore();

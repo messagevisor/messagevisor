@@ -72,7 +72,7 @@ export const generateCodePlugin: Plugin = {
         react: parsed.react,
       });
     } catch (error) {
-      if (printMessagevisorCLIError(error)) {
+      if (printMessagevisorCLIError(error, parsed)) {
         return false;
       }
 

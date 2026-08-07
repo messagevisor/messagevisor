@@ -336,6 +336,12 @@ export const benchmarkPlugin: Plugin = {
   command: "benchmark",
   handler: async ({ projectConfig, datasource, parsed }: any) => {
     try {
+      if (!projectConfig.sets && parsed.set) {
+        throw new MessagevisorCLIError(
+          "Option --set can only be used when project sets are enabled.",
+        );
+      }
+
       if (projectConfig.sets && !parsed.set) {
         throw new MessagevisorCLIError("Pass --set=<set>");
       }
@@ -405,7 +411,7 @@ export const benchmarkPlugin: Plugin = {
 
       printBenchmarkSummary(parsed.message || parsed.rawMessage, locale, datafileCounts, result);
     } catch (error) {
-      if (printMessagevisorCLIError(error)) {
+      if (printMessagevisorCLIError(error, parsed)) {
         return false;
       }
 

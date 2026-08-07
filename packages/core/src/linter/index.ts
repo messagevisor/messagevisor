@@ -36,6 +36,7 @@ import { formatProjectPath, getProjectRootDirectoryPath } from "../path";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN, CLI_FORMAT_RED, colorize } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
 import { matchesPattern, normalizePatterns } from "../targeting";
+import { parseRegexOption } from "../cli/validation";
 
 function collectGroupSegmentKeys(
   value: GroupSegment | GroupSegment[] | "*" | undefined,
@@ -179,7 +180,9 @@ export async function lintProject(
 ): Promise<LintResult> {
   const startTime = Date.now();
   const errors: LintError[] = [];
-  const keyPattern = options.keyPattern ? new RegExp(options.keyPattern) : null;
+  const keyPattern = options.keyPattern
+    ? parseRegexOption("--keyPattern", options.keyPattern)
+    : null;
 
   function shouldLintKey(key: string) {
     return !keyPattern || keyPattern.test(key);

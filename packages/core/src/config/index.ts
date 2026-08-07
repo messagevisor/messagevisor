@@ -89,7 +89,10 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
     revisionFileName: REVISION_FILE_NAME,
   };
 
-  const customConfig = require(path.join(rootDirectoryPath, CONFIG_MODULE_NAME));
+  const configModulePath = path.join(rootDirectoryPath, CONFIG_MODULE_NAME);
+  const resolvedConfigModulePath = require.resolve(configModulePath);
+  delete require.cache[resolvedConfigModulePath];
+  const customConfig = require(resolvedConfigModulePath);
 
   if (typeof customConfig !== "object" || customConfig === null || Array.isArray(customConfig)) {
     throw new Error("Invalid Messagevisor configuration: expected an object export.");

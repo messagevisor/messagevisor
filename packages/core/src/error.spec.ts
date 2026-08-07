@@ -18,6 +18,8 @@ describe("MessagevisorCLIError", () => {
       error.toJSON(),
     );
     expect(formatMessagevisorCLIError(error)).toBe("Invalid target");
+    expect(error).toBeInstanceOf(MessagevisorCLIError);
+    expect(error).toBeInstanceOf(Error);
   });
 
   it("normalizes CLI-like errors without discarding details", () => {
@@ -29,6 +31,14 @@ describe("MessagevisorCLIError", () => {
 
     expect(error?.toJSON()).toEqual({
       error: { code: "failed", message: "Failed", details: { reason: "test" } },
+    });
+  });
+
+  it("wraps ordinary errors in the JSON error contract", () => {
+    expect(
+      JSON.parse(formatMessagevisorCLIError(new Error("Boom"), { json: true }) as string),
+    ).toEqual({
+      error: { code: "internal_error", message: "Boom", details: {} },
     });
   });
 });

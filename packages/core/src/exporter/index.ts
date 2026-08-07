@@ -461,6 +461,14 @@ function assertExportOptions(options: ExportProjectOptions) {
   if (options.print && options.output) {
     throw new MessagevisorCLIError("Use either --print or --output, not both.");
   }
+
+  if (
+    typeof options.lineEnding !== "undefined" &&
+    options.lineEnding !== "lf" &&
+    options.lineEnding !== "crlf"
+  ) {
+    throw new MessagevisorCLIError("--lineEnding must be either lf or crlf.");
+  }
 }
 
 export async function exportProject(
@@ -578,7 +586,7 @@ export const exportPlugin = {
 
       printExportResult(result, parsed.print);
     } catch (error) {
-      if (printMessagevisorCLIError(error)) {
+      if (printMessagevisorCLIError(error, parsed)) {
         return false;
       }
 

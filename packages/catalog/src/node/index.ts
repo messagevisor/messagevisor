@@ -169,6 +169,7 @@ export interface CatalogPlugin {
 }
 
 export interface CatalogRuntime {
+  reloadProject?: (rootDirectoryPath: string) => { projectConfig: any; datasource: any };
   mergeFormats: (parent?: FormatPresets, child?: FormatPresets) => FormatPresets | undefined;
   resolveFormats: (
     localeKey: string,
@@ -2712,6 +2713,30 @@ function injectCatalogLiveReloadClient(html: string) {
   return `${html}${script}`;
 }
 
+function decodeCatalogRequestUrl(url: string) {
+  try {
+    return decodeURIComponent(url.split("?")[0]);
+  } catch (_error) {
+    return undefined;
+  }
+}
+
+function resolveCatalogRequestFilePath(outputDirectoryPath: string, requestedUrl: string) {
+  const requestedPath = requestedUrl === "/" ? "/index.html" : requestedUrl;
+  const filePath = path.resolve(outputDirectoryPath, requestedPath.replace(/^\/+/, ""));
+  const relativeFilePath = path.relative(outputDirectoryPath, filePath);
+
+  if (
+    relativeFilePath === "" ||
+    relativeFilePath.startsWith("..") ||
+    path.isAbsolute(relativeFilePath)
+  ) {
+    return undefined;
+  }
+
+  return { requestedPath, filePath };
+}
+
 function getCatalogInputWatchPaths(rootDirectoryPath: string, projectConfig: any) {
   const paths = [path.join(rootDirectoryPath, "messagevisor.config.js")];
 
@@ -2926,14 +2951,19 @@ export async function serveCatalog(
     : projectConfig.catalogDirectoryPath;
 
   if (!fs.existsSync(outputDirectoryPath)) {
-    await exportCatalog(runtime, rootDirectoryPath, projectConfig, datasource, {
-      outDir: outputDirectoryPath,
-      browserRouter: options.browserRouter,
-      sets: options.sets,
-    });
+    throw createCatalogCLIError(
+      `Catalog output does not exist at ${outputDirectoryPath}. Run \`messagevisor catalog export\` first.`,
+      "catalog_output_not_found",
+    );
   }
 
-  const port = Number(options.port || 3000);
+  const port = Number(options.port ?? 3000);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw createCatalogCLIError(
+      "Invalid Catalog port. Use an integer from 0 to 65535.",
+      "invalid_catalog_port",
+    );
+  }
   const liveReloadClients = new Set<http.ServerResponse>();
 
   function triggerReload() {
@@ -2944,7 +2974,13 @@ export async function serveCatalog(
   }
 
   const server = http.createServer((request, response) => {
-    const requestedUrl = decodeURIComponent((request.url || "/").split("?")[0]);
+    const requestedUrl = decodeCatalogRequestUrl(request.url || "/");
+
+    if (typeof requestedUrl === "undefined") {
+      response.writeHead(400, { "Content-Type": "text/plain" });
+      response.end("400 Bad Request");
+      return;
+    }
 
     if (options.liveReload && requestedUrl === "/__messagevisor_catalog_reload") {
       response.writeHead(200, {
@@ -2962,11 +2998,15 @@ export async function serveCatalog(
       return;
     }
 
-    const requestedPath = requestedUrl === "/" ? "/index.html" : requestedUrl;
-    const filePath = path.join(outputDirectoryPath, requestedPath);
-    const safeFilePath = filePath.startsWith(outputDirectoryPath)
-      ? filePath
-      : path.join(outputDirectoryPath, "index.html");
+    const resolvedRequest = resolveCatalogRequestFilePath(outputDirectoryPath, requestedUrl);
+
+    if (!resolvedRequest) {
+      response.writeHead(403, { "Content-Type": "text/plain" });
+      response.end("403 Forbidden");
+      return;
+    }
+
+    const { requestedPath, filePath: safeFilePath } = resolvedRequest;
 
     fs.readFile(safeFilePath, (error, content) => {
       if (!error) {
@@ -3018,7 +3058,9 @@ export async function serveCatalog(
   });
 
   server.listen(port, "127.0.0.1", () => {
-    console.log(`Catalog running at http://127.0.0.1:${port}/`);
+    const address = server.address();
+    const listeningPort = typeof address === "object" && address ? address.port : port;
+    console.log(`Catalog running at http://127.0.0.1:${listeningPort}/`);
   });
 
   return {
@@ -3062,9 +3104,51 @@ function isWithDuplicatesEnabled(parsed: CatalogPluginParsedOptions) {
   return parsed.withDuplicates === true || parsed["with-duplicates"] === true;
 }
 
+function createCatalogCLIError(message: string, code = "catalog_error") {
+  return Object.assign(new Error(message), {
+    cliMessage: message,
+    code,
+    details: {},
+  });
+}
+
+function shouldCopyCatalogAssets(parsed: CatalogPluginParsedOptions) {
+  return parsed.assets !== false && parsed.noAssets !== true && parsed["no-assets"] !== true;
+}
+
+function assertCatalogOptionScope(parsed: CatalogPluginParsedOptions) {
+  if (parsed.subcommand === "export" && (parsed.port !== undefined || parsed.p !== undefined)) {
+    throw createCatalogCLIError(
+      "Option --port can only be used with `catalog` or `catalog serve`.",
+      "invalid_catalog_option",
+    );
+  }
+
+  if (parsed.subcommand === "serve") {
+    const exportOnlyOptions = [
+      parsed.assets,
+      parsed.noAssets,
+      parsed["no-assets"],
+      parsed.withDuplicates,
+      parsed["with-duplicates"],
+      parsed.withTranslationSearch,
+      parsed["with-translation-search"],
+    ];
+
+    if (exportOnlyOptions.some((value) => typeof value !== "undefined")) {
+      throw createCatalogCLIError(
+        "Asset, translation-search, and duplicate-generation options can only be used with `catalog` or `catalog export`.",
+        "invalid_catalog_option",
+      );
+    }
+  }
+}
+
 export const __catalogDevInternals = {
   classifyCatalogDevChanges,
+  decodeCatalogRequestUrl,
   getCatalogInputWatchPaths,
+  resolveCatalogRequestFilePath,
 };
 
 export function createCatalogPlugin(
@@ -3075,10 +3159,17 @@ export function createCatalogPlugin(
     command: "catalog [subcommand]",
     handler: async ({ rootDirectoryPath, projectConfig, datasource, parsed }) => {
       const allowedSubcommands = ["export", "serve"];
+      assertCatalogOptionScope(parsed);
       const browserRouter = !(parsed.hashRouter || parsed["hash-router"]);
       const withTranslationSearch = isWithTranslationSearchEnabled(parsed);
       const withDuplicates = isWithDuplicatesEnabled(parsed);
       const selectedSets = normalizeSelectedSets(parsed.set);
+      if (!projectConfig.sets && selectedSets.length > 0) {
+        throw createCatalogCLIError(
+          "Option --set can only be used when project sets are enabled.",
+          "invalid_catalog_set",
+        );
+      }
 
       if (!parsed.subcommand) {
         const outputDirectoryPath = parsed.outDir
@@ -3089,7 +3180,7 @@ export function createCatalogPlugin(
         });
         await api.exportCatalog(rootDirectoryPath, projectConfig, datasource, {
           outDir: parsed.outDir,
-          copyAssets: !parsed.noAssets,
+          copyAssets: shouldCopyCatalogAssets(parsed),
           browserRouter,
           dev: true,
           devSession,
@@ -3099,7 +3190,7 @@ export function createCatalogPlugin(
         });
         const server = await api.serveCatalog(rootDirectoryPath, projectConfig, datasource, {
           outDir: parsed.outDir,
-          port: parsed.port || parsed.p,
+          port: parsed.port ?? parsed.p,
           browserRouter,
           liveReload: true,
           sets: selectedSets,
@@ -3119,6 +3210,23 @@ export function createCatalogPlugin(
         let queuedChanges: string[] = [];
         let pendingChanges: string[] = [];
         let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+        let activeProjectConfig = projectConfig;
+        let activeDatasource = datasource;
+        let stopWatchingProject = () => {};
+
+        const queueChanges = (changedPaths: string[]) => {
+          pendingChanges.push(...changedPaths);
+
+          if (debounceTimer) {
+            clearTimeout(debounceTimer);
+          }
+          debounceTimer = setTimeout(() => {
+            const nextChanges = Array.from(new Set(pendingChanges));
+            pendingChanges = [];
+            debounceTimer = null;
+            void runRebuildAndReload(nextChanges);
+          }, 250);
+        };
 
         const runRebuildAndReload = async (changedPaths: string[]) => {
           if (exportInFlight) {
@@ -3129,9 +3237,30 @@ export function createCatalogPlugin(
           exportInFlight = true;
 
           try {
+            const configPath = path.join(rootDirectoryPath, "messagevisor.config.js");
+            const configChanged = changedPaths.some(
+              (changedPath) => path.resolve(changedPath) === path.resolve(configPath),
+            );
+
+            if (runtime.reloadProject) {
+              const reloaded = runtime.reloadProject(rootDirectoryPath);
+              activeProjectConfig = reloaded.projectConfig;
+              activeDatasource = reloaded.datasource;
+            }
+
+            if (configChanged) {
+              stopWatchingProject();
+              stopWatchingProject = createCatalogInputWatcher(
+                rootDirectoryPath,
+                activeProjectConfig,
+                ignoredDirectoryPaths,
+                queueChanges,
+              );
+            }
+
             const request = classifyCatalogDevChanges(
               rootDirectoryPath,
-              projectConfig,
+              activeProjectConfig,
               changedPaths,
               {
                 withTranslationSearch,
@@ -3149,14 +3278,14 @@ export function createCatalogPlugin(
 
             if (request.kind === "message") {
               const [execution] = await runtime.getProjectSetExecutions(
-                projectConfig,
-                datasource,
+                activeProjectConfig,
+                activeDatasource,
                 request.set,
               );
               handled = await tryRebuildCatalogMessage(
                 runtime,
                 rootDirectoryPath,
-                projectConfig,
+                activeProjectConfig,
                 execution.projectConfig,
                 execution.datasource,
                 devSession,
@@ -3168,8 +3297,8 @@ export function createCatalogPlugin(
               handled = await rebuildCatalogSetForDev(
                 runtime,
                 rootDirectoryPath,
-                projectConfig,
-                datasource,
+                activeProjectConfig,
+                activeDatasource,
                 devSession,
                 {
                   set: request.set,
@@ -3182,7 +3311,7 @@ export function createCatalogPlugin(
             }
 
             if (!handled) {
-              await api.exportCatalog(rootDirectoryPath, projectConfig, datasource, {
+              await api.exportCatalog(rootDirectoryPath, activeProjectConfig, activeDatasource, {
                 outDir: parsed.outDir,
                 copyAssets: false,
                 preserveAssets: true,
@@ -3210,38 +3339,28 @@ export function createCatalogPlugin(
           }
         };
 
-        const stopWatchingProject = createCatalogInputWatcher(
+        stopWatchingProject = createCatalogInputWatcher(
           rootDirectoryPath,
-          projectConfig,
+          activeProjectConfig,
           ignoredDirectoryPaths,
-          (changedPaths) => {
-            pendingChanges.push(...changedPaths);
-
-            if (debounceTimer) {
-              clearTimeout(debounceTimer);
-            }
-            debounceTimer = setTimeout(() => {
-              const nextChanges = Array.from(new Set(pendingChanges));
-              pendingChanges = [];
-              debounceTimer = null;
-              void runRebuildAndReload(nextChanges);
-            }, 250);
-          },
+          queueChanges,
         );
 
-        process.on("exit", stopWatchingProject);
+        process.on("exit", () => stopWatchingProject());
         return;
       }
 
       if (allowedSubcommands.indexOf(parsed.subcommand) === -1) {
-        console.log("Please specify a subcommand: `export` or `serve`");
-        return false;
+        throw createCatalogCLIError(
+          `Unknown Catalog subcommand "${parsed.subcommand}". Use \`export\` or \`serve\`.`,
+          "unknown_catalog_subcommand",
+        );
       }
 
       if (parsed.subcommand === "export") {
         await api.exportCatalog(rootDirectoryPath, projectConfig, datasource, {
           outDir: parsed.outDir,
-          copyAssets: !parsed.noAssets,
+          copyAssets: shouldCopyCatalogAssets(parsed),
           browserRouter,
           withTranslationSearch,
           withDuplicates,
@@ -3252,7 +3371,7 @@ export function createCatalogPlugin(
       if (parsed.subcommand === "serve") {
         await api.serveCatalog(rootDirectoryPath, projectConfig, datasource, {
           outDir: parsed.outDir,
-          port: parsed.port || parsed.p,
+          port: parsed.port ?? parsed.p,
           browserRouter,
           sets: selectedSets,
         });

@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.1.0](https://github.com/messagevisor/messagevisor/compare/v1.0.1...v1.1.0) (2026-08-07)
+
+
+### Features
+
+* cli improvements ([#37](https://github.com/messagevisor/messagevisor/issues/37)) ([1627556](https://github.com/messagevisor/messagevisor/commit/162755643d522527c5b1baad908e5b52464c6c01))
+
+
+
+
+
 ## [1.0.1](https://github.com/messagevisor/messagevisor/compare/v1.0.0...v1.0.1) (2026-08-01)
 
 **Note:** Version bump only for package messagevisor

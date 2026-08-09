@@ -8,6 +8,8 @@ npx messagevisor test
 
 Use tests for behavior that must not change silently. Use examples for documentation and Catalog review.
 
+In sets projects, `promotable: false` can protect a whole test spec or an individual assertion. A protected source assertion is omitted during promotion, while a protected destination assertion is preserved. Assertion keys are optional. Use a key on a protected assertion when it needs a stable identity across sets. Keyless assertions use their array position. Matrix cases are protected together through their parent assertion. If every source assertion is omitted and no destination test exists, no empty test spec is created.
+
 ## Test locations
 
 | Subject | Path                             | Top-level field |

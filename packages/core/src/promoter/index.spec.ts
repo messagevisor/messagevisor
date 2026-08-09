@@ -610,6 +610,311 @@ describe("promoteProjectSets", function () {
     expect((segment.conditions as any[])[0].value).toEqual("staging");
   });
 
+  it("skips source assertions and preserves destination assertions marked non-promotable", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "sets/dev/tests/messages/product/price.spec.yml",
+      [
+        "message: product.price",
+        "assertions:",
+        "  - locale: en-US",
+        "    expectedTranslation: New price",
+        "  - promotable: false",
+        "    locale: en-US",
+        "    expectedTranslation: Development price",
+        "  - key: protected",
+        "    promotable: true",
+        "    locale: en-US",
+        "    expectedTranslation: New protected price",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "sets/staging/tests/messages/product/price.spec.yml",
+      [
+        "message: product.price",
+        "assertions:",
+        "  - locale: en-US",
+        "    expectedTranslation: Old price",
+        "  - key: protected",
+        "    promotable: false",
+        "    locale: en-US",
+        "    expectedTranslation: Staging protected price",
+        "  - locale: en-US",
+        "    expectedTranslation: Staging only price",
+        "",
+      ].join("\n"),
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await promoteProjectSets(projectConfig, datasource, {
+      from: "dev",
+      to: "staging",
+      includeMessages: "product*",
+      apply: true,
+    });
+
+    const test = await datasource.forSet("staging").readTest("messages.product.price");
+    expect(test.assertions).toHaveLength(3);
+    expect(test.assertions[0]).toMatchObject({
+      expectedTranslation: "New price",
+    });
+    expect(test.assertions.find((assertion: any) => assertion.key === "protected")).toMatchObject({
+      promotable: false,
+      expectedTranslation: "Staging protected price",
+    });
+  });
+
+  it("applies assertion protection to segment, locale, and target test specs", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "sets/dev/tests/segments/pro.spec.yml",
+      [
+        "segment: pro",
+        "assertions:",
+        "  - segment: pro",
+        "    context: { plan: pro }",
+        "    expectedToMatch: true",
+        "  - key: dev-only",
+        "    promotable: false",
+        "    segment: pro",
+        "    context: { plan: development }",
+        "    expectedToMatch: true",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "sets/staging/tests/segments/pro.spec.yml",
+      [
+        "segment: pro",
+        "assertions:",
+        "  - key: shared",
+        "    promotable: false",
+        "    segment: pro",
+        "    context: { plan: staging }",
+        "    expectedToMatch: false",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "sets/dev/tests/locales/en.spec.yml",
+      [
+        "locale: en",
+        "assertions:",
+        '  - rawMessage: "Hello"',
+        '    expectedTranslation: "Development hello"',
+        "  - key: dev-only",
+        "    promotable: false",
+        '    rawMessage: "Development"',
+        '    expectedTranslation: "Development"',
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "sets/staging/tests/locales/en.spec.yml",
+      [
+        "locale: en",
+        "assertions:",
+        "  - key: shared",
+        "    promotable: false",
+        '    rawMessage: "Hello"',
+        '    expectedTranslation: "Staging hello"',
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "sets/dev/tests/targets/web.spec.yml",
+      [
+        "target: web",
+        "assertions:",
+        "  - locale: en-US",
+        "    expectedToIncludeMessages: [product.price]",
+        "  - key: dev-only",
+        "    promotable: false",
+        "    locale: en-US",
+        "    expectedToIncludeMessages: [product.price]",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      root,
+      "sets/staging/tests/targets/web.spec.yml",
+      [
+        "target: web",
+        "assertions:",
+        "  - key: shared",
+        "    promotable: false",
+        "    locale: en-US",
+        "    expectedToNotIncludeMessages: [product.price]",
+        "",
+      ].join("\n"),
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await promoteProjectSets(projectConfig, datasource, {
+      from: "dev",
+      to: "staging",
+      apply: true,
+    });
+
+    const destination = datasource.forSet("staging");
+    const segmentTest = await destination.readTest("segments.pro");
+    const localeTest = await destination.readTest("locales.en");
+    const targetTest = await destination.readTest("targets.web");
+
+    expect(segmentTest.assertions).toEqual([
+      expect.objectContaining({
+        key: "shared",
+        promotable: false,
+        expectedToMatch: false,
+      }),
+    ]);
+    expect(localeTest.assertions).toEqual([
+      expect.objectContaining({
+        key: "shared",
+        promotable: false,
+        expectedTranslation: "Staging hello",
+      }),
+    ]);
+    expect(targetTest.assertions).toEqual([
+      expect.objectContaining({
+        key: "shared",
+        promotable: false,
+        expectedToNotIncludeMessages: ["product.price"],
+      }),
+    ]);
+  });
+
+  it("creates missing test specs with only promotable source assertions", async function () {
+    const root = await createProject();
+    await fs.promises.rm(path.join(root, "sets/staging/tests/messages/product/price.spec.yml"));
+    await writeFile(
+      root,
+      "sets/dev/tests/messages/product/price.spec.yml",
+      [
+        "message: product.price",
+        "assertions:",
+        "  - locale: en-US",
+        "    expectedTranslation: New price",
+        "  - key: dev-only",
+        "    promotable: false",
+        "    locale: en-US",
+        "    expectedTranslation: Development price",
+        "",
+      ].join("\n"),
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await promoteProjectSets(projectConfig, datasource, {
+      from: "dev",
+      to: "staging",
+      includeMessages: "product*",
+      apply: true,
+    });
+
+    const test = await datasource.forSet("staging").readTest("messages.product.price");
+    expect(test.assertions).toHaveLength(1);
+    expect(test.assertions[0]).toMatchObject({ expectedTranslation: "New price" });
+    expect((test.assertions[0] as any).key).toBeUndefined();
+  });
+
+  it("does not create an empty test spec when every source assertion is non-promotable", async function () {
+    const root = await createProject();
+    await fs.promises.rm(path.join(root, "sets/staging/tests/messages/product/price.spec.yml"));
+    await writeFile(
+      root,
+      "sets/dev/tests/messages/product/price.spec.yml",
+      [
+        "message: product.price",
+        "assertions:",
+        "  - key: dev-only",
+        "    promotable: false",
+        "    locale: en-US",
+        "    expectedTranslation: Development price",
+        "",
+      ].join("\n"),
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await promoteProjectSets(projectConfig, datasource, {
+      from: "dev",
+      to: "staging",
+      includeMessages: "product*",
+      apply: true,
+    });
+
+    expect(await datasource.forSet("staging").listTests()).not.toContain("messages.product.price");
+  });
+
+  it("keeps legacy unkeyed assertion merge behaviour", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "sets/dev/tests/messages/product/price.spec.yml",
+      "message: product.price\nassertions:\n  - locale: en-US\n    expectedTranslation: New price\n",
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await promoteProjectSets(projectConfig, datasource, {
+      from: "dev",
+      to: "staging",
+      includeMessages: "product*",
+      apply: true,
+    });
+
+    const test = await datasource.forSet("staging").readTest("messages.product.price");
+    expect(test.assertions).toHaveLength(1);
+    expect(test.assertions[0]).toMatchObject({ expectedTranslation: "New price" });
+    expect((test.assertions[0] as any).key).toBeUndefined();
+  });
+
+  it("preserves a protected destination assertion against a keyless source assertion", async function () {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "sets/staging/tests/messages/product/price.spec.yml",
+      [
+        "message: product.price",
+        "assertions:",
+        "  - key: protected",
+        "    promotable: false",
+        "    locale: en-US",
+        "    expectedTranslation: Staging price",
+        "",
+      ].join("\n"),
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await promoteProjectSets(projectConfig, datasource, {
+      from: "dev",
+      to: "staging",
+      includeMessages: "product*",
+      apply: true,
+    });
+
+    const test = await datasource.forSet("staging").readTest("messages.product.price");
+    expect(test.assertions).toEqual([
+      expect.objectContaining({
+        key: "protected",
+        promotable: false,
+        expectedTranslation: "Staging price",
+      }),
+    ]);
+  });
+
   it("does not write an audit in preview mode", async function () {
     const root = await createProject();
     const projectConfig = getProjectConfig(root);

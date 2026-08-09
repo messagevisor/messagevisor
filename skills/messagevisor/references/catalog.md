@@ -28,7 +28,7 @@ npx messagevisor catalog serve --port=3100
 
 `catalog serve` requires an existing export. It does not build missing output or optional indexes and only reflects what was generated.
 
-Entity detail pages show related authored test specifications in a **Tests** tab. Matrix assertions appear as their expanded test-runner cases.
+Entity detail pages show related authored test specifications in a **Tests** tab. Matrix assertions appear as their expanded test-runner cases. A protected assertion can use an optional key for stable labels and permalinks, and assertions with `promotable: false` show a `not promotable` badge.
 
 ## Sets
 

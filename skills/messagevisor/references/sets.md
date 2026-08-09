@@ -73,15 +73,19 @@ npx messagevisor promote --from=dev --to=staging --apply --audit=markdown
 
 `promotionFlows` in config restricts allowed directions. Conflict modes are `source`, `destination`, and `fail`.
 
-## Excluding content from promotion
+## Protecting content during promotion
 
-Set `promotable: false` on an entity when it should not be copied by promotion:
+Set `promotable: false` on an entity when an existing destination version should not be overwritten:
 
 ```yml
 promotable: false
 ```
 
+For top-level locales, attributes, segments, targets, messages, and test specs, this preserves an existing destination when either source or destination carries the flag. A missing destination entity is still created and keeps the flag.
+
 On message overrides, `promotable: false` keeps that override local to its current set. Source overrides marked this way are not copied or merged into the destination, destination overrides marked this way are protected from source updates, and dependencies used only by skipped overrides are not promoted.
+
+Test specs support `promotable: false` at the top level. Individual assertions can also be protected. A non-promotable source assertion is skipped, while a non-promotable destination assertion is preserved. Assertion keys are optional, but adding one to a protected assertion gives it a stable identity across sets. Keyless assertions otherwise use their array position. If every source assertion is skipped and no destination test exists, no empty test spec is created.
 
 ## Safety checklist
 

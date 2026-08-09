@@ -54,6 +54,49 @@ describe("EntityTests", function () {
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
+  it("uses assertion keys for labels and shows promotion protection", function () {
+    render(
+      <MemoryRouter initialEntries={["/messages/welcome/tests"]}>
+        <EntityTests
+          tests={[
+            {
+              key: "welcome",
+              entityType: "message",
+              entityKey: "welcome",
+              authoredAssertions: [
+                {
+                  key: "production-copy",
+                  promotable: false,
+                  matrix: { locale: ["en", "nl"] },
+                },
+              ],
+              assertions: [
+                {
+                  assertionIndex: 0,
+                  matrixIndex: 0,
+                  matrixValues: { locale: "en" },
+                  matrixCount: 2,
+                  key: "production-copy",
+                  promotable: false,
+                  locale: "en",
+                  expectedTranslation: "Hello",
+                },
+              ],
+            },
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Assertion production-copy.1")).toBeTruthy();
+    expect(screen.getByText("not promotable")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "Link to assertion production-copy.1" })
+        .getAttribute("href"),
+    ).toBe("/messages/welcome/tests?assertion=welcome%3Aproduction-copy.1");
+  });
+
   it("renders an accessible empty state", function () {
     render(
       <MemoryRouter>

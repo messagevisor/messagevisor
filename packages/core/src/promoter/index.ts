@@ -7,9 +7,13 @@ import type {
   Condition,
   Locale,
   Message,
+  MessageAssertion,
   Target,
+  TargetAssertion,
   Segment,
+  SegmentAssertion,
   Test,
+  LocaleAssertion,
 } from "@messagevisor/types";
 
 import type { ProjectConfig } from "../config";
@@ -453,6 +457,109 @@ function filterTestForLocales(test: any, locales: Set<string>) {
   };
 }
 
+type TestAssertion = MessageAssertion | SegmentAssertion | LocaleAssertion | TargetAssertion;
+
+function mergeAssertionArray(
+  destination: TestAssertion[] | undefined,
+  source: TestAssertion[] | undefined,
+  policy: ConflictPolicy,
+  conflicts: Array<Omit<PromotionConflict, "type" | "key">>,
+) {
+  if (typeof source === "undefined") return destination;
+  if (typeof destination === "undefined" || destination.length === 0) {
+    return source.filter((assertion) => isPromotable(assertion));
+  }
+
+  const hasAssertionProtection = [...source, ...destination].some(
+    (assertion) => typeof assertion.promotable !== "undefined",
+  );
+  if (!hasAssertionProtection) {
+    return deepMergeWithPolicy(destination, source, policy, conflicts, ["assertions"]);
+  }
+
+  const mergedAssertions: TestAssertion[] = [];
+  const matchedDestinationIndexes = new Set<number>();
+
+  source.forEach((sourceAssertion, sourceIndex) => {
+    const destinationIndex =
+      typeof sourceAssertion.key === "string"
+        ? destination.findIndex((assertion) => assertion.key === sourceAssertion.key)
+        : sourceIndex < destination.length
+          ? sourceIndex
+          : -1;
+    const destinationAssertion = destinationIndex >= 0 ? destination[destinationIndex] : undefined;
+
+    if (!isPromotable(sourceAssertion)) {
+      return;
+    }
+
+    if (destinationAssertion) {
+      matchedDestinationIndexes.add(destinationIndex);
+    }
+
+    if (destinationAssertion && !isPromotable(destinationAssertion)) {
+      mergedAssertions.push(destinationAssertion);
+      return;
+    }
+
+    mergedAssertions.push(
+      deepMergeWithPolicy(destinationAssertion, sourceAssertion, policy, conflicts, [
+        "assertions",
+        sourceAssertion.key || String(sourceIndex),
+      ]) as TestAssertion,
+    );
+  });
+
+  destination.forEach((destinationAssertion, destinationIndex) => {
+    if (!matchedDestinationIndexes.has(destinationIndex)) {
+      mergedAssertions.push(destinationAssertion);
+    }
+  });
+
+  return mergedAssertions;
+}
+
+function mergeTest(
+  testKey: string,
+  destination: Test | undefined,
+  source: Test,
+  policy: ConflictPolicy,
+  conflicts: PromotionConflict[],
+): Test {
+  const sourceWithoutAssertions = { ...source, assertions: undefined };
+  const destinationWithoutAssertions = destination
+    ? { ...destination, assertions: undefined }
+    : undefined;
+  const testConflicts: Array<Omit<PromotionConflict, "type" | "key">> = [];
+  const mergedTest = deepMergeWithPolicy(
+    destinationWithoutAssertions,
+    sourceWithoutAssertions,
+    policy,
+    testConflicts,
+  ) as Test;
+  const assertionConflicts: Array<Omit<PromotionConflict, "type" | "key">> = [];
+  const mergedAssertions = mergeAssertionArray(
+    destination?.assertions,
+    source.assertions,
+    policy,
+    assertionConflicts,
+  );
+
+  conflicts.push(
+    ...testConflicts.map((conflict) => ({ type: "test" as const, key: testKey, ...conflict })),
+    ...assertionConflicts.map((conflict) => ({
+      type: "test" as const,
+      key: testKey,
+      ...conflict,
+    })),
+  );
+
+  return {
+    ...mergedTest,
+    assertions: mergedAssertions || [],
+  } as Test;
+}
+
 function validateMessageOverrideKeys(messageKey: string, message: Message) {
   const keys = new Set<string>();
 
@@ -851,7 +958,24 @@ async function getPromotionPlan(
   for (const key of promotedTestKeys.sort()) {
     const test = filterTestForLocales(tests[key] as any, requestedLocales);
     if (!Array.isArray((test as any).assertions) || (test as any).assertions.length > 0) {
-      await plan("test", key, test, (entryKey) => destinationDatasource.readTest(entryKey));
+      const destinationTest = await readDestination(key, (entryKey) =>
+        destinationDatasource.readTest(entryKey),
+      );
+      if (
+        !destinationTest &&
+        !test.assertions.some((assertion: TestAssertion) => isPromotable(assertion))
+      ) {
+        continue;
+      }
+
+      await plan(
+        "test",
+        key,
+        test,
+        (entryKey) => destinationDatasource.readTest(entryKey),
+        (destination, source, conflicts) =>
+          mergeTest(key, destination, source, options.conflicts, conflicts),
+      );
     }
   }
 

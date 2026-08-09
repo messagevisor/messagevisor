@@ -123,6 +123,134 @@ describe("getTestZodSchema", function () {
     ).not.toThrow();
   });
 
+  it("accepts stable promotable assertion keys on every test kind", function () {
+    const tests = [
+      {
+        message: "auth.signin",
+        assertions: [
+          {
+            key: "english-web",
+            promotable: false,
+            locale: "en",
+            expectedTranslation: "Sign in",
+          },
+        ],
+      },
+      {
+        segment: "adult",
+        assertions: [
+          {
+            key: "adult-user",
+            promotable: false,
+            segment: "adult",
+            context: { age: 21 },
+            expectedToMatch: true,
+          },
+        ],
+      },
+      {
+        locale: "en",
+        assertions: [
+          {
+            key: "english-formats",
+            promotable: false,
+            expectedFormats: {},
+          },
+        ],
+      },
+      {
+        target: "web",
+        assertions: [
+          {
+            key: "web-messages",
+            promotable: false,
+            locale: "en",
+            expectedToIncludeMessages: ["common.welcome"],
+          },
+        ],
+      },
+    ];
+
+    for (const test of tests) {
+      expect(() => schema.parse(test)).not.toThrow();
+    }
+  });
+
+  it("allows mixed keyed and keyless assertions", function () {
+    expect(() =>
+      schema.parse({
+        message: "auth.signin",
+        assertions: [
+          {
+            key: "shared",
+            locale: "en",
+            expectedTranslation: "Sign in",
+          },
+          {
+            locale: "nl",
+            expectedTranslation: "Aanmelden",
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it("does not require a key when promotable is used", function () {
+    expect(() =>
+      schema.parse({
+        segment: "adult",
+        assertions: [
+          {
+            promotable: false,
+            segment: "adult",
+            expectedToMatch: true,
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it("requires assertion keys to be unique when provided", function () {
+    expect(() =>
+      schema.parse({
+        locale: "en",
+        assertions: [
+          { key: "same", expectedFormats: {} },
+          { key: "same", expectedFormats: {} },
+        ],
+      }),
+    ).toThrow("Duplicate assertion key");
+  });
+
+  it("rejects empty keys and non-boolean assertion promotable values", function () {
+    expect(
+      schema.safeParse({
+        target: "web",
+        assertions: [
+          {
+            key: "",
+            locale: "en",
+            expectedToIncludeMessages: ["common.welcome"],
+          },
+        ],
+      }).success,
+    ).toEqual(false);
+
+    expect(
+      schema.safeParse({
+        target: "web",
+        assertions: [
+          {
+            key: "web-messages",
+            promotable: "no",
+            locale: "en",
+            expectedToIncludeMessages: ["common.welcome"],
+          },
+        ],
+      }).success,
+    ).toEqual(false);
+  });
+
   it("rejects invalid matrix values", function () {
     const result = schema.safeParse({
       message: "auth.signin",

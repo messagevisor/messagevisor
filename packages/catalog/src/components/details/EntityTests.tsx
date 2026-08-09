@@ -148,6 +148,7 @@ function TestSpec(props: { test: CatalogTestSpec; selected?: string; index: numb
                 <div className="group flex items-start justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold">Assertion {label}</h3>
+                    {assertion.promotable === false && <Badge>not promotable</Badge>}
                     {typeof caseIndex === "number" && (
                       <Badge tone="primary">
                         Matrix case {caseIndex + 1} of {caseCount}

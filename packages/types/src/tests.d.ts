@@ -14,6 +14,8 @@ import type { FormatPresets } from "./format";
  * MessageTest
  */
 export interface MessageAssertion {
+  key?: string;
+  promotable?: boolean;
   matrix?: Matrix;
   description?: string;
   context?: Context;
@@ -39,6 +41,8 @@ export interface MessageTest {
  * SegmentTest
  */
 export interface SegmentAssertion {
+  key?: string;
+  promotable?: boolean;
   matrix?: Matrix;
   description?: string;
   segment: SegmentKey;
@@ -56,6 +60,8 @@ export interface SegmentTest {
  * LocaleTest
  */
 export interface LocaleAssertion {
+  key?: string;
+  promotable?: boolean;
   matrix?: Matrix;
   description?: string;
   target?: TargetKey;
@@ -87,6 +93,8 @@ export interface LocaleTest {
  * TargetTest
  */
 export interface TargetAssertion {
+  key?: string;
+  promotable?: boolean;
   matrix?: Matrix;
   description?: string;
   locale: LocaleKey;

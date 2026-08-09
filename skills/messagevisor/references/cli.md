@@ -315,7 +315,7 @@ npx messagevisor promote --from=dev --to=staging --conflicts=fail
 npx messagevisor promote --from=dev --to=staging --apply --audit=markdown
 ```
 
-Promotion previews by default. `--apply` writes destination files. Conflict modes: `source`, `destination`, `fail` (use `fail` in automation). Entities with `promotable: false` are skipped. After applying, lint/test/build the destination set. A clean preview doubles as an "are these sets in sync?" check.
+Promotion previews by default. `--apply` writes destination files. Conflict modes: `source`, `destination`, `fail` (use `fail` in automation). Top-level entities with `promotable: false` protect an existing destination but are still created when missing. Non-promotable source overrides and assertions are omitted. After applying, lint/test/build the destination set. A clean preview doubles as an "are these sets in sync?" check.
 
 ## Troubleshooting
 

@@ -8,6 +8,25 @@ export function getTestZodSchema(
   localeKeys: string[],
   targetKeys: string[],
 ) {
+  function validateAssertionKeys(
+    assertions: Array<{ key?: string; promotable?: boolean }>,
+    ctx: z.RefinementCtx,
+  ) {
+    const seenKeys = new Set<string>();
+    assertions.forEach((assertion, index) => {
+      if (typeof assertion.key === "string") {
+        if (seenKeys.has(assertion.key)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [index, "key"],
+            message: `Duplicate assertion key "${assertion.key}".`,
+          });
+        }
+        seenKeys.add(assertion.key);
+      }
+    });
+  }
+
   const matrixZodSchema = z.record(
     z.string(),
     z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])),
@@ -48,6 +67,8 @@ export function getTestZodSchema(
 
   const messageAssertion = z
     .object({
+      key: z.string().min(1).optional(),
+      promotable: z.boolean().optional(),
       matrix: matrixZodSchema.optional(),
       description: z.string().optional(),
       context: z.record(z.string(), z.unknown()).optional(),
@@ -71,6 +92,8 @@ export function getTestZodSchema(
 
   const segmentAssertion = z
     .object({
+      key: z.string().min(1).optional(),
+      promotable: z.boolean().optional(),
       matrix: matrixZodSchema.optional(),
       description: z.string().optional(),
       segment: refineWithMessage(
@@ -85,6 +108,8 @@ export function getTestZodSchema(
 
   const localeAssertion = z
     .object({
+      key: z.string().min(1).optional(),
+      promotable: z.boolean().optional(),
       matrix: matrixZodSchema.optional(),
       description: z.string().optional(),
       target: targetOrMatrixValue.optional(),
@@ -126,6 +151,8 @@ export function getTestZodSchema(
 
   const targetAssertion = z
     .object({
+      key: z.string().min(1).optional(),
+      promotable: z.boolean().optional(),
       matrix: matrixZodSchema.optional(),
       description: z.string().optional(),
       locale: refineWithMessage(
@@ -223,7 +250,7 @@ export function getTestZodSchema(
         (value) => messageKeys.includes(value),
         (value) => `Unknown message "${value}"`,
       ),
-      assertions: z.array(messageAssertion).min(1),
+      assertions: z.array(messageAssertion).min(1).superRefine(validateAssertionKeys),
     })
     .strict();
 
@@ -236,7 +263,7 @@ export function getTestZodSchema(
         (value) => segmentKeys.includes(value),
         (value) => `Unknown segment "${value}"`,
       ),
-      assertions: z.array(segmentAssertion).min(1),
+      assertions: z.array(segmentAssertion).min(1).superRefine(validateAssertionKeys),
     })
     .strict();
 
@@ -249,7 +276,7 @@ export function getTestZodSchema(
         (value) => localeKeys.includes(value),
         (value) => `Unknown locale "${value}"`,
       ),
-      assertions: z.array(localeAssertion).min(1),
+      assertions: z.array(localeAssertion).min(1).superRefine(validateAssertionKeys),
     })
     .strict();
 
@@ -262,7 +289,7 @@ export function getTestZodSchema(
         (value) => targetKeys.includes(value),
         (value) => `Unknown target "${value}"`,
       ),
-      assertions: z.array(targetAssertion).min(1),
+      assertions: z.array(targetAssertion).min(1).superRefine(validateAssertionKeys),
     })
     .strict();
 

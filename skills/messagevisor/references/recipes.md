@@ -86,7 +86,7 @@ npx messagevisor promote --from=dev --to=staging --apply
 npx messagevisor lint --set=staging && npx messagevisor test --set=staging && npx messagevisor build --set=staging
 ```
 
-Scope with `--includeMessages="checkout*"`, `--locale=nl-NL`, `--target=web`, or `--excludeOverrides` (keep experiment overrides out of production). Conflicts: `--conflicts=source|destination|fail` — use `fail` in automation. `promotable: false` pins environment-only content (staging banners, `[DEV]` placeholders) to its lane. `--audit=markdown` produces a durable change record for compliance. A clean promotion preview doubles as a "are staging and production in sync?" pre-release gate.
+Scope with `--includeMessages="checkout*"`, `--locale=nl-NL`, `--target=web`, or `--excludeOverrides` (keep experiment overrides out of production). Conflicts: `--conflicts=source|destination|fail` — use `fail` in automation. At the top level, `promotable: false` protects an existing destination version. On overrides and assertions, it keeps source entries out of the destination and protects matching destination entries. `--audit=markdown` produces a durable change record for compliance. A clean promotion preview doubles as a "are staging and production in sync?" pre-release gate.
 
 ## Platform-specific copy
 

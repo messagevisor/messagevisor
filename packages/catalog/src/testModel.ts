@@ -29,13 +29,13 @@ export function getCatalogAssertions(test: CatalogTestSpec): CatalogExpandedAsse
     delete cleanAssertion.matrixIndex;
     delete cleanAssertion.matrixValues;
     delete cleanAssertion.matrixCount;
+    const assertionLabel =
+      typeof assertion.key === "string" ? assertion.key : String(assertionIndex + 1);
 
     return {
       assertion: cleanAssertion,
       label:
-        typeof matrixIndex === "number"
-          ? `${assertionIndex + 1}.${matrixIndex + 1}`
-          : String(assertionIndex + 1),
+        typeof matrixIndex === "number" ? `${assertionLabel}.${matrixIndex + 1}` : assertionLabel,
       ...(typeof matrixIndex === "number"
         ? {
             matrixValues,

@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/sdk",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Messagevisor SDK for Node.js and the browser",
   "main": "cjs/index.js",
   "module": "esm/index.js",
@@ -44,6 +44,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@messagevisor/types": "1.0.0"
+    "@messagevisor/types": "1.2.0"
   }
 }

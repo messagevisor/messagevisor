@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/module-interpolation",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "description": "String interpolation module for Messagevisor",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -42,6 +42,6 @@
     "@messagevisor/sdk": ">=1.0.0 <2"
   },
   "devDependencies": {
-    "@messagevisor/sdk": "1.0.0"
+    "@messagevisor/sdk": "1.2.0"
   }
 }

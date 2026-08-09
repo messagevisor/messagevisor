@@ -1,7 +1,7 @@
 {
   "name": "@messagevisor/project-test-envs",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Example Messagevisor project using test environments as sets",
   "scripts": {
     "lint": "messagevisor lint",
@@ -9,7 +9,7 @@
     "test": "messagevisor test"
   },
   "dependencies": {
-    "@messagevisor/cli": "1.1.0",
-    "@messagevisor/module-icu": "1.0.1"
+    "@messagevisor/cli": "1.2.0",
+    "@messagevisor/module-icu": "1.2.0"
   }
 }

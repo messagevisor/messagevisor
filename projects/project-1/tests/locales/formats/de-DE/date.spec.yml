@@ -21,6 +21,8 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "Dienstag, 12. Mai 2026"
+    expectedByRuntime:
+      python: "Di., 12. Mai 2026"
   - description: "Date / month long"
     rawMessage: "{when, date, monthLong}"
     values:
@@ -36,6 +38,8 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "١٢.٠٥.٢٠٢٦"
+    expectedByRuntime:
+      python: "12.05.2026"
   - description: "Date / Buddhist calendar"
     rawMessage: "{when, date, buddhistLong}"
     values:
@@ -43,11 +47,16 @@ assertions:
     expectedTranslation: "12. Mai 2569 BE"
     expectedByRuntime:
       swift: "12. Mai 2569"
+      php: "12. Mai 2026 n. Chr."
+      python: "12. Mai 2026"
   - description: "Date / Japanese era calendar"
     rawMessage: "{when, date, japaneseEra}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12. Mai 8 Reiwa"
+    expectedByRuntime:
+      php: "12. Mai 2026 n. Chr."
+      python: "12. Mai 2026 n. Chr."
   - description: "Date / Gregorian calendar"
     rawMessage: "{when, date, gregorianLong}"
     values:
@@ -60,6 +69,8 @@ assertions:
     expectedTranslation: "25. Dhu l-qaʿda 1447 AH"
     expectedByRuntime:
       swift: "25. Dhu l-qaʿda 1447"
+      php: "12. Mai 2026 n. Chr."
+      python: "12. Mai 2026"
   - description: "Date / Latin digits"
     rawMessage: "{when, date, latinNumeric}"
     values:

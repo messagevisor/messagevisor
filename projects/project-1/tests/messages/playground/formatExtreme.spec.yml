@@ -21,6 +21,7 @@ assertions:
       UTC; generic 4:30 AM ET."
     expectedByRuntime:
       swift: "Plain 1,234,567.891; fixed 12.00; significant 12,300; signed +5; compact 13K/13K; unit 42 kilometers; money £99.50; yen ¥2,000; percent 5.8%; date 05/12/2026; long May 12, 2026; zone 8:30\u202FAM GMT; generic 4:30\u202FAM EDT."
+      python: "Plain 1,234,567.891; fixed 12.00; significant 12,345.678; signed +5; compact 13K/13 thousand; unit 42 kilometers; money £99.50; yen ¥2,000; percent 5.8%; date 5/12/2026; long May 12, 2026; zone 8:30 AM Unknown Region (UTC) Time; generic 4:30 AM ET."
   - description: nl-NL extreme portable formatter mix
     locale: nl-NL
     target: web
@@ -41,6 +42,7 @@ assertions:
       UTC; generiek 04:30 ET."
     expectedByRuntime:
       swift: "Gewoon 1.234.567,891; vast 12,00; significant 12.300; teken +5; compact 13K/13K; eenheid 42 kilometer; geld £\u00A099,50; yen JP¥\u00A02.000; percentage 5,8%; datum 12-05-2026; lang 12 mei 2026; zone 08:30 GMT; generiek 04:30 EDT."
+      python: "Gewoon 1.234.567,891; vast 12,00; significant 12.345,678; teken +5; compact 13K/13 duizend; eenheid 42 kilometer; geld £ 99,50; yen JP¥ 2.000; percentage 5,8%; datum 12-5-2026; lang 12 mei 2026; zone 08:30 tijd in onbekend gebied (UTC); generiek 04:30 ET."
   - description: bn extreme formatter mix with non-Latin digits
     locale: bn
     target: web
@@ -62,3 +64,4 @@ assertions:
 
     expectedByRuntime:
       swift: "Plain 12,34,567.891; fixed 12.00; significant 12,300; signed +5; compact 13\u00A0হা/13\u00A0হা; unit 42 কিলোমিটার; money 99.50£; yen 2,000\u00A0JP¥; percent 5.8%; date 12/05/2026; long 12 মে, 2026; zone 8:30 AM GMT +0; generic 4:30 AM GMT -4."
+      python: "Plain 12,34,567.891; fixed 12.00; significant 12,345.678; signed +5; compact 13 হা/13 হাজার; unit 42 কিলোমিটার; money 99.50£; yen 2,000JP¥; percent 5.8%; date 12/5/2026; long 12 মে, 2026; zone 8:30 AM অজানা অঞ্চল (UTC) সময়; generic 4:30 AM মার্কিন যুক্তরাষ্ট্র (নিউইয়র্ক) সময়."

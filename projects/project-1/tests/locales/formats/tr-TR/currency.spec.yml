@@ -11,6 +11,8 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "TRY 1.234,50"
+    expectedByRuntime:
+      python: "TRY1.234,50"
   - description: "Currency / name display"
     rawMessage: "{amount, number, moneyName}"
     values:
@@ -19,22 +21,29 @@ assertions:
     expectedByRuntime:
       swift: "1.234,50 Türk lirası"
       java: 1.234,50 Türk lirası
+      python: "1.234,50 Türk lirası"
   - description: "Currency / accounting sign"
     rawMessage: "{amount, number, moneyAccounting}"
     values:
       amount: -1234.5
     expectedTranslation: "-₺1.234,50"
+    expectedByRuntime:
+      python: "(₺1.234,50)"
   - description: "Currency / runtime currency"
     rawMessage: "{amount, number, moneyRuntimeCurrency}"
     values:
       amount: 1234.5
     currency: "EUR"
     expectedTranslation: "EUR 1.234,50"
+    expectedByRuntime:
+      python: "EUR1.234,50"
   - description: "Unit and percent / percent"
     rawMessage: "{value, number, percent}"
     values:
       value: 0.125
     expectedTranslation: "%12,5"
+    expectedByRuntime:
+      python: "12,5%"
   - description: "Currency / default negative"
     rawMessage: "{amount, number, money}"
     values:
@@ -45,11 +54,15 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "¥1.235"
+    expectedByRuntime:
+      python: "¥1.234"
   - description: "Unit and percent / percent negative"
     rawMessage: "{value, number, percent}"
     values:
       value: -0.125
     expectedTranslation: "-%12,5"
+    expectedByRuntime:
+      python: "-12,5%"
   - description: "Unit and percent / kilometer singular long"
     rawMessage: "{value, number, unitKilometerLong}"
     values:

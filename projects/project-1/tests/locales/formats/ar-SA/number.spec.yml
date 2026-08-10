@@ -6,81 +6,113 @@ assertions:
     values:
       value: 1234.567
     expectedTranslation: "١٬٢٣٤٫٥٧"
+    expectedByRuntime:
+      python: "1,234.57"
   - description: "Number / fixed 2 decimals"
     rawMessage: "{value, number, decimalFixed}"
     values:
       value: 1234.5
     expectedTranslation: "١٬٢٣٤٫٥٠"
+    expectedByRuntime:
+      python: "1,234.50"
   - description: "Number / grouping auto"
     rawMessage: "{value, number, groupingAuto}"
     values:
       value: 1234567
     expectedTranslation: "١٬٢٣٤٬٥٦٧"
+    expectedByRuntime:
+      python: "1,234,567"
   - description: "Number / grouping off"
     rawMessage: "{value, number, groupingOff}"
     values:
       value: 1234567
     expectedTranslation: "١٢٣٤٥٦٧"
+    expectedByRuntime:
+      python: "1234567"
   - description: "Number / compact short"
     rawMessage: "{value, number, compactShort}"
     values:
       value: 1234567
     expectedTranslation: "١٫٢\u00A0مليون"
+    expectedByRuntime:
+      python: "1 مليون"
   - description: "Number / scientific notation"
     rawMessage: "{value, number, scientific}"
     values:
       value: 1234567
     expectedTranslation: "١٫٢٣٥أس٦"
+    expectedByRuntime:
+      python: "1.235E6"
   - description: "Number / sign always"
     rawMessage: "{value, number, signAlways}"
     values:
       value: 1234.5
     expectedTranslation: "\u061C+١٬٢٣٥"
+    expectedByRuntime:
+      python: "+1,234"
   - description: "Number / rounding half even"
     rawMessage: "{value, number, roundingHalfEven}"
     values:
       value: 2.5
     expectedTranslation: "٢"
+    expectedByRuntime:
+      python: "2"
   - description: "Number / Arabic digits"
     rawMessage: "{value, number, arabicDigits}"
     values:
       value: 2026
     expectedTranslation: "٢٬٠٢٦"
+    expectedByRuntime:
+      python: "2,026"
   - description: "Number / decimal negative"
     rawMessage: "{value, number, decimal}"
     values:
       value: -1234.567
     expectedTranslation: "\u061C-١٬٢٣٤٫٥٧"
+    expectedByRuntime:
+      python: "-1,234.57"
   - description: "Number / decimal sub-unit"
     rawMessage: "{value, number, decimal}"
     values:
       value: 0.01234
     expectedTranslation: "٠٫٠١"
+    expectedByRuntime:
+      python: "0.01"
   - description: "Number / compact short thousands"
     rawMessage: "{value, number, compactShort}"
     values:
       value: 12500
     expectedTranslation: "١٣\u00A0ألف"
+    expectedByRuntime:
+      python: "13 ألف"
   - description: "Number / compact short negative"
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
     expectedTranslation: "\u061C-١٫٣\u00A0مليون"
+    expectedByRuntime:
+      python: "-1 مليون"
   - description: "Number / sign always zero"
     rawMessage: "{value, number, signAlways}"
     values:
       value: 0
     expectedTranslation: "\u061C+٠"
+    expectedByRuntime:
+      python: "+0"
   - description: "Number / rounding half expand negative tie"
     rawMessage: "{value, number, roundingHalfExpand}"
     values:
       value: -1.5
     expectedTranslation: "\u061C-٢"
+    expectedByRuntime:
+      python: "-2"
   - description: "Number / rounding half even odd tie"
     rawMessage: "{value, number, roundingHalfEven}"
     values:
       value: 3.5
     expectedTranslation: "٤"
+    expectedByRuntime:
+      python: "4"
   - description: "Number / Latin digits"
     rawMessage: "{value, number, latinDigits}"
     values:

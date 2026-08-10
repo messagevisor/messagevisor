@@ -8,6 +8,7 @@ assertions:
     expectedTranslation: "৮:৩০:৪৫ AM স্থানাংকিত আন্তর্জাতিক সময়"
     expectedByRuntime:
       swift: "8:30:45 AM গ্রীনিচ মিন টাইম"
+      python: "8:30:45 AM স্থানাংকিত আন্তর্জাতিক সময়"
   - description: "Time / short style"
     rawMessage: "{when, time, shortStyle}"
     values:
@@ -15,6 +16,7 @@ assertions:
     expectedTranslation: "৮:৩০ AM"
     expectedByRuntime:
       swift: "8:30 AM"
+      python: "8:30 AM"
   - description: "Time / seconds"
     rawMessage: "{when, time, seconds}"
     values:
@@ -22,6 +24,7 @@ assertions:
     expectedTranslation: "৮:৩০:৪৫ AM"
     expectedByRuntime:
       swift: "8:30:45 AM"
+      python: "8:30:45 AM"
   - description: "Time / fractional seconds 3 digits"
     rawMessage: "{when, time, fractional}"
     values:
@@ -29,6 +32,7 @@ assertions:
     expectedTranslation: "৮:৩০:৪৫.৬৭৮ AM"
     expectedByRuntime:
       swift: "8:30:45.678 AM"
+      python: "{when, time, fractional}"
   - description: "Time / day period long"
     rawMessage: "{when, time, dayPeriodLong}"
     values:
@@ -36,6 +40,7 @@ assertions:
     expectedTranslation: "১২ দুপুরবেলায়"
     expectedByRuntime:
       swift: "12\u202FPM"
+      python: "12 দুপুর"
   - description: "Time / hour12 true"
     rawMessage: "{when, time, hour12}"
     values:
@@ -43,6 +48,7 @@ assertions:
     expectedTranslation: "৮:৩০ AM"
     expectedByRuntime:
       swift: "8:30 AM"
+      python: "8:30 AM"
   - description: "Time / hour12 false"
     rawMessage: "{when, time, hour24}"
     values:
@@ -51,6 +57,7 @@ assertions:
     expectedByRuntime:
       swift: "08:30"
       java: ৮:৩০
+      python: "8:30 AM"
   - description: "Time / hour cycle h11"
     rawMessage: "{when, time, hourCycle11}"
     values:
@@ -58,6 +65,8 @@ assertions:
     expectedTranslation: "০০:৩০ AM"
     expectedByRuntime:
       swift: "12:30 AM"
+      php: "০:৩০ AM"
+      python: "12:30 AM"
   - description: "Time / hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:
@@ -65,6 +74,7 @@ assertions:
     expectedTranslation: "০০:৩০"
     expectedByRuntime:
       swift: "00:30"
+      python: "00:30"
   - description: "Time / time zone short"
     rawMessage: "{when, time, zoneShort}"
     values:
@@ -72,6 +82,7 @@ assertions:
     expectedTranslation: "৮:৩০ AM UTC"
     expectedByRuntime:
       swift: "8:30 AM GMT +0"
+      python: "8:30 AM অজানা অঞ্চল (UTC) সময়"
   - description: "Time / time zone short offset"
     rawMessage: "{when, time, zoneShortOffset}"
     values:
@@ -79,6 +90,7 @@ assertions:
     expectedTranslation: "২:১৫ PM GMT +৫:৪৫"
     expectedByRuntime:
       swift: "2:15 PM GMT +5:45"
+      python: "{when, time, zoneShortOffset}"
   - description: "Time / time zone short generic"
     rawMessage: "{when, time, zoneShortGeneric}"
     values:
@@ -86,6 +98,7 @@ assertions:
     expectedTranslation: "৪:৩০ AM নিউইয়র্ক সময়"
     expectedByRuntime:
       swift: "4:30 AM GMT -4"
+      python: "4:30 AM মার্কিন যুক্তরাষ্ট্র (নিউইয়র্ক) সময়"
   - description: "Time / time zone long generic"
     rawMessage: "{when, time, zoneLongGeneric}"
     values:
@@ -93,6 +106,7 @@ assertions:
     expectedTranslation: "৪:৩০ AM পূর্বাঞ্চলীয় সময়"
     expectedByRuntime:
       swift: "4:30 AM পূর্বাঞ্চলের দিবালোক সময়"
+      python: "4:30 AM মার্কিন যুক্তরাষ্ট্র (নিউইয়র্ক) সময়"
   - description: "Time / Amsterdam winter"
     rawMessage: "{when, time, amsterdamShort}"
     values:
@@ -100,6 +114,7 @@ assertions:
     expectedTranslation: "১:০০ PM"
     expectedByRuntime:
       swift: "1:00 PM"
+      python: "1:00 PM"
   - description: "Time / Amsterdam summer"
     rawMessage: "{when, time, amsterdamShort}"
     values:
@@ -107,6 +122,7 @@ assertions:
     expectedTranslation: "২:০০ PM"
     expectedByRuntime:
       swift: "2:00 PM"
+      python: "2:00 PM"
   - description: "Time / New York winter"
     rawMessage: "{when, time, newYorkShort}"
     values:
@@ -114,6 +130,7 @@ assertions:
     expectedTranslation: "৭:০০ AM"
     expectedByRuntime:
       swift: "7:00 AM"
+      python: "7:00 AM"
   - description: "Time / New York summer"
     rawMessage: "{when, time, newYorkShort}"
     values:
@@ -121,6 +138,7 @@ assertions:
     expectedTranslation: "৮:০০ AM"
     expectedByRuntime:
       swift: "8:00 AM"
+      python: "8:00 AM"
   - description: "Time / Riyadh"
     rawMessage: "{when, time, riyadhShort}"
     values:
@@ -128,6 +146,7 @@ assertions:
     expectedTranslation: "১১:৩০ AM"
     expectedByRuntime:
       swift: "11:30 AM"
+      python: "11:30 AM"
   - description: "Time / Tokyo"
     rawMessage: "{when, time, tokyoShort}"
     values:
@@ -135,6 +154,7 @@ assertions:
     expectedTranslation: "৫:৩০ PM"
     expectedByRuntime:
       swift: "5:30 PM"
+      python: "5:30 PM"
   - description: "Time / per-call Tokyo override"
     rawMessage: "{when, time, seconds}"
     values:
@@ -143,6 +163,7 @@ assertions:
     expectedTranslation: "৫:৩০:৪৫ PM"
     expectedByRuntime:
       swift: "5:30:45 PM"
+      python: "5:30:45 PM"
   - description: "Time / Latin digits"
     rawMessage: "{when, time, latinTime}"
     values:

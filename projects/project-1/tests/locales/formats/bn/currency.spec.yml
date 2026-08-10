@@ -8,6 +8,7 @@ assertions:
     expectedTranslation: "১,২৩৪.৫০৳"
     expectedByRuntime:
       swift: "1,234.50৳"
+      python: "1,234.50৳"
   - description: "Currency / code display"
     rawMessage: "{amount, number, moneyCode}"
     values:
@@ -15,6 +16,7 @@ assertions:
     expectedTranslation: "১,২৩৪.৫০\u00A0BDT"
     expectedByRuntime:
       swift: "1,234.50\u00A0BDT"
+      python: "1,234.50BDT"
   - description: "Currency / name display"
     rawMessage: "{amount, number, moneyName}"
     values:
@@ -22,6 +24,7 @@ assertions:
     expectedTranslation: "১,২৩৪.৫০ বাংলাদেশী টাকা"
     expectedByRuntime:
       swift: "1,234.50 (অজানা মুদ্রা)"
+      python: "1,234.50 বাংলাদেশী টাকা"
   - description: "Currency / accounting sign"
     rawMessage: "{amount, number, moneyAccounting}"
     values:
@@ -29,6 +32,7 @@ assertions:
     expectedTranslation: "(১,২৩৪.৫০৳)"
     expectedByRuntime:
       swift: "(1,234.50৳)"
+      python: "(1,234.50৳)"
   - description: "Currency / runtime currency"
     rawMessage: "{amount, number, moneyRuntimeCurrency}"
     values:
@@ -37,6 +41,7 @@ assertions:
     expectedTranslation: "১,২৩৪.৫০\u00A0EUR"
     expectedByRuntime:
       swift: "1,234.50\u00A0EUR"
+      python: "1,234.50EUR"
   - description: "Unit and percent / percent"
     rawMessage: "{value, number, percent}"
     values:
@@ -44,6 +49,7 @@ assertions:
     expectedTranslation: "১২.৫%"
     expectedByRuntime:
       swift: "12.5%"
+      python: "12.5%"
   - description: "Currency / default negative"
     rawMessage: "{amount, number, money}"
     values:
@@ -51,6 +57,7 @@ assertions:
     expectedTranslation: "-১,২৩৪.৫০৳"
     expectedByRuntime:
       swift: "-1,234.50৳"
+      python: "-1,234.50৳"
   - description: "Currency / JPY zero decimals"
     rawMessage: "{amount, number, moneyJpy}"
     values:
@@ -58,6 +65,7 @@ assertions:
     expectedTranslation: "১,২৩৫\u00A0JP¥"
     expectedByRuntime:
       swift: "1,235\u00A0JP¥"
+      python: "1,234JP¥"
   - description: "Unit and percent / percent negative"
     rawMessage: "{value, number, percent}"
     values:
@@ -65,6 +73,7 @@ assertions:
     expectedTranslation: "-১২.৫%"
     expectedByRuntime:
       swift: "-12.5%"
+      python: "-12.5%"
   - description: "Unit and percent / kilometer singular long"
     rawMessage: "{value, number, unitKilometerLong}"
     values:
@@ -72,6 +81,7 @@ assertions:
     expectedTranslation: "১ কিলোমিটার"
     expectedByRuntime:
       swift: "1 কিলোমিটার"
+      python: "1 কিলোমিটার"
   - description: "Unit and percent / kilometer plural long"
     rawMessage: "{value, number, unitKilometerLong}"
     values:
@@ -80,3 +90,4 @@ assertions:
 
     expectedByRuntime:
       swift: "2 কিলোমিটার"
+      python: "2 কিলোমিটার"

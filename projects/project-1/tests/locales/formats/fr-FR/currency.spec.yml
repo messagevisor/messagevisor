@@ -47,6 +47,8 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "1\u202F235\u00A0JPY"
+    expectedByRuntime:
+      python: "1 234 JPY"
   - description: "Currency / EUR"
     rawMessage: "{amount, number, moneyEur}"
     values:
@@ -57,11 +59,15 @@ assertions:
     values:
       value: 0.125
     expectedTranslation: "12,5\u00A0%"
+    expectedByRuntime:
+      python: "12,5%"
   - description: "Unit and percent / percent fixed"
     rawMessage: "{value, number, percentFixed}"
     values:
       value: 0.125
     expectedTranslation: "12,50\u00A0%"
+    expectedByRuntime:
+      python: "12,50%"
   - description: "Unit and percent / kilometer short"
     rawMessage: "{value, number, unitKilometerShort}"
     values:
@@ -110,16 +116,22 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "1\u202F235\u00A0JPY"
+    expectedByRuntime:
+      python: "1 234 JPY"
   - description: "Unit and percent / percent zero"
     rawMessage: "{value, number, percent}"
     values:
       value: 0
     expectedTranslation: "0\u00A0%"
+    expectedByRuntime:
+      python: "0%"
   - description: "Unit and percent / percent negative"
     rawMessage: "{value, number, percent}"
     values:
       value: -0.125
     expectedTranslation: "-12,5\u00A0%"
+    expectedByRuntime:
+      python: "-12,5%"
   - description: "Unit and percent / kilometer singular long"
     rawMessage: "{value, number, unitKilometerLong}"
     values:

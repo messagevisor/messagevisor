@@ -16,16 +16,22 @@ assertions:
     values:
       value: 12
     expectedTranslation: "0,012"
+    expectedByRuntime:
+      python: "12"
   - description: "Number / 3 significant digits"
     rawMessage: "{value, number, significant3}"
     values:
       value: 12345.678
     expectedTranslation: "12,300"
+    expectedByRuntime:
+      python: "12,345.678"
   - description: "Number / significant digit range"
     rawMessage: "{value, number, significantRange}"
     values:
       value: 12345.678
     expectedTranslation: "12,346"
+    expectedByRuntime:
+      python: "12,345.678"
   - description: "Number / grouping auto"
     rawMessage: "{value, number, groupingAuto}"
     values:
@@ -43,6 +49,7 @@ assertions:
     expectedTranslation: "1234"
     expectedByRuntime:
       swift: "1,234"
+      python: "1,234"
   - description: "Number / grouping off"
     rawMessage: "{value, number, groupingOff}"
     values:
@@ -53,6 +60,9 @@ assertions:
     values:
       value: 1234567
     expectedTranslation: "1.2m"
+    expectedByRuntime:
+      php: "1.2M"
+      python: "1M"
   - description: "Number / compact long"
     rawMessage: "{value, number, compactLong}"
     values:
@@ -60,6 +70,7 @@ assertions:
     expectedTranslation: "1.2 million"
     expectedByRuntime:
       swift: "1.2m"
+      python: "1 million"
   - description: "Number / scientific notation"
     rawMessage: "{value, number, scientific}"
     values:
@@ -75,16 +86,22 @@ assertions:
     values:
       value: -1234.5
     expectedTranslation: "-1,235"
+    expectedByRuntime:
+      python: "-1,234"
   - description: "Number / sign never"
     rawMessage: "{value, number, signNever}"
     values:
       value: -1234.5
     expectedTranslation: "1,235"
+    expectedByRuntime:
+      python: "1,234"
   - description: "Number / sign always"
     rawMessage: "{value, number, signAlways}"
     values:
       value: 1234.5
     expectedTranslation: "+1,235"
+    expectedByRuntime:
+      python: "+1,234"
   - description: "Number / sign except zero"
     rawMessage: "{value, number, signExceptZero}"
     values:
@@ -95,31 +112,43 @@ assertions:
     values:
       value: -1234.5
     expectedTranslation: "-1,235"
+    expectedByRuntime:
+      python: "-1,234"
   - description: "Number / rounding increment 5"
     rawMessage: "{value, number, roundingFive}"
     values:
       value: 1.234
     expectedTranslation: "1.25"
+    expectedByRuntime:
+      python: "1.23"
   - description: "Number / rounding ceil"
     rawMessage: "{value, number, roundingCeil}"
     values:
       value: 1.234
     expectedTranslation: "2"
+    expectedByRuntime:
+      python: "1"
   - description: "Number / rounding floor"
     rawMessage: "{value, number, roundingFloor}"
     values:
       value: 1.987
     expectedTranslation: "1"
+    expectedByRuntime:
+      python: "2"
   - description: "Number / rounding expand"
     rawMessage: "{value, number, roundingExpand}"
     values:
       value: -1.234
     expectedTranslation: "-2"
+    expectedByRuntime:
+      python: "-1"
   - description: "Number / rounding trunc"
     rawMessage: "{value, number, roundingTrunc}"
     values:
       value: -1.987
     expectedTranslation: "-1"
+    expectedByRuntime:
+      python: "-2"
   - description: "Number / rounding half ceil"
     rawMessage: "{value, number, roundingHalfCeil}"
     values:
@@ -130,6 +159,8 @@ assertions:
     values:
       value: 1.5
     expectedTranslation: "1"
+    expectedByRuntime:
+      python: "2"
   - description: "Number / rounding half expand"
     rawMessage: "{value, number, roundingHalfExpand}"
     values:
@@ -140,6 +171,8 @@ assertions:
     values:
       value: 1.5
     expectedTranslation: "1"
+    expectedByRuntime:
+      python: "2"
   - description: "Number / rounding half even"
     rawMessage: "{value, number, roundingHalfEven}"
     values:
@@ -150,6 +183,8 @@ assertions:
     values:
       value: 1.234
     expectedTranslation: "1.234"
+    expectedByRuntime:
+      python: "1.23"
   - description: "Number / rounding priority less precision"
     rawMessage: "{value, number, roundingPriorityLess}"
     values:
@@ -157,16 +192,21 @@ assertions:
     expectedTranslation: "1.23"
     expectedByRuntime:
       swift: "1.234"
+      php: "1.234"
   - description: "Number / strip zeros if integer"
     rawMessage: "{value, number, stripIfInteger}"
     values:
       value: 12
     expectedTranslation: "12"
+    expectedByRuntime:
+      python: "12.00"
   - description: "Number / Arabic digits"
     rawMessage: "{value, number, arabicDigits}"
     values:
       value: 2026
     expectedTranslation: "٢٬٠٢٦"
+    expectedByRuntime:
+      python: "2,026"
   - description: "Number / decimal negative"
     rawMessage: "{value, number, decimal}"
     values:
@@ -217,11 +257,17 @@ assertions:
     values:
       value: 12500
     expectedTranslation: "13k"
+    expectedByRuntime:
+      php: "13K"
+      python: "13K"
   - description: "Number / compact short negative"
     rawMessage: "{value, number, compactShort}"
     values:
       value: -1250000
     expectedTranslation: "-1.3m"
+    expectedByRuntime:
+      php: "-1.3M"
+      python: "-1M"
   - description: "Number / compact long thousands"
     rawMessage: "{value, number, compactLong}"
     values:
@@ -264,36 +310,50 @@ assertions:
     values:
       value: 1.224
     expectedTranslation: "1.20"
+    expectedByRuntime:
+      python: "1.22"
   - description: "Number / rounding increment at midpoint"
     rawMessage: "{value, number, roundingFive}"
     values:
       value: 1.225
     expectedTranslation: "1.25"
+    expectedByRuntime:
+      python: "1.22"
   - description: "Number / rounding ceil negative"
     rawMessage: "{value, number, roundingCeil}"
     values:
       value: -1.9
     expectedTranslation: "-1"
+    expectedByRuntime:
+      python: "-2"
   - description: "Number / rounding floor negative"
     rawMessage: "{value, number, roundingFloor}"
     values:
       value: -1.1
     expectedTranslation: "-2"
+    expectedByRuntime:
+      python: "-1"
   - description: "Number / rounding expand positive"
     rawMessage: "{value, number, roundingExpand}"
     values:
       value: 1.1
     expectedTranslation: "2"
+    expectedByRuntime:
+      python: "1"
   - description: "Number / rounding trunc positive"
     rawMessage: "{value, number, roundingTrunc}"
     values:
       value: 1.9
     expectedTranslation: "1"
+    expectedByRuntime:
+      python: "2"
   - description: "Number / rounding half ceil negative tie"
     rawMessage: "{value, number, roundingHalfCeil}"
     values:
       value: -1.5
     expectedTranslation: "-1"
+    expectedByRuntime:
+      python: "-2"
   - description: "Number / rounding half floor negative tie"
     rawMessage: "{value, number, roundingHalfFloor}"
     values:
@@ -309,6 +369,8 @@ assertions:
     values:
       value: -1.5
     expectedTranslation: "-1"
+    expectedByRuntime:
+      python: "-2"
   - description: "Number / rounding half even odd tie"
     rawMessage: "{value, number, roundingHalfEven}"
     values:
@@ -319,6 +381,8 @@ assertions:
     values:
       value: 1.234
     expectedTranslation: "1.234"
+    expectedByRuntime:
+      python: "1.23"
   - description: "Number / trailing zero auto integer"
     rawMessage: "{value, number, trailingZeroAuto}"
     values:

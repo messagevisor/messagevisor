@@ -23,6 +23,8 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "8:30:45,678"
+    expectedByRuntime:
+      python: "{when, time, fractional}"
   - description: "Time / day period long"
     rawMessage: "{when, time, dayPeriodLong}"
     values:
@@ -30,6 +32,7 @@ assertions:
     expectedTranslation: "12 del mediodía"
     expectedByRuntime:
       swift: "12\u202Fp.\u202Fm."
+      python: "{when, time, dayPeriodLong}"
   - description: "Time / hour12 true"
     rawMessage: "{when, time, hour12}"
     values:
@@ -37,6 +40,7 @@ assertions:
     expectedTranslation: "8:30 de la mañana"
     expectedByRuntime:
       swift: "8:30\u202Fa.\u202Fm."
+      python: "{when, time, hour12}"
   - description: "Time / hour12 false"
     rawMessage: "{when, time, hour24}"
     values:
@@ -49,6 +53,8 @@ assertions:
     expectedTranslation: "00:30 de la madrugada"
     expectedByRuntime:
       swift: "12:30\u202Fa.\u202Fm."
+      php: "0:30 de la madrugada"
+      python: "12:30 de la madrugada"
   - description: "Time / hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:
@@ -56,6 +62,8 @@ assertions:
     expectedTranslation: "00:30"
     expectedByRuntime:
       swift: "0:30"
+      php: "0:30"
+      python: "0:30"
   - description: "Time / time zone short"
     rawMessage: "{when, time, zoneShort}"
     values:
@@ -63,11 +71,14 @@ assertions:
     expectedTranslation: "8:30 UTC"
     expectedByRuntime:
       swift: "8:30 GMT"
+      python: "8:30 hora de Región desconocida (UTC)"
   - description: "Time / time zone short offset"
     rawMessage: "{when, time, zoneShortOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "14:15 GMT+5:45"
+    expectedByRuntime:
+      python: "{when, time, zoneShortOffset}"
   - description: "Time / time zone short generic"
     rawMessage: "{when, time, zoneShortGeneric}"
     values:
@@ -75,6 +86,7 @@ assertions:
     expectedTranslation: "4:30 hora de Nueva York"
     expectedByRuntime:
       swift: "4:30 GMT-4"
+      python: "4:30 hora de Estados Unidos (Nueva York)"
   - description: "Time / time zone long generic"
     rawMessage: "{when, time, zoneLongGeneric}"
     values:
@@ -82,6 +94,7 @@ assertions:
     expectedTranslation: "4:30 hora oriental"
     expectedByRuntime:
       swift: "4:30 hora de verano oriental"
+      python: "4:30 hora de Estados Unidos (Nueva York)"
   - description: "Time / Amsterdam winter"
     rawMessage: "{when, time, amsterdamShort}"
     values:

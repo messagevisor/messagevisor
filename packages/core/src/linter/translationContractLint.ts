@@ -1,18 +1,16 @@
 import * as crypto from "crypto";
+import { parse } from "@formatjs/icu-messageformat-parser";
 
 import type { Message, TranslationStates } from "@messagevisor/types";
 
 import type { LintError } from "./index";
 
-const IntlMessageFormat =
-  require("intl-messageformat").default || require("intl-messageformat").IntlMessageFormat;
-
 function sourceHash(value: string) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
-function collectMessageContract(message: string, locale: string) {
-  const ast = new IntlMessageFormat(message, locale).getAst();
+function collectMessageContract(message: string) {
+  const ast = parse(message);
   const entries = new Set<string>();
 
   function visit(value: unknown) {
@@ -68,7 +66,7 @@ function lintTranslationGroup(
   let sourceContract: string[] = [];
   if (checkMessageContract) {
     try {
-      sourceContract = collectMessageContract(source, sourceLocale);
+      sourceContract = collectMessageContract(source);
     } catch {
       // ICU syntax diagnostics are owned by the ICU lint pass.
       return errors;
@@ -82,7 +80,7 @@ function lintTranslationGroup(
 
     try {
       if (!checkMessageContract) throw new Error("contract check disabled");
-      const contract = collectMessageContract(translation, locale);
+      const contract = collectMessageContract(translation);
       if (JSON.stringify(contract) !== JSON.stringify(sourceContract)) {
         errors.push({
           level: "error",

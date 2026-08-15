@@ -6,7 +6,7 @@ import type { Attribute, Locale, Message, Segment, Target, Test } from "@message
 import type { Datasource } from "./datasource";
 import type { EntityType } from "./datasource/adapter";
 
-const SNAPSHOT_CACHE_VERSION = 1;
+const SNAPSHOT_CACHE_VERSION = 2;
 
 export const SNAPSHOT_ENTITY_TYPES: EntityType[] = [
   "locale",
@@ -38,6 +38,8 @@ export interface LoadProjectSnapshotOptions {
   concurrency?: number;
   /** Keep valid entities when one source file cannot be parsed. */
   ignoreReadErrors?: boolean;
+  /** Disable the best-effort persistent parse cache for this invocation. */
+  cache?: boolean;
 }
 
 type SnapshotEntity = Locale | Message | Segment | Attribute | Target | Test;
@@ -50,6 +52,11 @@ interface SnapshotCacheEntry {
 interface SnapshotCacheFile {
   version: number;
   entries: Partial<Record<EntityType, Record<string, SnapshotCacheEntry>>>;
+}
+
+interface SnapshotCacheState {
+  directoryPath?: string;
+  caches: Partial<Record<EntityType, SnapshotCacheFile>>;
 }
 
 function emptyKeys(): Record<EntityType, string[]> {
@@ -74,31 +81,52 @@ function emptyEntities(): Record<EntityType, Record<string, SnapshotEntity>> {
   };
 }
 
-async function readSnapshotCache(datasource: Datasource): Promise<{
-  path?: string;
-  cache?: SnapshotCacheFile;
-}> {
-  const cachePath = datasource.getSnapshotCachePath();
-
-  if (!cachePath) {
-    return {};
-  }
+async function readSnapshotCacheFile(directoryPath: string, entityType: EntityType) {
+  const cachePath = path.join(directoryPath, `${entityType}.json`);
 
   try {
     const content = await fs.readFile(cachePath, "utf8");
     const cache = JSON.parse(content) as SnapshotCacheFile;
 
-    if (cache.version !== SNAPSHOT_CACHE_VERSION || !cache.entries) {
-      return { path: cachePath, cache: { version: SNAPSHOT_CACHE_VERSION, entries: {} } };
+    if (cache.version === SNAPSHOT_CACHE_VERSION && cache.entries) {
+      return cache;
     }
-
-    return { path: cachePath, cache };
   } catch {
-    return { path: cachePath, cache: { version: SNAPSHOT_CACHE_VERSION, entries: {} } };
+    // A missing or corrupt cache shard is rebuilt from source entities.
   }
+
+  return { version: SNAPSHOT_CACHE_VERSION, entries: {} };
 }
 
-async function writeSnapshotCache(cachePath: string, cache: SnapshotCacheFile) {
+async function readSnapshotCache(
+  datasource: Datasource,
+  entityTypes: EntityType[],
+): Promise<SnapshotCacheState> {
+  const directoryPath = datasource.getSnapshotCachePath();
+
+  if (!directoryPath) {
+    return { caches: {} };
+  }
+
+  const cacheEntries = await Promise.all(
+    entityTypes.map(
+      async (entityType) =>
+        [entityType, await readSnapshotCacheFile(directoryPath, entityType)] as const,
+    ),
+  );
+
+  return {
+    directoryPath,
+    caches: Object.fromEntries(cacheEntries) as Partial<Record<EntityType, SnapshotCacheFile>>,
+  };
+}
+
+async function writeSnapshotCache(
+  directoryPath: string,
+  entityType: EntityType,
+  cache: SnapshotCacheFile,
+) {
+  const cachePath = path.join(directoryPath, `${entityType}.json`);
   const temporaryPath = `${cachePath}.${process.pid}.${Date.now()}.tmp`;
 
   try {
@@ -138,6 +166,7 @@ export async function loadProjectSnapshot(
     ? Math.max(1, Math.floor(requestedConcurrency))
     : 16;
   const keys = emptyKeys();
+  const cacheEnabled = options.cache !== false && process.env.MESSAGEVISOR_NO_CACHE !== "1";
 
   await Promise.all(
     listedEntityTypes.map(async (entityType) => {
@@ -146,9 +175,10 @@ export async function loadProjectSnapshot(
   );
 
   const entities = emptyEntities();
-  const cacheState = await readSnapshotCache(datasource);
-  const cache = cacheState.cache;
-  let cacheChanged = false;
+  const cacheState: SnapshotCacheState = cacheEnabled
+    ? await readSnapshotCache(datasource, entityTypes)
+    : { caches: {} };
+  const changedEntityTypes = new Set<EntityType>();
   const jobs = entityTypes.flatMap((entityType) =>
     keys[entityType].map((key) => ({ entityType, key })),
   );
@@ -159,18 +189,22 @@ export async function loadProjectSnapshot(
       const job = jobs[nextJobIndex++];
       try {
         const fingerprint = await datasource.getEntityFingerprint(job.entityType, job.key);
+        const cache = cacheState.caches[job.entityType];
         const cachedEntry = fingerprint ? cache?.entries[job.entityType]?.[job.key] : undefined;
         const entity =
           cachedEntry && cachedEntry.fingerprint === fingerprint
             ? cachedEntry.entity
             : await datasource.readEntity<SnapshotEntity>(job.entityType, job.key);
 
+        // Snapshot entities are treated as immutable by current consumers.
+        // Cache shards are deserialized per invocation, so this reference is
+        // not shared with another process or with the cache file on disk.
         entities[job.entityType][job.key] = entity;
 
         if (cache && fingerprint && (!cachedEntry || cachedEntry.fingerprint !== fingerprint)) {
           cache.entries[job.entityType] ||= {};
           cache.entries[job.entityType]![job.key] = { fingerprint, entity };
-          cacheChanged = true;
+          changedEntityTypes.add(job.entityType);
         }
       } catch (error) {
         if (!options.ignoreReadErrors) {
@@ -182,23 +216,29 @@ export async function loadProjectSnapshot(
 
   await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, () => worker()));
 
-  if (cache) {
-    for (const entityType of listedEntityTypes) {
-      const entries = cache.entries[entityType];
-      if (!entries) continue;
-      const currentKeys = new Set(keys[entityType]);
+  // Only listed types are pruned intentionally. Reading unrelated shards to
+  // remove stale keys would make narrow lint and editor workflows slower.
+  for (const entityType of listedEntityTypes) {
+    const cache = cacheState.caches[entityType];
+    const entries = cache?.entries[entityType];
+    if (!entries) continue;
+    const currentKeys = new Set(keys[entityType]);
 
-      for (const key of Object.keys(entries)) {
-        if (!currentKeys.has(key)) {
-          delete entries[key];
-          cacheChanged = true;
-        }
+    for (const key of Object.keys(entries)) {
+      if (!currentKeys.has(key)) {
+        delete entries[key];
+        changedEntityTypes.add(entityType);
       }
     }
   }
 
-  if (cacheState.path && cache && cacheChanged) {
-    await writeSnapshotCache(cacheState.path, cache);
+  if (cacheState.directoryPath) {
+    for (const entityType of changedEntityTypes) {
+      const cache = cacheState.caches[entityType];
+      if (cache) {
+        await writeSnapshotCache(cacheState.directoryPath, entityType, cache);
+      }
+    }
   }
 
   return {

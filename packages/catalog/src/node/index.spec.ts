@@ -445,6 +445,31 @@ describe("catalog", function () {
     expect(history.entries).toEqual([]);
   });
 
+  it("preserves unchanged JSON files and prunes stale generated files", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const options = { outDir: "catalog-out", copyAssets: false };
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, options);
+
+    const messagePath = path.join(
+      root,
+      "catalog-out/data/root/entities/message/common.welcome.json",
+    );
+    const firstStat = await fs.promises.stat(messagePath);
+    await writeFile(root, "catalog-out/data/root/entities/message/obsolete.json", "obsolete");
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, options);
+
+    const secondStat = await fs.promises.stat(messagePath);
+    expect(secondStat.mtimeMs).toBe(firstStat.mtimeMs);
+    await expect(
+      pathExists(root, "catalog-out/data/root/entities/message/obsolete.json"),
+    ).resolves.toBe(false);
+  });
+
   it("resolves target message relationships from string includeMessages and excludeMessages", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-"));
     roots.push(root);

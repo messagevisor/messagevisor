@@ -62,16 +62,17 @@ export class FilesystemAdapter extends Adapter {
       .sort();
   }
 
-  private getEntityPath(type: EntityType, key: string) {
+  private getEntityBasePath(type: EntityType, key: string) {
     const segments = assertValidEntityKey(this.config, key);
-    const extension = `.${this.parser.extension}`;
     const directoryPath = this.getEntityDirectory(type);
-    const basePath = assertPathWithinDirectory(
-      directoryPath,
-      path.join(directoryPath, ...segments),
-    );
+    return assertPathWithinDirectory(directoryPath, path.join(directoryPath, ...segments));
+  }
 
-    if (type === "test") {
+  private getEntityPath(type: EntityType, key: string, resolveExistingTestPath = true) {
+    const extension = `.${this.parser.extension}`;
+    const basePath = this.getEntityBasePath(type, key);
+
+    if (type === "test" && resolveExistingTestPath) {
       const specPath = `${basePath}${TEST_SPEC_SUFFIX}${extension}`;
 
       if (fs.existsSync(specPath)) {
@@ -280,8 +281,25 @@ export class FilesystemAdapter extends Adapter {
   }
 
   async getEntityFingerprint(type: EntityType, key: string): Promise<string | null> {
+    const extension = `.${this.parser.extension}`;
+
     try {
-      const stat = await fs.promises.stat(this.getEntityPath(type, key));
+      let filePath = this.getEntityPath(type, key, false);
+
+      if (type === "test") {
+        const basePath = this.getEntityBasePath(type, key);
+        const specPath = `${basePath}${TEST_SPEC_SUFFIX}${extension}`;
+        const legacyPath = `${basePath}${extension}`;
+
+        try {
+          await fs.promises.access(specPath);
+          filePath = specPath;
+        } catch {
+          filePath = legacyPath;
+        }
+      }
+
+      const stat = await fs.promises.stat(filePath);
       return `${stat.size}:${stat.mtimeMs}`;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
@@ -290,7 +308,19 @@ export class FilesystemAdapter extends Adapter {
   }
 
   getSnapshotCachePath() {
-    return path.join(this.config.stateDirectoryPath, "cache", "parsed-entities.json");
+    const cacheRoot = this.rootDirectoryPath || path.dirname(this.config.localesDirectoryPath);
+    const cacheScope = crypto
+      .createHash("sha1")
+      .update(
+        JSON.stringify([
+          this.parser.extension,
+          ...Object.values(ENTITY_DIRECTORIES).map((directoryKey) => this.config[directoryKey]),
+        ]),
+      )
+      .digest("hex")
+      .slice(0, 16);
+
+    return path.join(cacheRoot, "node_modules", ".cache", "messagevisor", cacheScope);
   }
 
   async readEntityDocument<T>(type: EntityType, key: string): Promise<EntityDocument<T>> {

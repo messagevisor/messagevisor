@@ -10,7 +10,7 @@ npm run generate --workspace @messagevisor/project-synthetic
 ```
 
 The default fixture contains three sets, 50,000 messages per set, twelve
-locales per set, three targets, segments, attributes, named ICU format presets,
+locales per set, four targets, segments, attributes, named ICU format presets,
 message examples, and hundreds of repeated target assertions. The
 `used-formats` target also verifies that unused named formats are omitted from
 its generated datafile.
@@ -41,6 +41,10 @@ For a conservative single-worker comparison, set `UV_THREADPOOL_SIZE=1` in
 the shell before running the benchmark. JavaScript parsing and evaluation still
 run on Node's main thread, while this also prevents filesystem work from using
 the default libuv worker pool.
+
+Set `MESSAGEVISOR_NO_CACHE=1` when a cold parse is required. The normal parsed
+entity cache is sharded under `node_modules/.cache/messagevisor/` and is not
+part of the generated project contents.
 
 Generated data is not part of the repository. Run the generator again after
 `make clean` if the fixture is needed locally.

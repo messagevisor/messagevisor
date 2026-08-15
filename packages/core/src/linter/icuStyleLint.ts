@@ -1,12 +1,10 @@
+import { parse } from "@formatjs/icu-messageformat-parser";
 import type { FormatPresets, Locale, Message } from "@messagevisor/types";
 
 import { mergeFormatPresets } from "../formats";
 import { extractIcuStyleReferences, type IcuFormatType } from "../icuStyleReferences";
 import { resolveLocaleChain } from "../localeResolution";
 import type { LintError } from "./index";
-
-const IntlMessageFormat =
-  require("intl-messageformat").default || require("intl-messageformat").IntlMessageFormat;
 
 export interface LintMessageIcuOptions {
   icuSkeleton: boolean;
@@ -37,15 +35,17 @@ function getTranslationErrors(
   translation: string,
   localeKey: string,
   path: (string | number)[],
-  localesByKey: Record<string, Locale>,
+  formats: FormatPresets | undefined,
   options: LintMessageIcuOptions,
 ): LintError[] {
   const errors: LintError[] = [];
-  const formats = resolveLocaleFormats(localeKey, localesByKey);
   const reportedReferences = new Set<string>();
 
   try {
-    new IntlMessageFormat(translation, localeKey);
+    // Parsing is all the ICU lint pass needs. Constructing IntlMessageFormat
+    // also resolves the locale and creates formatter infrastructure for every
+    // translation, even though no translation is evaluated here.
+    parse(translation);
   } catch (error) {
     errors.push({
       level: "error",
@@ -113,6 +113,15 @@ export function lintMessageIcuFormatStyles(
   options: LintMessageIcuOptions,
 ) {
   const errors: LintError[] = [];
+  const formatsByLocale = new Map<string, FormatPresets | undefined>();
+
+  function getFormats(localeKey: string) {
+    if (!formatsByLocale.has(localeKey)) {
+      formatsByLocale.set(localeKey, resolveLocaleFormats(localeKey, localesByKey));
+    }
+
+    return formatsByLocale.get(localeKey);
+  }
 
   for (const messageKey of Object.keys(messagesByKey)) {
     const message = messagesByKey[messageKey];
@@ -133,7 +142,7 @@ export function lintMessageIcuFormatStyles(
           translation,
           localeKey,
           ["translations", localeKey],
-          localesByKey,
+          getFormats(localeKey),
           options,
         ),
       );
@@ -161,7 +170,7 @@ export function lintMessageIcuFormatStyles(
             translation,
             localeKey,
             ["overrides", index, "translations", localeKey],
-            localesByKey,
+            getFormats(localeKey),
             options,
           ),
         );

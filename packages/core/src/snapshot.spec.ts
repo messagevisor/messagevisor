@@ -58,6 +58,28 @@ describe("loadProjectSnapshot", function () {
       await loadProjectSnapshot(datasource, { entityTypes: ["locale", "message"] });
       expect(readEntity).not.toHaveBeenCalled();
 
+      expect(datasource.getSnapshotCachePath()).toContain(
+        path.join("node_modules", ".cache", "messagevisor"),
+      );
+      readEntity.mockClear();
+      await loadProjectSnapshot(datasource, { entityTypes: ["locale", "message"], cache: false });
+      expect(readEntity).toHaveBeenCalledTimes(2);
+
+      const previousNoCache = process.env.MESSAGEVISOR_NO_CACHE;
+      process.env.MESSAGEVISOR_NO_CACHE = "1";
+      try {
+        readEntity.mockClear();
+        await loadProjectSnapshot(datasource, { entityTypes: ["locale", "message"] });
+        expect(readEntity).toHaveBeenCalledTimes(2);
+      } finally {
+        if (previousNoCache === undefined) {
+          delete process.env.MESSAGEVISOR_NO_CACHE;
+        } else {
+          process.env.MESSAGEVISOR_NO_CACHE = previousNoCache;
+        }
+      }
+
+      readEntity.mockClear();
       await writeFile(root, "messages/welcome.yml", "translations:\n  en: Hello\n");
       await loadProjectSnapshot(datasource, { entityTypes: ["locale", "message"] });
       expect(readEntity).toHaveBeenCalledTimes(1);

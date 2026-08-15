@@ -743,6 +743,7 @@ function toLocaleDuplicatesFile(
 
 class CatalogJsonWriter {
   private readonly directories = new Map<string, Promise<void>>();
+  private readonly writtenFiles = new Set<string>();
 
   private ensureDirectory(directoryPath: string) {
     let promise = this.directories.get(directoryPath);
@@ -757,7 +758,56 @@ class CatalogJsonWriter {
 
   async write(filePath: string, content: unknown) {
     await this.ensureDirectory(path.dirname(filePath));
-    await fs.promises.writeFile(filePath, JSON.stringify(content, null, 2));
+    const serialized = JSON.stringify(content, null, 2);
+
+    try {
+      if ((await fs.promises.readFile(filePath, "utf8")) === serialized) {
+        this.writtenFiles.add(filePath);
+        return;
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    await fs.promises.writeFile(filePath, serialized);
+    this.writtenFiles.add(filePath);
+  }
+
+  async pruneDirectory(directoryPath: string) {
+    const prune = async (currentDirectoryPath: string): Promise<void> => {
+      let entries: fs.Dirent[];
+
+      try {
+        entries = await fs.promises.readdir(currentDirectoryPath, { withFileTypes: true });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+        throw error;
+      }
+
+      await Promise.all(
+        entries.map(async (entry) => {
+          const entryPath = path.join(currentDirectoryPath, entry.name);
+
+          if (entry.isDirectory()) {
+            await prune(entryPath);
+            try {
+              await fs.promises.rmdir(entryPath);
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== "ENOTEMPTY") throw error;
+            }
+            return;
+          }
+
+          if (!this.writtenFiles.has(entryPath)) {
+            await fs.promises.rm(entryPath, { force: true });
+          }
+        }),
+      );
+    };
+
+    await prune(directoryPath);
   }
 }
 
@@ -2482,10 +2532,6 @@ async function rebuildCatalogSetForDev(
   }
 
   const outputRelativeDirectory = getOutputRelativeDirectory(projectConfig, execution.set);
-  await fs.promises.rm(path.join(session.outputDirectoryPath, "data", outputRelativeDirectory), {
-    recursive: true,
-    force: true,
-  });
 
   const context: CatalogBuildContext = {
     rootDirectoryPath,
@@ -2509,6 +2555,9 @@ async function rebuildCatalogSetForDev(
     execution.projectConfig,
     execution.datasource,
     outputRelativeDirectory,
+  );
+  await writer.pruneDirectory(
+    path.join(session.outputDirectoryPath, "data", outputRelativeDirectory),
   );
 
   await writeCatalogManifest(writer, rootDirectoryPath, projectConfig, session, {
@@ -2548,11 +2597,6 @@ export async function exportCatalog(
   });
 
   let stepStartedAt = progress.step("Preparing output directory");
-  if (options.preserveAssets) {
-    await fs.promises.rm(dataDirectoryPath, { recursive: true, force: true });
-  } else {
-    await fs.promises.rm(outputDirectoryPath, { recursive: true, force: true });
-  }
   await fs.promises.mkdir(dataDirectoryPath, { recursive: true });
   progress.done(stepStartedAt);
 
@@ -2688,6 +2732,7 @@ export async function exportCatalog(
   };
 
   await writer.write(path.join(dataDirectoryPath, "manifest.json"), manifest);
+  await writer.pruneDirectory(dataDirectoryPath);
   progress.done(stepStartedAt);
 
   progress.complete();

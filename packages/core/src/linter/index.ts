@@ -159,18 +159,29 @@ function getFullPathFromKey(projectConfig: ProjectConfig, entityType: LintEntity
 async function readAll<T>(
   keys: string[],
   read: (key: string) => Promise<T>,
+  concurrency = 16,
 ): Promise<Record<string, T>> {
-  const entries: [string, T][] = [];
+  const entries: Array<[string, T] | undefined> = new Array(keys.length);
+  let nextIndex = 0;
 
-  for (const key of keys) {
-    try {
-      entries.push([key, await read(key)]);
-    } catch {
-      // Parse/read errors are reported during entity validation.
+  async function worker() {
+    while (nextIndex < keys.length) {
+      const index = nextIndex++;
+      const key = keys[index];
+
+      try {
+        entries[index] = [key, await read(key)];
+      } catch {
+        // Parse/read errors are reported during entity validation.
+      }
     }
   }
 
-  return Object.fromEntries(entries);
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(1, concurrency), keys.length) }, () => worker()),
+  );
+
+  return Object.fromEntries(entries.filter((entry): entry is [string, T] => Boolean(entry)));
 }
 
 export async function lintProject(
@@ -216,6 +227,7 @@ export async function lintProject(
     key: string,
     schema: ZodTypeAny,
     read: (key: string) => Promise<unknown>,
+    loadedValue?: unknown,
   ) {
     const fullPath = getFullPathFromKey(projectConfig, entityType, key);
 
@@ -231,7 +243,7 @@ export async function lintProject(
     }
 
     try {
-      const parsed = await read(key);
+      const parsed = typeof loadedValue === "undefined" ? await read(key) : loadedValue;
       const result = schema.safeParse(parsed);
 
       if (!result.success) {
@@ -303,8 +315,12 @@ export async function lintProject(
 
   if (!options.entityType || options.entityType === "locale") {
     for (const key of localeKeys.filter(shouldLintKey)) {
-      await lintEntity("locale", key, localeZodSchema, (entityKey) =>
-        datasource.readLocale(entityKey),
+      await lintEntity(
+        "locale",
+        key,
+        localeZodSchema,
+        (entityKey) => datasource.readLocale(entityKey),
+        localesByKey[key],
       );
     }
   }
@@ -331,24 +347,36 @@ export async function lintProject(
 
   if (!options.entityType || options.entityType === "attribute") {
     for (const key of attributeKeys.filter(shouldLintKey)) {
-      await lintEntity("attribute", key, attributeZodSchema, (entityKey) =>
-        datasource.readAttribute(entityKey),
+      await lintEntity(
+        "attribute",
+        key,
+        attributeZodSchema,
+        (entityKey) => datasource.readAttribute(entityKey),
+        attributesByKey[key],
       );
     }
   }
 
   if (!options.entityType || options.entityType === "segment") {
     for (const key of segmentKeys.filter(shouldLintKey)) {
-      await lintEntity("segment", key, segmentZodSchema, (entityKey) =>
-        datasource.readSegment(entityKey),
+      await lintEntity(
+        "segment",
+        key,
+        segmentZodSchema,
+        (entityKey) => datasource.readSegment(entityKey),
+        segmentsByKey[key],
       );
     }
   }
 
   if (!options.entityType || options.entityType === "message") {
     for (const key of messageKeys.filter(shouldLintKey)) {
-      await lintEntity("message", key, messageZodSchema, (entityKey) =>
-        datasource.readMessage(entityKey),
+      await lintEntity(
+        "message",
+        key,
+        messageZodSchema,
+        (entityKey) => datasource.readMessage(entityKey),
+        messagesByKey[key],
       );
     }
 
@@ -399,8 +427,12 @@ export async function lintProject(
 
   if (!options.entityType || options.entityType === "target") {
     for (const key of targetKeys.filter(shouldLintKey)) {
-      await lintEntity("target", key, targetZodSchema, (entityKey) =>
-        datasource.readTarget(entityKey),
+      await lintEntity(
+        "target",
+        key,
+        targetZodSchema,
+        (entityKey) => datasource.readTarget(entityKey),
+        targetsByKey[key],
       );
     }
 
@@ -490,7 +522,13 @@ export async function lintProject(
 
   if (!options.entityType || options.entityType === "test") {
     for (const key of testKeys.filter(shouldLintKey)) {
-      await lintEntity("test", key, testZodSchema, (entityKey) => datasource.readTest(entityKey));
+      await lintEntity(
+        "test",
+        key,
+        testZodSchema,
+        (entityKey) => datasource.readTest(entityKey),
+        testsByKey[key],
+      );
     }
 
     for (const [testKey, test] of Object.entries(testsByKey)) {

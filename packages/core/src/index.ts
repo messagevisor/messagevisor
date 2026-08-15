@@ -21,5 +21,6 @@ export * from "./init";
 export * from "./linter";
 export * from "./path";
 export * from "./promoter";
+export * from "./snapshot";
 export * from "./tester";
 export * from "./targeting";

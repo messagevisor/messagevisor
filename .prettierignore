@@ -5,6 +5,12 @@ projects/*/catalog
 projects/*/exports
 projects/*/imports
 
+# Generated contents of the large performance fixture
+projects/project-synthetic/sets
+projects/project-synthetic/datafiles
+projects/project-synthetic/.synthetic-catalog
+projects/project-synthetic/exports
+
 tmp/*
 node_modules/*
 .messagevisor/*

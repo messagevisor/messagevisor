@@ -18,6 +18,7 @@ import { parseRegexOption } from "../cli/validation";
 import { applyCombinationToValue, getMatrixCombinations } from "../matrix";
 import { getProjectSetExecutions } from "../sets";
 import { colorize } from "../tester/cliFormat";
+import { loadProjectSnapshot, type ProjectSnapshot } from "../snapshot";
 import { coerceExampleValuesIsoDates } from "./coerceExampleIsoDates";
 
 export interface ResolvedLocaleExample {
@@ -108,6 +109,7 @@ export interface ResolveExamplesOptions {
   onlyMessages?: boolean;
   onlyLocales?: boolean;
   includeEvaluationInput?: boolean;
+  snapshot?: ProjectSnapshot;
 }
 
 function parseOptionalPositiveInteger(name: string, value: unknown): number | undefined {
@@ -202,34 +204,6 @@ function matchesCommonFilters(
   }
 
   return true;
-}
-
-async function readLocales(datasource: Datasource) {
-  const localeKeys = await datasource.listLocales();
-  const locales = Object.fromEntries(
-    await Promise.all(
-      localeKeys.map(
-        async (localeKey) =>
-          [localeKey, (await datasource.readLocale(localeKey)) as Locale] as const,
-      ),
-    ),
-  );
-
-  return { localeKeys, locales };
-}
-
-async function readMessages(datasource: Datasource) {
-  const messageKeys = await datasource.listMessages();
-  const messages = Object.fromEntries(
-    await Promise.all(
-      messageKeys.map(
-        async (messageKey) =>
-          [messageKey, (await datasource.readMessage(messageKey)) as Message] as const,
-      ),
-    ),
-  );
-
-  return { messageKeys, messages };
 }
 
 function resolveLocaleExampleChain(localeKey: string, locales: Record<string, Locale>): string[] {
@@ -372,6 +346,7 @@ function resolveMessageExamples(messageKey: string, message: Message): ExpandedM
 async function evaluateLocaleExample(
   projectConfig: ProjectConfig,
   datasource: Datasource,
+  snapshot: ProjectSnapshot,
   locales: Record<string, Locale>,
   revision: string,
   example: ExpandedLocaleExample,
@@ -388,6 +363,8 @@ async function evaluateLocaleExample(
       example.message,
       example.locale,
       revision,
+      undefined,
+      snapshot,
     );
     const messagevisor = createMessagevisor({
       datafile,
@@ -459,6 +436,7 @@ async function evaluateLocaleExample(
 async function evaluateMessageExample(
   projectConfig: ProjectConfig,
   datasource: Datasource,
+  snapshot: ProjectSnapshot,
   revision: string,
   example: ExpandedMessageExample,
   includeEvaluationInput: boolean,
@@ -473,6 +451,8 @@ async function evaluateMessageExample(
     example.message,
     example.locale,
     revision,
+    undefined,
+    snapshot,
   );
   const messagevisor = createMessagevisor({
     datafile,
@@ -511,9 +491,16 @@ async function collectExamplesForExecution(
   messageFilter?: string,
   setKey?: string,
   includeEvaluationInput = false,
+  snapshotOverride?: ProjectSnapshot,
 ): Promise<ExamplesOutput> {
-  const { localeKeys, locales } = await readLocales(datasource);
-  const { messageKeys, messages } = await readMessages(datasource);
+  const snapshot =
+    snapshotOverride ||
+    (await loadProjectSnapshot(datasource, {
+      entityTypes: ["locale", "message", "segment"],
+    }));
+  const { keys, locales, messages } = snapshot;
+  const localeKeys = keys.locale;
+  const messageKeys = keys.message;
 
   if (localeFilter && !localeKeys.includes(localeFilter)) {
     throw new MessagevisorCLIError(
@@ -542,6 +529,7 @@ async function collectExamplesForExecution(
           ...(await evaluateLocaleExample(
             projectConfig,
             datasource,
+            snapshot,
             locales,
             revision,
             example,
@@ -572,6 +560,7 @@ async function collectExamplesForExecution(
           ...(await evaluateMessageExample(
             projectConfig,
             datasource,
+            snapshot,
             revision,
             example,
             includeEvaluationInput,
@@ -610,6 +599,7 @@ export async function resolveExamples(
       options.message,
       execution.set,
       options.includeEvaluationInput,
+      options.snapshot,
     );
 
     results.locales.push(

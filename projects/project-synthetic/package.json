@@ -1,0 +1,8 @@
+{
+  "name": "@messagevisor/project-synthetic",
+  "private": true,
+  "scripts": {
+    "generate": "node generate.mjs",
+    "benchmark": "node benchmark.mjs"
+  }
+}

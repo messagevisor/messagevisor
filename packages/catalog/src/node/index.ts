@@ -168,6 +168,18 @@ export interface CatalogPlugin {
   }[];
 }
 
+export interface CatalogProjectSnapshot {
+  revision: string;
+  keys: Record<"locale" | "message" | "segment" | "attribute" | "target" | "test", string[]>;
+  keySets: Record<"locale" | "message" | "segment" | "attribute" | "target" | "test", Set<string>>;
+  locales: Record<string, Locale>;
+  messages: Record<string, Message>;
+  segments: Record<string, Segment>;
+  attributes: Record<string, Attribute>;
+  targets: Record<string, Target>;
+  tests: Record<string, Test>;
+}
+
 export interface CatalogRuntime {
   reloadProject?: (rootDirectoryPath: string) => { projectConfig: any; datasource: any };
   mergeFormats: (parent?: FormatPresets, child?: FormatPresets) => FormatPresets | undefined;
@@ -201,6 +213,7 @@ export interface CatalogRuntime {
       translationPattern?: string | RegExp;
       onlyMessages?: boolean;
       onlyLocales?: boolean;
+      snapshot?: CatalogProjectSnapshot;
     },
   ) => Promise<{
     locales: CatalogEvaluatedLocaleExample[];
@@ -453,14 +466,23 @@ function encodeKey(key: string) {
   return encodeURIComponent(key);
 }
 
-async function readAll<T>(keys: string[], read: (key: string) => Promise<T>) {
-  const result: Record<string, T> = {};
+async function readAll<T>(keys: string[], read: (key: string) => Promise<T>, concurrency = 16) {
+  const entries: Array<[string, T] | undefined> = new Array(keys.length);
+  let nextIndex = 0;
 
-  for (const key of keys) {
-    result[key] = await read(key);
+  async function worker() {
+    while (nextIndex < keys.length) {
+      const index = nextIndex++;
+      const key = keys[index];
+      entries[index] = [key, await read(key)];
+    }
   }
 
-  return result;
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(1, concurrency), keys.length) }, () => worker()),
+  );
+
+  return Object.fromEntries(entries.filter((entry): entry is [string, T] => Boolean(entry)));
 }
 
 function sortStrings(values: string[]) {
@@ -1538,10 +1560,36 @@ async function buildSetCatalog(
   await writeHistoryPages(context.writer, path.join(outputDirectoryPath, "history"), history);
   context.progress.done(historyStartedAt, `(${pluralize(history.length, "entry", "entries")})`);
 
+  const snapshot = {
+    revision: await datasource.readRevision(),
+    keys: {
+      locale: localeKeys,
+      message: messageKeys,
+      segment: segmentKeys,
+      attribute: attributeKeys,
+      target: targetKeys,
+      test: testKeys,
+    },
+    keySets: {
+      locale: new Set(localeKeys),
+      message: new Set(messageKeys),
+      segment: new Set(segmentKeys),
+      attribute: new Set(attributeKeys),
+      target: new Set(targetKeys),
+      test: new Set(testKeys),
+    },
+    locales,
+    messages,
+    segments,
+    attributes,
+    targets,
+    tests,
+  };
   const examplesStartedAt = context.progress.step("Evaluating examples");
   const evaluatedMessageExamplesByKey = (
     await context.runtime.resolveExamples(projectConfig, datasource, {
       onlyMessages: true,
+      snapshot,
     })
   ).messages.reduce<Record<string, CatalogEvaluatedMessageExample[]>>((accumulator, example) => {
     if (!accumulator[example.message]) {
@@ -1555,6 +1603,7 @@ async function buildSetCatalog(
   const evaluatedLocaleExamplesByKey = (
     await context.runtime.resolveExamples(projectConfig, datasource, {
       onlyLocales: true,
+      snapshot,
     })
   ).locales.reduce<Record<string, CatalogEvaluatedLocaleExample[]>>((accumulator, example) => {
     const originalTranslation = example.message

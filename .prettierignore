@@ -4,6 +4,7 @@ packages/*/lib
 projects/*/catalog
 projects/*/exports
 projects/*/imports
+projects/*/.catdiag
 
 # Generated contents of the large performance fixture
 projects/project-synthetic/sets

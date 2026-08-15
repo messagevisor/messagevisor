@@ -279,6 +279,20 @@ export class FilesystemAdapter extends Adapter {
     return { ...(entity as Record<string, unknown>), key } as T;
   }
 
+  async getEntityFingerprint(type: EntityType, key: string): Promise<string | null> {
+    try {
+      const stat = await fs.promises.stat(this.getEntityPath(type, key));
+      return `${stat.size}:${stat.mtimeMs}`;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  }
+
+  getSnapshotCachePath() {
+    return path.join(this.config.stateDirectoryPath, "cache", "parsed-entities.json");
+  }
+
   async readEntityDocument<T>(type: EntityType, key: string): Promise<EntityDocument<T>> {
     const filePath = this.getEntityPath(type, key);
     const content = await fs.promises.readFile(filePath, "utf8");

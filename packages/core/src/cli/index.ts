@@ -15,7 +15,7 @@ import { evaluatePlugin } from "../evaluate/cli";
 import { exportPlugin } from "../exporter";
 import { findDuplicateTranslations, findDuplicatesPlugin } from "../find-duplicates";
 import { findUsagePlugin } from "../find-usage";
-import { targetIncludesMessage } from "../targeting";
+import { compileTargetMessageMatcher, targetIncludesMessage } from "../targeting";
 import { generateCodePlugin } from "../generate-code";
 import { importPlugin } from "../importer";
 import { infoPlugin } from "../info";
@@ -24,6 +24,7 @@ import { lintPlugin } from "../linter";
 import { listPlugin } from "../list";
 import { promotePlugin } from "../promoter";
 import { getProjectSetExecutions } from "../sets";
+import { loadProjectSnapshot } from "../snapshot";
 import { testPlugin } from "../tester";
 import { expandTestAssertions } from "../tester/matrix";
 import {
@@ -100,12 +101,14 @@ const projectBasedPlugins = [
         datasource: new Datasource(projectConfig, rootDirectoryPath),
       };
     },
+    loadProjectSnapshot,
     mergeFormats,
     resolveFormats,
     buildDatafile,
     getProjectSetExecutions,
     resolveExamples,
     findDuplicateTranslations,
+    compileTargetMessageMatcher,
     targetIncludesMessage,
     expandTestAssertions,
   }),

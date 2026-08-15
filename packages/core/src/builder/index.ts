@@ -301,10 +301,7 @@ function buildDatafileFromMessageKeys(
   targetKey: string | undefined,
   localeKey: string,
   revision: string,
-  targetSimplifier = createTargetContextSpecializer(
-    snapshot.segments,
-    snapshot.targets[targetKey || ""]?.context,
-  ),
+  targetSimplifier: ReturnType<typeof createTargetContextSpecializer>,
 ): DatafileContent {
   const localeKeys = snapshot.keys.locale;
   const locales = snapshot.locales;
@@ -437,6 +434,33 @@ function buildDatafileFromMessageKeys(
   };
 }
 
+async function ensureTargetInSnapshot(
+  snapshot: ProjectSnapshot,
+  datasource: Datasource,
+  targetKey: string | undefined,
+): Promise<ProjectSnapshot> {
+  if (!targetKey || snapshot.loadedEntityTypes.has("target")) {
+    if (targetKey && !snapshot.keySets.target.has(targetKey)) {
+      throw new Error(`Unknown target "${targetKey}".`);
+    }
+
+    return snapshot;
+  }
+
+  const target = snapshot.targets[targetKey] || (await datasource.readTarget(targetKey));
+  const targetKeys = snapshot.keySets.target.has(targetKey)
+    ? snapshot.keys.target
+    : [...snapshot.keys.target, targetKey];
+
+  return {
+    ...snapshot,
+    loadedEntityTypes: new Set([...snapshot.loadedEntityTypes, "target"]),
+    keys: { ...snapshot.keys, target: targetKeys },
+    keySets: { ...snapshot.keySets, target: new Set(targetKeys) },
+    targets: { ...snapshot.targets, [targetKey]: target },
+  };
+}
+
 export async function buildDatafile(
   projectConfig: ProjectConfig,
   datasource: Datasource,
@@ -445,19 +469,24 @@ export async function buildDatafile(
   revision: string,
   snapshot?: ProjectSnapshot,
 ): Promise<DatafileContent> {
-  const projectSnapshot =
+  const loadedSnapshot =
     snapshot ||
     (await loadProjectSnapshot(datasource, {
       entityTypes: ["locale", "message", "segment", "target"],
     }));
-  if (targetKey && !projectSnapshot.keySets.target.has(targetKey)) {
-    throw new Error(`Unknown target "${targetKey}".`);
-  }
+  const projectSnapshot = await ensureTargetInSnapshot(loadedSnapshot, datasource, targetKey);
   const target = targetKey ? projectSnapshot.targets[targetKey] : undefined;
   const targetMatcher = compileTargetMessageMatcher(target);
   const messageKeys = projectSnapshot.keys.message.filter(targetMatcher);
 
-  return buildDatafileFromMessageKeys(projectSnapshot, messageKeys, targetKey, localeKey, revision);
+  return buildDatafileFromMessageKeys(
+    projectSnapshot,
+    messageKeys,
+    targetKey,
+    localeKey,
+    revision,
+    createTargetContextSpecializer(projectSnapshot.segments, target?.context),
+  );
 }
 
 export async function buildMessageDatafile(
@@ -469,14 +498,12 @@ export async function buildMessageDatafile(
   targetKey?: string,
   snapshot?: ProjectSnapshot,
 ): Promise<DatafileContent> {
-  const projectSnapshot =
+  const loadedSnapshot =
     snapshot ||
     (await loadProjectSnapshot(datasource, {
       entityTypes: ["locale", "message", "segment", "target"],
     }));
-  if (targetKey && !projectSnapshot.keySets.target.has(targetKey)) {
-    throw new Error(`Unknown target "${targetKey}".`);
-  }
+  const projectSnapshot = await ensureTargetInSnapshot(loadedSnapshot, datasource, targetKey);
   const target = targetKey ? projectSnapshot.targets[targetKey] : undefined;
   const targetMatcher = compileTargetMessageMatcher(target);
   const selectedMessageKeys =
@@ -490,6 +517,7 @@ export async function buildMessageDatafile(
     targetKey,
     localeKey,
     revision,
+    createTargetContextSpecializer(projectSnapshot.segments, target?.context),
   );
 }
 
@@ -772,7 +800,10 @@ export const buildPlugin = {
       json: parsed.json,
       pretty: parsed.pretty,
       showSize: parsed.showSize,
-      collectDatafiles: parsed.json === true,
+      // The CLI writes datafiles directly through the datasource (or streams
+      // JSON to stdout). Retaining every parsed datafile is only useful to
+      // programmatic callers and needlessly keeps large projects in memory.
+      collectDatafiles: false,
       onProgress: parsed.json ? undefined : (event) => printBuildProgress(projectConfig, event),
       onProjectSetsProgress: parsed.json
         ? undefined

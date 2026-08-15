@@ -12,7 +12,7 @@ import type { Datasource } from "../datasource";
 import { extractIcuStyleReferences } from "../icuStyleReferences";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
-import { matchesPattern, targetIncludesMessage } from "../targeting";
+import { compileTargetMessageMatcher, matchesPattern } from "../targeting";
 
 export interface UsageReference {
   type: "message" | "segment" | "locale" | "target" | "test";
@@ -203,8 +203,8 @@ export async function findUsage(
 
   targets.forEach((target: Target, index) => {
     const key = targetKeys[index];
-    if (query.message && targetIncludesMessage(target, query.message))
-      add("target", key, "messages");
+    const targetMatcher = compileTargetMessageMatcher(target);
+    if (query.message && targetMatcher(query.message)) add("target", key, "messages");
     if (query.locale && (!target.locales || target.locales.includes(query.locale)))
       add("target", key, "locales");
     if (query.locale && target.formats?.[query.locale]) {

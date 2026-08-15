@@ -168,10 +168,13 @@ export interface CatalogPlugin {
   }[];
 }
 
+type CatalogSnapshotEntityType = "locale" | "message" | "segment" | "attribute" | "target" | "test";
+
 export interface CatalogProjectSnapshot {
   revision: string;
-  keys: Record<"locale" | "message" | "segment" | "attribute" | "target" | "test", string[]>;
-  keySets: Record<"locale" | "message" | "segment" | "attribute" | "target" | "test", Set<string>>;
+  loadedEntityTypes: Set<CatalogSnapshotEntityType>;
+  keys: Record<CatalogSnapshotEntityType, string[]>;
+  keySets: Record<CatalogSnapshotEntityType, Set<string>>;
   locales: Record<string, Locale>;
   messages: Record<string, Message>;
   segments: Record<string, Segment>;
@@ -182,6 +185,10 @@ export interface CatalogProjectSnapshot {
 
 export interface CatalogRuntime {
   reloadProject?: (rootDirectoryPath: string) => { projectConfig: any; datasource: any };
+  loadProjectSnapshot: (
+    datasource: any,
+    options?: { entityTypes?: CatalogSnapshotEntityType[]; concurrency?: number },
+  ) => Promise<CatalogProjectSnapshot>;
   mergeFormats: (parent?: FormatPresets, child?: FormatPresets) => FormatPresets | undefined;
   resolveFormats: (
     localeKey: string,
@@ -194,6 +201,7 @@ export interface CatalogRuntime {
     targetKey: string | undefined,
     localeKey: string,
     revision: string,
+    snapshot?: CatalogProjectSnapshot,
   ) => Promise<DatafileContent>;
   getProjectSetExecutions: (
     projectConfig: any,
@@ -224,6 +232,7 @@ export interface CatalogRuntime {
     datasource: any,
   ) => Promise<CatalogDuplicateTranslationsResult>;
   targetIncludesMessage: (target: Target | undefined, messageKey: string) => boolean;
+  compileTargetMessageMatcher: (target?: Target) => (messageKey: string) => boolean;
   expandTestAssertions: (test: Test) => Array<Record<string, unknown>>;
 }
 
@@ -572,7 +581,8 @@ function collectSegmentKeys(
 }
 
 function getTargetMessageKeys(runtime: CatalogRuntime, target: Target, messageKeys: string[]) {
-  return messageKeys.filter((key) => runtime.targetIncludesMessage(target, key)).sort();
+  const targetMatcher = runtime.compileTargetMessageMatcher(target);
+  return messageKeys.filter(targetMatcher).sort();
 }
 
 function getHistoryEntityKey(type: CatalogEntityType | "test", key: string, set?: string) {
@@ -1367,23 +1377,17 @@ async function buildSetCatalog(
   const outputDirectoryPath = path.join(context.dataDirectoryPath, outputRelativeDirectory);
   const setStartedAt = context.progress.setStart(set);
   const entitiesStartedAt = context.progress.step("Processing entities");
-  const [localeKeys, messageKeys, attributeKeys, segmentKeys, targetKeys, testKeys] =
-    (await Promise.all([
-      datasource.listLocales(),
-      datasource.listMessages(),
-      datasource.listAttributes(),
-      datasource.listSegments(),
-      datasource.listTargets(),
-      datasource.listTests(),
-    ])) as [string[], string[], string[], string[], string[], string[]];
-  const [locales, messages, attributes, segments, targets, tests] = await Promise.all([
-    readAll<Locale>(localeKeys, (key) => datasource.readLocale(key)),
-    readAll<Message>(messageKeys, (key) => datasource.readMessage(key)),
-    readAll<Attribute>(attributeKeys, (key) => datasource.readAttribute(key)),
-    readAll<Segment>(segmentKeys, (key) => datasource.readSegment(key)),
-    readAll<Target>(targetKeys, (key) => datasource.readTarget(key)),
-    readAll<Test>(testKeys, (key) => datasource.readTest(key)),
-  ]);
+  const snapshot = await context.runtime.loadProjectSnapshot(datasource, {
+    entityTypes: ["locale", "message", "segment", "attribute", "target", "test"],
+  });
+  const { keys } = snapshot;
+  const localeKeys = keys.locale;
+  const messageKeys = keys.message;
+  const attributeKeys = keys.attribute;
+  const segmentKeys = keys.segment;
+  const targetKeys = keys.target;
+  const testKeys = keys.test;
+  const { locales, messages, attributes, segments, targets, tests } = snapshot;
   context.progress.done(
     entitiesStartedAt,
     `(${[
@@ -1560,31 +1564,6 @@ async function buildSetCatalog(
   await writeHistoryPages(context.writer, path.join(outputDirectoryPath, "history"), history);
   context.progress.done(historyStartedAt, `(${pluralize(history.length, "entry", "entries")})`);
 
-  const snapshot = {
-    revision: await datasource.readRevision(),
-    keys: {
-      locale: localeKeys,
-      message: messageKeys,
-      segment: segmentKeys,
-      attribute: attributeKeys,
-      target: targetKeys,
-      test: testKeys,
-    },
-    keySets: {
-      locale: new Set(localeKeys),
-      message: new Set(messageKeys),
-      segment: new Set(segmentKeys),
-      attribute: new Set(attributeKeys),
-      target: new Set(targetKeys),
-      test: new Set(testKeys),
-    },
-    locales,
-    messages,
-    segments,
-    attributes,
-    targets,
-    tests,
-  };
   const examplesStartedAt = context.progress.step("Evaluating examples");
   const evaluatedMessageExamplesByKey = (
     await context.runtime.resolveExamples(projectConfig, datasource, {
@@ -1982,6 +1961,7 @@ async function buildSetCatalog(
               targetKey,
               localeKey,
               "__catalog__",
+              snapshot,
             )
           ).formats
         : undefined;
@@ -2308,21 +2288,19 @@ async function tryRebuildCatalogMessage(
     return false;
   }
 
-  const [localeKeys, messageKeys, targetKeys] = (await Promise.all([
-    datasource.listLocales(),
-    datasource.listMessages(),
-    datasource.listTargets(),
-  ])) as [string[], string[], string[]];
+  const snapshot = await runtime.loadProjectSnapshot(datasource, {
+    entityTypes: ["locale", "message", "segment", "target"],
+  });
+  const localeKeys = snapshot.keys.locale;
+  const messageKeys = snapshot.keys.message;
+  const targetKeys = snapshot.keys.target;
   const messageKeySet = new Set(messageKeys);
 
   if (request.messageKeys.some((messageKey) => !messageKeySet.has(messageKey))) {
     return false;
   }
 
-  const [locales, targets] = await Promise.all([
-    readAll<Locale>(localeKeys, (key) => datasource.readLocale(key)),
-    readAll<Target>(targetKeys, (key) => datasource.readTarget(key)),
-  ]);
+  const { locales, targets } = snapshot;
   const localeDirections = getLocaleDirections(locales);
   const targetMessages = Object.fromEntries(
     targetKeys.map((targetKey) => [
@@ -2330,6 +2308,9 @@ async function tryRebuildCatalogMessage(
       getTargetMessageKeys(runtime, targets[targetKey], messageKeys),
     ]),
   ) as Record<string, string[]>;
+  const targetMessageSets = Object.fromEntries(
+    targetKeys.map((targetKey) => [targetKey, new Set(targetMessages[targetKey])]),
+  ) as Record<string, Set<string>>;
   const writer = new CatalogJsonWriter();
 
   for (const messageKey of request.messageKeys) {
@@ -2347,7 +2328,7 @@ async function tryRebuildCatalogMessage(
 
     const message = await datasource.readMessage(messageKey);
     const messageTargets = sortStrings(
-      targetKeys.filter((targetKey) => targetMessages[targetKey].includes(messageKey)),
+      targetKeys.filter((targetKey) => targetMessageSets[targetKey].has(messageKey)),
     );
 
     if (!sameStringList(sortStrings(oldDetail.targets || []), messageTargets)) {
@@ -2371,6 +2352,7 @@ async function tryRebuildCatalogMessage(
       set: request.set,
       message: messageKey,
       onlyMessages: true,
+      snapshot,
     });
     const overrides = (message.overrides || []).map((override: Override) => {
       const attributes = new Set<string>();
@@ -2844,7 +2826,10 @@ function createCatalogInputWatcher(
     });
   }
 
-  function collectSnapshotEntries(directoryPath: string, snapshotEntries: Map<string, string>) {
+  async function collectSnapshotEntries(
+    directoryPath: string,
+    snapshotEntries: Map<string, string>,
+  ): Promise<void> {
     if (shouldIgnore(directoryPath)) {
       return;
     }
@@ -2852,7 +2837,7 @@ function createCatalogInputWatcher(
     let entries: fs.Dirent[] = [];
 
     try {
-      entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+      entries = await fs.promises.readdir(directoryPath, { withFileTypes: true });
     } catch {
       return;
     }
@@ -2865,7 +2850,7 @@ function createCatalogInputWatcher(
       }
 
       if (entry.isDirectory()) {
-        collectSnapshotEntries(entryPath, snapshotEntries);
+        await collectSnapshotEntries(entryPath, snapshotEntries);
         continue;
       }
 
@@ -2874,7 +2859,7 @@ function createCatalogInputWatcher(
       }
 
       try {
-        const stat = fs.statSync(entryPath);
+        const stat = await fs.promises.stat(entryPath);
         snapshotEntries.set(entryPath, `${stat.size}:${stat.mtimeMs}`);
       } catch {
         // Ignore transient editor save races.
@@ -2882,22 +2867,24 @@ function createCatalogInputWatcher(
     }
   }
 
-  function createSnapshot() {
+  async function createSnapshot() {
     const snapshotEntries = new Map<string, string>();
 
     for (const watchPath of watchPaths) {
-      if (!fs.existsSync(watchPath)) {
+      let stat: fs.Stats;
+
+      try {
+        stat = await fs.promises.stat(watchPath);
+      } catch {
         continue;
       }
-
-      const stat = fs.statSync(watchPath);
 
       if (stat.isFile()) {
         snapshotEntries.set(watchPath, `${stat.size}:${stat.mtimeMs}`);
         continue;
       }
 
-      collectSnapshotEntries(watchPath, snapshotEntries);
+      await collectSnapshotEntries(watchPath, snapshotEntries);
     }
 
     return snapshotEntries;
@@ -2922,21 +2909,36 @@ function createCatalogInputWatcher(
   }
 
   function createPollingWatcher() {
-    let previousSnapshot = createSnapshot();
-    const interval = setInterval(() => {
-      const nextSnapshot = createSnapshot();
-      const changedPaths = getSnapshotChanges(previousSnapshot, nextSnapshot).filter(shouldWatch);
+    let previousSnapshot = new Map<string, string>();
+    let checking = false;
+    let stopped = false;
 
-      previousSnapshot = nextSnapshot;
-
-      if (changedPaths.length === 0) {
+    async function poll() {
+      if (stopped || checking) {
         return;
       }
 
-      onChange(changedPaths);
-    }, 1000);
+      checking = true;
+
+      try {
+        const nextSnapshot = await createSnapshot();
+        const changedPaths = getSnapshotChanges(previousSnapshot, nextSnapshot).filter(shouldWatch);
+
+        previousSnapshot = nextSnapshot;
+
+        if (changedPaths.length > 0) {
+          onChange(changedPaths);
+        }
+      } finally {
+        checking = false;
+      }
+    }
+
+    void poll();
+    const interval = setInterval(() => void poll(), 1000);
 
     return () => {
+      stopped = true;
       clearInterval(interval);
     };
   }

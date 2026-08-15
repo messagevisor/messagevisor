@@ -496,7 +496,7 @@ async function collectExamplesForExecution(
   const snapshot =
     snapshotOverride ||
     (await loadProjectSnapshot(datasource, {
-      entityTypes: ["locale", "message", "segment"],
+      entityTypes: ["locale", "message", "segment", "target"],
     }));
   const { keys, locales, messages } = snapshot;
   const localeKeys = keys.locale;

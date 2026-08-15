@@ -306,22 +306,23 @@ async function collectRows(
       return;
     }
 
+    const resolvedTranslations = Object.fromEntries(
+      selectedLocales.map((locale) => [
+        locale,
+        resolveTranslationStatus(translations, locale, locales),
+      ]),
+    ) as Record<string, { value: string; status: TranslationStatus }>;
+
     rows.push({
       set,
       messageKey,
       isOverride,
       messageDescription: options.withoutDescription ? undefined : description || "",
       translations: Object.fromEntries(
-        selectedLocales.map((locale) => [
-          locale,
-          resolveTranslationStatus(translations, locale, locales).value,
-        ]),
+        selectedLocales.map((locale) => [locale, resolvedTranslations[locale].value]),
       ),
       statuses: Object.fromEntries(
-        selectedLocales.map((locale) => [
-          locale,
-          resolveTranslationStatus(translations, locale, locales).status,
-        ]),
+        selectedLocales.map((locale) => [locale, resolvedTranslations[locale].status]),
       ) as Record<string, TranslationStatus>,
     });
   }

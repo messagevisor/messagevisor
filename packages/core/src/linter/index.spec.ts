@@ -28,6 +28,38 @@ describe("lintProject", function () {
     );
   });
 
+  it("loads only the requested entity and its linting dependencies", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
+
+    await writeFile(root, "messagevisor.config.js", "module.exports = {};");
+    await writeFile(root, "locales/en.yml", "description: English\n");
+    await writeFile(root, "attributes/platform.yml", "description: Platform\ntype: string\n");
+    await writeFile(root, "segments/web.yml", "description: Web\nconditions: []\n");
+    await writeFile(
+      root,
+      "messages/welcome.yml",
+      "description: Welcome\ntranslations:\n  en: Welcome\n",
+    );
+    await writeFile(root, "targets/web.yml", "description: Web\n");
+    await writeFile(
+      root,
+      "tests/messages/welcome.spec.yml",
+      "message: welcome\nassertions:\n  - locale: en\n    expectedTranslation: Welcome\n",
+    );
+
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const listEntities = jest.spyOn(datasource, "listEntities");
+
+    const result = await lintProject(projectConfig, datasource, { entityType: "attribute" });
+
+    expect(result.hasError).toBe(false);
+    expect(listEntities.mock.calls.map(([entityType]) => entityType).sort()).toEqual([
+      "attribute",
+      "locale",
+    ]);
+  });
+
   it("disables ICU skeleton syntax by default", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
 

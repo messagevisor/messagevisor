@@ -4,7 +4,14 @@ import * as path from "path";
 
 import { Datasource } from "../datasource";
 import { getProjectConfig } from "../config";
-import { buildProject, buildProjectSets, getMessagevisorVersion, mergeFormats } from "./index";
+import {
+  buildDatafile,
+  buildProject,
+  buildProjectSets,
+  getMessagevisorVersion,
+  mergeFormats,
+} from "./index";
+import { loadProjectSnapshot } from "../snapshot";
 
 async function writeFile(root: string, relativePath: string, content: string) {
   const filePath = path.join(root, relativePath);
@@ -72,6 +79,19 @@ async function createProject() {
 describe("buildProject", function () {
   it("uses the installed CLI package version in generated datafiles", function () {
     expect(getMessagevisorVersion()).toBe(require("@messagevisor/cli/package.json").version);
+  });
+
+  it("resolves a target when a caller provides a snapshot without targets", async function () {
+    const root = await createProject();
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const snapshot = await loadProjectSnapshot(datasource, {
+      entityTypes: ["locale", "message", "segment"],
+    });
+
+    const datafile = await buildDatafile(projectConfig, datasource, "web", "en-US", "1", snapshot);
+
+    expect(Object.keys(datafile.translations)).toEqual(["auth.signin"]);
   });
 
   it("merges format presets by type and style while replacing declared styles", function () {

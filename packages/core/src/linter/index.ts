@@ -1,16 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import type {
-  Attribute,
-  FormatPresets,
-  GroupSegment,
-  Locale,
-  Message,
-  Segment,
-  Target,
-  Test,
-} from "@messagevisor/types";
+import type { FormatPresets, GroupSegment, Locale, Target } from "@messagevisor/types";
 import type { ZodError, ZodTypeAny } from "zod";
 
 import type { ProjectConfig } from "../config";
@@ -37,6 +28,7 @@ import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN, CLI_FORMAT_RED, colorize } from "../
 import { prettyDuration } from "../tester/prettyDuration";
 import { matchesPattern, normalizePatterns } from "../targeting";
 import { parseRegexOption } from "../cli/validation";
+import { loadProjectSnapshot } from "../snapshot";
 
 function collectGroupSegmentKeys(
   value: GroupSegment | GroupSegment[] | "*" | undefined,
@@ -156,32 +148,65 @@ function getFullPathFromKey(projectConfig: ProjectConfig, entityType: LintEntity
   return path.join(getProjectRootDirectoryPath(projectConfig), "messagevisor.config.js");
 }
 
-async function readAll<T>(
-  keys: string[],
-  read: (key: string) => Promise<T>,
-  concurrency = 16,
-): Promise<Record<string, T>> {
-  const entries: Array<[string, T] | undefined> = new Array(keys.length);
-  let nextIndex = 0;
+type LintableEntityType = Exclude<LintEntityType, "project">;
 
-  async function worker() {
-    while (nextIndex < keys.length) {
-      const index = nextIndex++;
-      const key = keys[index];
+const ALL_LINTABLE_ENTITY_TYPES: LintableEntityType[] = [
+  "locale",
+  "attribute",
+  "segment",
+  "message",
+  "target",
+  "test",
+];
 
-      try {
-        entries[index] = [key, await read(key)];
-      } catch {
-        // Parse/read errors are reported during entity validation.
-      }
-    }
+function getLintEntityTypes(entityType?: string) {
+  if (!entityType) {
+    return new Set<LintableEntityType>(ALL_LINTABLE_ENTITY_TYPES);
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(Math.max(1, concurrency), keys.length) }, () => worker()),
-  );
+  switch (entityType) {
+    case "locale":
+      return new Set<LintableEntityType>(["locale", "message"]);
+    case "attribute":
+      return new Set<LintableEntityType>(["locale", "attribute"]);
+    case "segment":
+      return new Set<LintableEntityType>(["locale", "attribute", "segment"]);
+    case "message":
+      return new Set<LintableEntityType>(["locale", "attribute", "segment", "message"]);
+    case "target":
+      return new Set<LintableEntityType>(["locale", "attribute", "message", "target"]);
+    case "test":
+      return new Set<LintableEntityType>(["locale", "message", "segment", "target", "test"]);
+    case "project":
+      return new Set<LintableEntityType>(["locale"]);
+    default:
+      return new Set<LintableEntityType>(ALL_LINTABLE_ENTITY_TYPES);
+  }
+}
 
-  return Object.fromEntries(entries.filter((entry): entry is [string, T] => Boolean(entry)));
+function getLintEntityTypesToRead(entityType?: string) {
+  if (!entityType) {
+    return new Set<LintableEntityType>(ALL_LINTABLE_ENTITY_TYPES);
+  }
+
+  switch (entityType) {
+    case "locale":
+      return new Set<LintableEntityType>(["locale"]);
+    case "attribute":
+      return new Set<LintableEntityType>(["attribute"]);
+    case "segment":
+      return new Set<LintableEntityType>(["attribute", "segment"]);
+    case "message":
+      return new Set<LintableEntityType>(["locale", "attribute", "segment", "message"]);
+    case "target":
+      return new Set<LintableEntityType>(["locale", "attribute", "target"]);
+    case "test":
+      return new Set<LintableEntityType>(["message", "segment", "test"]);
+    case "project":
+      return new Set<LintableEntityType>(["locale"]);
+    default:
+      return new Set<LintableEntityType>(ALL_LINTABLE_ENTITY_TYPES);
+  }
 }
 
 export async function lintProject(
@@ -198,6 +223,10 @@ export async function lintProject(
   function shouldLintKey(key: string) {
     return !keyPattern || keyPattern.test(key);
   }
+
+  const entityTypesToLoad = getLintEntityTypes(options.entityType);
+  const entityTypesToRead = getLintEntityTypesToRead(options.entityType);
+  const shouldRead = (entityType: LintableEntityType) => entityTypesToRead.has(entityType);
 
   function recordError(error: Omit<LintError, "level">) {
     errors.push({ level: "error", ...error });
@@ -261,15 +290,18 @@ export async function lintProject(
     }
   }
 
-  const [localeKeys, attributeKeys, segmentKeys, messageKeys, targetKeys, testKeys] =
-    await Promise.all([
-      datasource.listLocales(),
-      datasource.listAttributes(),
-      datasource.listSegments(),
-      datasource.listMessages(),
-      datasource.listTargets(),
-      datasource.listTests(),
-    ]);
+  const snapshot = await loadProjectSnapshot(datasource, {
+    entityTypes: Array.from(entityTypesToRead),
+    keyOnlyEntityTypes: Array.from(entityTypesToLoad),
+    ignoreReadErrors: true,
+  });
+  const { keys } = snapshot;
+  const localeKeys = keys.locale;
+  const attributeKeys = keys.attribute;
+  const segmentKeys = keys.segment;
+  const messageKeys = keys.message;
+  const targetKeys = keys.target;
+  const testKeys = keys.test;
 
   if (localeKeys.length === 0) {
     recordError({
@@ -282,14 +314,12 @@ export async function lintProject(
     });
   }
 
-  const localesByKey = await readAll<Locale>(localeKeys, (key) => datasource.readLocale(key));
-  const attributesByKey = await readAll<Attribute>(attributeKeys, (key) =>
-    datasource.readAttribute(key),
-  );
-  const messagesByKey = await readAll<Message>(messageKeys, (key) => datasource.readMessage(key));
-  const segmentsByKey = await readAll<Segment>(segmentKeys, (key) => datasource.readSegment(key));
-  const targetsByKey = await readAll<Target>(targetKeys, (key) => datasource.readTarget(key));
-  const testsByKey = await readAll<Test>(testKeys, (key) => datasource.readTest(key));
+  const localesByKey = shouldRead("locale") ? snapshot.locales : {};
+  const attributesByKey = shouldRead("attribute") ? snapshot.attributes : {};
+  const messagesByKey = shouldRead("message") ? snapshot.messages : {};
+  const segmentsByKey = shouldRead("segment") ? snapshot.segments : {};
+  const targetsByKey = shouldRead("target") ? snapshot.targets : {};
+  const testsByKey = shouldRead("test") ? snapshot.tests : {};
 
   if (projectConfig.sourceLocale && !localeKeys.includes(projectConfig.sourceLocale)) {
     recordError({
@@ -325,23 +355,25 @@ export async function lintProject(
     }
   }
 
-  for (const field of [
-    "inheritFormatsFrom",
-    "inheritTranslationsFrom",
-    "mergeExamplesFrom",
-  ] as const) {
-    for (const circularDependency of checkLocaleCircularDependency(localesByKey, field)) {
-      const key = circularDependency.cycle[0];
-      const fullPath = getFullPathFromKey(projectConfig, "locale", key);
+  if (!options.entityType || options.entityType === "locale" || options.entityType === "project") {
+    for (const field of [
+      "inheritFormatsFrom",
+      "inheritTranslationsFrom",
+      "mergeExamplesFrom",
+    ] as const) {
+      for (const circularDependency of checkLocaleCircularDependency(localesByKey, field)) {
+        const key = circularDependency.cycle[0];
+        const fullPath = getFullPathFromKey(projectConfig, "locale", key);
 
-      recordError({
-        filePath: formatProjectPath(projectConfig, fullPath),
-        entityType: "locale",
-        entityKey: key,
-        message: `Circular locale dependency detected for ${field}: ${circularDependency.cycle.join(" -> ")}`,
-        path: [field],
-        code: "circular_locale_dependency",
-      });
+        recordError({
+          filePath: formatProjectPath(projectConfig, fullPath),
+          entityType: "locale",
+          entityKey: key,
+          message: `Circular locale dependency detected for ${field}: ${circularDependency.cycle.join(" -> ")}`,
+          path: [field],
+          code: "circular_locale_dependency",
+        });
+      }
     }
   }
 

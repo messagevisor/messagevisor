@@ -9,7 +9,8 @@ import { Datasource } from "../../../core/src/datasource";
 import { resolveExamples } from "../../../core/src/examples";
 import { findDuplicateTranslations } from "../../../core/src/find-duplicates";
 import { getProjectSetExecutions } from "../../../core/src/sets";
-import { targetIncludesMessage } from "../../../core/src/targeting";
+import { loadProjectSnapshot } from "../../../core/src/snapshot";
+import { compileTargetMessageMatcher, targetIncludesMessage } from "../../../core/src/targeting";
 import { expandTestAssertions } from "../../../core/src/tester/matrix";
 import {
   __catalogDevInternals,
@@ -19,22 +20,26 @@ import {
 } from "./index";
 
 const catalogApi = createCatalogApi({
+  loadProjectSnapshot,
   mergeFormats,
   resolveFormats,
   buildDatafile,
   getProjectSetExecutions,
   resolveExamples,
   findDuplicateTranslations,
+  compileTargetMessageMatcher,
   targetIncludesMessage,
   expandTestAssertions,
 });
 const catalogRuntime: CatalogRuntime = {
+  loadProjectSnapshot,
   mergeFormats,
   resolveFormats,
   buildDatafile,
   getProjectSetExecutions,
   resolveExamples,
   findDuplicateTranslations,
+  compileTargetMessageMatcher,
   targetIncludesMessage,
   expandTestAssertions,
 };

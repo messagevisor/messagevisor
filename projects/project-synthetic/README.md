@@ -10,8 +10,10 @@ npm run generate --workspace @messagevisor/project-synthetic
 ```
 
 The default fixture contains three sets, 50,000 messages per set, twelve
-locales per set, three targets, segments, attributes, and representative test
-specifications.
+locales per set, three targets, segments, attributes, named ICU format presets,
+message examples, and hundreds of repeated target assertions. The
+`used-formats` target also verifies that unused named formats are omitted from
+its generated datafile.
 
 Use smaller values while iterating:
 
@@ -28,6 +30,17 @@ node projects/project-synthetic/benchmark.mjs --command=lint
 node projects/project-synthetic/benchmark.mjs --command=export
 node projects/project-synthetic/benchmark.mjs --command=catalog
 ```
+
+Repeat a phase when comparing changes:
+
+```bash
+node projects/project-synthetic/benchmark.mjs --command=build --repeat=3
+```
+
+For a conservative single-worker comparison, set `UV_THREADPOOL_SIZE=1` in
+the shell before running the benchmark. JavaScript parsing and evaluation still
+run on Node's main thread, while this also prevents filesystem work from using
+the default libuv worker pool.
 
 Generated data is not part of the repository. Run the generator again after
 `make clean` if the fixture is needed locally.

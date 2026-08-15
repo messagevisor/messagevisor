@@ -9,6 +9,12 @@ const cliPath = path.resolve(projectDirectoryPath, "../../packages/cli/bin.js");
 const requestedCommand = process.argv.find((value) => value.startsWith("--command="));
 const command = requestedCommand ? requestedCommand.slice("--command=".length) : "all";
 const commands = command === "all" ? ["build", "lint", "test", "export", "catalog"] : [command];
+const requestedRepeat = process.argv.find((value) => value.startsWith("--repeat="));
+const repeat = requestedRepeat ? Number(requestedRepeat.slice("--repeat=".length)) : 1;
+
+if (!Number.isInteger(repeat) || repeat < 1) {
+  throw new Error("--repeat must be a positive integer.");
+}
 
 function run(commandName) {
   const args =
@@ -35,10 +41,10 @@ function run(commandName) {
 
     child.on("error", reject);
     child.on("exit", (code, signal) => {
-      const duration = ((performance.now() - startedAt) / 1000).toFixed(2);
+      const duration = (performance.now() - startedAt) / 1000;
       if (code === 0) {
-        console.log(`\n${commandName}: ${duration}s\n`);
-        resolve();
+        console.log(`\n${commandName}: ${duration.toFixed(2)}s\n`);
+        resolve(duration);
       } else {
         reject(new Error(`${commandName} failed with ${signal || `exit code ${code}`}.`));
       }
@@ -48,7 +54,20 @@ function run(commandName) {
 
 async function main() {
   for (const commandName of commands) {
-    await run(commandName);
+    const durations = [];
+
+    for (let index = 0; index < repeat; index += 1) {
+      durations.push(await run(commandName));
+    }
+
+    if (durations.length > 1) {
+      const minimum = Math.min(...durations);
+      const maximum = Math.max(...durations);
+      const average = durations.reduce((sum, duration) => sum + duration, 0) / durations.length;
+      console.log(
+        `${commandName} summary: min ${minimum.toFixed(2)}s, avg ${average.toFixed(2)}s, max ${maximum.toFixed(2)}s\n`,
+      );
+    }
   }
 }
 

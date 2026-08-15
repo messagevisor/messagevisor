@@ -52,6 +52,9 @@ function localeDocument(locale) {
     "  date:",
     "    short:",
     "      dateStyle: short",
+    "  time:",
+    "    clock:",
+    "      timeStyle: short",
     "",
   ].join("\n");
 }
@@ -61,7 +64,22 @@ function messageDocument(messageIndex) {
   const lines = [`description: Synthetic message ${key}`, "translations:"];
 
   for (const locale of locales) {
-    lines.push(`  ${locale}: ${yamlString(`Message ${key} in ${locale}`)}`);
+    const translation =
+      messageIndex === 1
+        ? `There are {count, number, decimal} items on {when, date, short} in ${locale}`
+        : `Message ${key} in ${locale}`;
+    lines.push(`  ${locale}: ${yamlString(translation)}`);
+  }
+
+  if (messageIndex === 1) {
+    lines.push(
+      "examples:",
+      "  - locale: en-US",
+      "    description: Exercises named number and date formats",
+      "    values:",
+      "      count: 3",
+      "      when: 2025-01-15T12:00:00.000Z",
+    );
   }
 
   if (messageIndex % 1000 === 0) {
@@ -101,7 +119,32 @@ function targetDocuments() {
       `locales: ${JSON.stringify(locales)}`,
       "",
     ].join("\n"),
+    "used-formats": [
+      "description: Synthetic target that keeps only formats used by emitted messages",
+      'includeMessages: "synthetic.message.000001"',
+      "includeOnlyUsedFormats: true",
+      `locales: ${JSON.stringify(locales)}`,
+      "",
+    ].join("\n"),
   };
+}
+
+function repeatedTargetAssertions(targetKey) {
+  const lines = [`target: ${targetKey}`, "assertions:"];
+  const assertionCount = 20;
+
+  for (let index = 0; index < assertionCount; index += 1) {
+    for (const locale of locales) {
+      lines.push(
+        "  - description: Repeated target assertion",
+        `    locale: ${locale}`,
+        "    expectedToIncludeMessages:",
+        "      - synthetic.message.000001",
+      );
+    }
+  }
+
+  return `${lines.join("\n")}\n`;
 }
 
 async function writeBatch(files) {
@@ -125,26 +168,31 @@ async function generateSet(setName) {
     files.push([path.join(setDirectoryPath, "locales", `${locale}.yml`), localeDocument(locale)]);
   }
 
-  const targetTest =
-    messages >= 10000
-      ? [
-          "target: internal",
-          "assertions:",
-          "  - locale: en-US",
-          "    expectedToIncludeMessages:",
-          "      - synthetic.message.010000",
-          "    expectedToNotIncludeMessages:",
-          "      - synthetic.message.000001",
-          "",
-        ]
-      : [
-          "target: internal",
-          "assertions:",
-          "  - locale: en-US",
-          "    expectedToNotIncludeMessages:",
-          "      - synthetic.message.000001",
-          "",
-        ];
+  const webTargetTest = repeatedTargetAssertions("web");
+  const internalTargetTest = [
+    "target: internal",
+    "assertions:",
+    "  - locale: en-US",
+    "    expectedToNotIncludeMessages:",
+    "      - synthetic.message.000001",
+    "",
+  ].join("\n");
+  const usedFormatsTargetTest = [
+    "target: used-formats",
+    "assertions:",
+    "  - locale: en-US",
+    "    expectedToIncludeMessages:",
+    "      - synthetic.message.000001",
+    "    expectedFormats:",
+    "      number:",
+    "        decimal:",
+    "          style: decimal",
+    "          minimumFractionDigits: 2",
+    "      date:",
+    "        short:",
+    "          dateStyle: short",
+    "",
+  ].join("\n");
 
   files.push(
     [
@@ -183,18 +231,23 @@ async function generateSet(setName) {
     [
       path.join(setDirectoryPath, "tests", "messages", "synthetic", "smoke.spec.yml"),
       [
-        "message: synthetic.message.000001",
+        "message: synthetic.message.000002",
         "assertions:",
         "  - locale: en-US",
         "    target: web",
-        "    expectedTranslation: Message 000001 in en-US",
+        "    expectedTranslation: Message 000002 in en-US",
         "  - locale: de-DE",
         "    target: mobile",
-        "    expectedTranslation: Message 000001 in de-DE",
+        "    expectedTranslation: Message 000002 in de-DE",
         "",
       ].join("\n"),
     ],
-    [path.join(setDirectoryPath, "tests", "targets", "smoke.spec.yml"), targetTest.join("\n")],
+    [path.join(setDirectoryPath, "tests", "targets", "web.spec.yml"), webTargetTest],
+    [path.join(setDirectoryPath, "tests", "targets", "internal.spec.yml"), internalTargetTest],
+    [
+      path.join(setDirectoryPath, "tests", "targets", "used-formats.spec.yml"),
+      usedFormatsTargetTest,
+    ],
   );
 
   for (let messageIndex = 1; messageIndex <= messages; messageIndex += 1) {
@@ -210,6 +263,9 @@ async function generateSet(setName) {
 }
 
 async function main() {
+  // Generation is intentionally reproducible. A smaller follow-up run must
+  // not leave files from a previous larger run behind.
+  await rm(path.join(projectDirectoryPath, "sets"), { recursive: true, force: true });
   await mkdir(path.join(projectDirectoryPath, "sets"), { recursive: true });
   for (const setName of setNames) {
     await generateSet(setName);

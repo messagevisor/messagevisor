@@ -320,7 +320,7 @@ export class FilesystemAdapter extends Adapter {
       .digest("hex")
       .slice(0, 16);
 
-    return path.join(cacheRoot, "node_modules", ".cache", "messagevisor", cacheScope);
+    return path.join(cacheRoot, ".messagevisor", "cache", cacheScope);
   }
 
   async readEntityDocument<T>(type: EntityType, key: string): Promise<EntityDocument<T>> {

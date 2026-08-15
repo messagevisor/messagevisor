@@ -43,8 +43,7 @@ run on Node's main thread, while this also prevents filesystem work from using
 the default libuv worker pool.
 
 Set `MESSAGEVISOR_NO_CACHE=1` when a cold parse is required. The normal parsed
-entity cache is sharded under `node_modules/.cache/messagevisor/` and is not
-part of the generated project contents.
+entity cache is sharded under `.messagevisor/cache/` and is ignored by Git.
 
 Generated data is not part of the repository. Run the generator again after
 `make clean` if the fixture is needed locally.

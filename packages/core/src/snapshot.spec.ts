@@ -58,9 +58,7 @@ describe("loadProjectSnapshot", function () {
       await loadProjectSnapshot(datasource, { entityTypes: ["locale", "message"] });
       expect(readEntity).not.toHaveBeenCalled();
 
-      expect(datasource.getSnapshotCachePath()).toContain(
-        path.join("node_modules", ".cache", "messagevisor"),
-      );
+      expect(datasource.getSnapshotCachePath()).toContain(path.join(".messagevisor", "cache"));
       readEntity.mockClear();
       await loadProjectSnapshot(datasource, { entityTypes: ["locale", "message"], cache: false });
       expect(readEntity).toHaveBeenCalledTimes(2);

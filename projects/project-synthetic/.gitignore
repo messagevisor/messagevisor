@@ -3,4 +3,5 @@ datafiles/
 exports/
 catalog/
 .messagevisor/
+.messagevisor/cache
 .synthetic-catalog/

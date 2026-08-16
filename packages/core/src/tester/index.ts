@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import { createMessagevisor, type MessageValues } from "@messagevisor/sdk";
+import type { DatafileContent } from "@messagevisor/types";
 
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
@@ -23,6 +24,7 @@ import {
 import { prettyDuration } from "./prettyDuration";
 import { printTestResult } from "./printTestResult";
 import { parseRegexOption } from "../cli/validation";
+import { loadProjectSnapshot, type ProjectSnapshot } from "../snapshot";
 import type {
   TestAssertionError,
   TestProjectOptions,
@@ -205,12 +207,45 @@ function getTestFilePath(projectConfig: ProjectConfig, testKey: string) {
   return formatProjectPath(projectConfig, fs.existsSync(specPath) ? specPath : legacyPath);
 }
 
+interface TestExecutionContext {
+  snapshot: ProjectSnapshot;
+  datafiles: Map<string, Promise<DatafileContent>>;
+}
+
+function getCachedTestDatafile(
+  projectConfig: ProjectConfig,
+  datasource: Datasource,
+  context: TestExecutionContext,
+  targetKey: string,
+  localeKey: string,
+  revision: string,
+) {
+  const cacheKey = `${targetKey}\u0000${localeKey}`;
+  const existing = context.datafiles.get(cacheKey);
+
+  if (existing) {
+    return existing;
+  }
+
+  const datafile = buildDatafile(
+    projectConfig,
+    datasource,
+    targetKey,
+    localeKey,
+    revision,
+    context.snapshot,
+  );
+  context.datafiles.set(cacheKey, datafile);
+  return datafile;
+}
+
 async function runTest(
   projectConfig: ProjectConfig,
   datasource: Datasource,
   testKey: string,
   test: any,
   revision: string,
+  executionContext: TestExecutionContext,
   options: TestProjectOptions,
 ): Promise<TestResult | undefined> {
   const startTime = Date.now();
@@ -241,9 +276,10 @@ async function runTest(
       const assertionStartTime = Date.now();
       const assertion = createAssertion(description);
       const target = rawAssertion.target || "web";
-      const datafile = await buildDatafile(
+      const datafile = await getCachedTestDatafile(
         projectConfig,
         datasource,
+        executionContext,
         target,
         rawAssertion.locale,
         revision,
@@ -290,10 +326,7 @@ async function runTest(
   }
 
   if (test.segment) {
-    const segmentKeys = await datasource.listSegments();
-    const segments = Object.fromEntries(
-      await Promise.all(segmentKeys.map(async (key) => [key, await datasource.readSegment(key)])),
-    );
+    const segments = executionContext.snapshot.segments;
 
     for (const rawAssertion of expandSegmentAssertions(test.assertions || [])) {
       const description = getSegmentAssertionDescription(test.segment, rawAssertion);
@@ -326,9 +359,10 @@ async function runTest(
 
       const assertionStartTime = Date.now();
       const assertion = createAssertion(description);
-      const datafile = await buildDatafile(
+      const datafile = await getCachedTestDatafile(
         projectConfig,
         datasource,
+        executionContext,
         test.target,
         rawAssertion.locale,
         revision,
@@ -414,16 +448,8 @@ async function runTest(
   }
 
   if (test.locale) {
-    const [localeKeys, targetKeys] = await Promise.all([
-      datasource.listLocales(),
-      datasource.listTargets(),
-    ]);
-    const [locales, targets] = await Promise.all([
-      Promise.all(localeKeys.map(async (key) => [key, await datasource.readLocale(key)])),
-      Promise.all(targetKeys.map(async (key) => [key, await datasource.readTarget(key)])),
-    ]);
-    const localesByKey = Object.fromEntries(locales);
-    const targetsByKey = Object.fromEntries(targets);
+    const localesByKey = executionContext.snapshot.locales;
+    const targetsByKey = executionContext.snapshot.targets;
 
     for (const rawAssertion of expandLocaleAssertions(test.assertions || [])) {
       const description = getLocaleAssertionDescription(test.locale, rawAssertion);
@@ -501,11 +527,18 @@ export async function testProject(
   options: TestProjectOptions = {},
 ): Promise<TestProjectResult> {
   const startTime = Date.now();
-  const testKeys = await datasource.listTests();
+  const snapshot = await loadProjectSnapshot(datasource, {
+    concurrency: 16,
+  });
+  const testKeys = snapshot.keys.test;
   const keyPattern = options.keyPattern
     ? parseRegexOption("--keyPattern", options.keyPattern)
     : null;
-  const revision = await datasource.readRevision();
+  const revision = snapshot.revision;
+  const executionContext: TestExecutionContext = {
+    snapshot,
+    datafiles: new Map(),
+  };
   const results: TestResult[] = [];
 
   for (const testKey of testKeys) {
@@ -513,8 +546,16 @@ export async function testProject(
       continue;
     }
 
-    const test = (await datasource.readTest(testKey)) as any;
-    const result = await runTest(projectConfig, datasource, testKey, test, revision, options);
+    const test = snapshot.tests[testKey] as any;
+    const result = await runTest(
+      projectConfig,
+      datasource,
+      testKey,
+      test,
+      revision,
+      executionContext,
+      options,
+    );
 
     if (!result) {
       continue;

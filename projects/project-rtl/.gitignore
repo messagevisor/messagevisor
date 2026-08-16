@@ -15,5 +15,6 @@ npm-debug.log*
 /exports
 /imports
 /.messagevisor/memory
+/.messagevisor/cache
 
 catalog-rtl-check

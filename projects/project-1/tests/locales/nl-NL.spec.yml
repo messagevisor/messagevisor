@@ -99,6 +99,8 @@ assertions:
     values:
       when: 2026-01-15T00:00:00Z
     expectedTranslation: 15 januari 2026
+    expectedByRuntime:
+      python: "15 jan 2026"
 
   - description: nl-NL local time uses 24-hour output
     rawMessage: "{when, time, short}"

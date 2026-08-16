@@ -57,6 +57,7 @@ function getExcludedReason(relativePath: string) {
 
   if (
     normalized === ".messagevisor/REVISION" ||
+    normalized.startsWith(".messagevisor/cache/") ||
     normalized.startsWith(".messagevisor/promotions/") ||
     normalized.startsWith(".messagevisor/memory/") ||
     /^\.messagevisor\/sets\/[^/]+\/REVISION$/.test(normalized)

@@ -21,21 +21,29 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 Mayıs 2026 Salı"
+    expectedByRuntime:
+      python: "12 May 2026 Sal"
   - description: "Date / month long"
     rawMessage: "{when, date, monthLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 Mayıs 2026"
+    expectedByRuntime:
+      python: "12 May 2026"
   - description: "Date / era long"
     rawMessage: "{when, date, eraLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "Milattan Sonra 12 Mayıs 2026"
+    expectedByRuntime:
+      python: "MS 12 May 2026"
   - description: "Date / Arabic digits"
     rawMessage: "{when, date, arabicNumeric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "١٢.٠٥.٢٠٢٦"
+    expectedByRuntime:
+      python: "12.05.2026"
   - description: "Date / Buddhist calendar"
     rawMessage: "{when, date, buddhistLong}"
     values:
@@ -43,6 +51,8 @@ assertions:
     expectedTranslation: "BE 12 Mayıs 2569"
     expectedByRuntime:
       swift: "12 Mayıs 2569"
+      php: "MS 12 Mayıs 2026"
+      python: "12 May 2026"
   - description: "Date / Japanese era calendar"
     rawMessage: "{when, date, japaneseEra}"
     values:
@@ -50,11 +60,15 @@ assertions:
     expectedTranslation: "12 Mayıs 8 Reiwa"
     expectedByRuntime:
       swift: "Reiwa 12 Mayıs 8"
+      php: "12 Mayıs 2026 MS"
+      python: "MS 12 May 2026"
   - description: "Date / Gregorian calendar"
     rawMessage: "{when, date, gregorianLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 Mayıs 2026"
+    expectedByRuntime:
+      python: "12 May 2026"
   - description: "Date / Islamic calendar"
     rawMessage: "{when, date, islamicLong}"
     values:
@@ -62,6 +76,8 @@ assertions:
     expectedTranslation: "Hicri 25 Zilkade 1447"
     expectedByRuntime:
       swift: "25 Zilkade 1447"
+      php: "MS 12 Mayıs 2026"
+      python: "12 May 2026"
   - description: "Date / Latin digits"
     rawMessage: "{when, date, latinNumeric}"
     values:

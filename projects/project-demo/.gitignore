@@ -4,3 +4,4 @@ src
 catalog
 out
 .messagevisor/memory
+.messagevisor/cache

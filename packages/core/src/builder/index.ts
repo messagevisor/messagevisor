@@ -8,7 +8,6 @@ import type {
   FormatPresets,
   GroupSegment,
   Locale,
-  Message,
   MessageOverride,
   Target,
   Segment,
@@ -22,9 +21,10 @@ import { extractIcuStyleReferences } from "../icuStyleReferences";
 import { resolveLocaleChain, resolveLocaleValue } from "../localeResolution";
 import { formatProjectPath } from "../path";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
+import { loadProjectSnapshot, type ProjectSnapshot } from "../snapshot";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
-import { matchesPattern, targetIncludesMessage } from "../targeting";
+import { compileTargetMessageMatcher, matchesPattern } from "../targeting";
 import { createTargetContextSpecializer } from "./applyContextToTarget";
 
 interface TargetDatafileOptions {
@@ -53,6 +53,8 @@ export interface BuildProjectOptions {
   json?: boolean;
   pretty?: boolean;
   showSize?: boolean;
+  collectDatafiles?: boolean;
+  snapshotConcurrency?: number;
   onProgress?: (event: BuildProgressEvent) => void;
 }
 
@@ -72,7 +74,13 @@ export type BuildProgressEvent =
       filePath?: string;
       sizeInBytes?: number;
     }
-  | { type: "complete"; datafiles: DatafileContent[]; duration: number; revision: string };
+  | {
+      type: "complete";
+      datafiles: DatafileContent[];
+      datafilesCount: number;
+      duration: number;
+      revision: string;
+    };
 
 export type BuildProjectSetsProgressEvent =
   | { type: "setsStart"; previousRevision: string; revision: string; sets: string[] }
@@ -84,6 +92,7 @@ export type BuildProjectSetsProgressEvent =
       revision: string;
       sets: string[];
       datafiles: DatafileContent[];
+      datafilesCount: number;
     };
 
 export function mergeFormats(
@@ -149,14 +158,6 @@ function filterFormats(
 
 function isAvailable<T extends { archived?: boolean }>(entity: T) {
   return !entity.archived;
-}
-
-async function readAll<T>(
-  keys: string[],
-  read: (key: string) => Promise<T>,
-): Promise<Record<string, T>> {
-  const entries = await Promise.all(keys.map(async (key) => [key, await read(key)] as const));
-  return Object.fromEntries(entries);
 }
 
 export function resolveFormats(
@@ -294,39 +295,29 @@ function stringifyDatafileExpression<T>(options: TargetDatafileOptions, value: T
   return JSON.stringify(value);
 }
 
-async function buildDatafileFromMessageKeys(
-  projectConfig: ProjectConfig,
-  datasource: Datasource,
+function buildDatafileFromMessageKeys(
+  snapshot: ProjectSnapshot,
   messageKeys: string[],
   targetKey: string | undefined,
   localeKey: string,
   revision: string,
-): Promise<DatafileContent> {
-  const localeKeys = await datasource.listLocales();
-
-  const [locales, messages] = await Promise.all([
-    readAll<Locale>(localeKeys, (key) => datasource.readLocale(key)),
-    readAll<Message>(messageKeys, (key) => datasource.readMessage(key)),
-  ]);
-
-  const target = targetKey ? await datasource.readTarget(targetKey) : undefined;
+  targetSimplifier: ReturnType<typeof createTargetContextSpecializer>,
+): DatafileContent {
+  const localeKeys = snapshot.keys.locale;
+  const locales = snapshot.locales;
+  const messages = snapshot.messages;
+  const target = targetKey ? snapshot.targets[targetKey] : undefined;
   const datafileOptions = resolveTargetDatafileOptions(target);
   const datafileMessages: DatafileContent["messages"] = {};
   const translations: DatafileContent["translations"] = {};
   const usedSegmentKeys = new Set<SegmentKey>();
   const usedFormatPatterns: UsedFormatPatterns = {};
-  const segmentKeys = await datasource.listSegments();
-  const segments = await readAll<Segment>(segmentKeys, (key) => datasource.readSegment(key));
-  const targetSimplifier = createTargetContextSpecializer(segments, target?.context);
+  const segments = snapshot.segments;
 
   for (const key of messageKeys) {
     const message = messages[key];
 
     if (!isAvailable(message)) {
-      continue;
-    }
-
-    if (!targetIncludesMessage(target, key)) {
       continue;
     }
 
@@ -443,22 +434,58 @@ async function buildDatafileFromMessageKeys(
   };
 }
 
+async function ensureTargetInSnapshot(
+  snapshot: ProjectSnapshot,
+  datasource: Datasource,
+  targetKey: string | undefined,
+): Promise<ProjectSnapshot> {
+  if (!targetKey || snapshot.loadedEntityTypes.has("target")) {
+    if (targetKey && !snapshot.keySets.target.has(targetKey)) {
+      throw new Error(`Unknown target "${targetKey}".`);
+    }
+
+    return snapshot;
+  }
+
+  const target = snapshot.targets[targetKey] || (await datasource.readTarget(targetKey));
+  const targetKeys = snapshot.keySets.target.has(targetKey)
+    ? snapshot.keys.target
+    : [...snapshot.keys.target, targetKey];
+
+  return {
+    ...snapshot,
+    loadedEntityTypes: new Set([...snapshot.loadedEntityTypes, "target"]),
+    keys: { ...snapshot.keys, target: targetKeys },
+    keySets: { ...snapshot.keySets, target: new Set(targetKeys) },
+    targets: { ...snapshot.targets, [targetKey]: target },
+  };
+}
+
 export async function buildDatafile(
   projectConfig: ProjectConfig,
   datasource: Datasource,
   targetKey: string | undefined,
   localeKey: string,
   revision: string,
+  snapshot?: ProjectSnapshot,
 ): Promise<DatafileContent> {
-  const messageKeys = await datasource.listMessages();
+  const loadedSnapshot =
+    snapshot ||
+    (await loadProjectSnapshot(datasource, {
+      entityTypes: ["locale", "message", "segment", "target"],
+    }));
+  const projectSnapshot = await ensureTargetInSnapshot(loadedSnapshot, datasource, targetKey);
+  const target = targetKey ? projectSnapshot.targets[targetKey] : undefined;
+  const targetMatcher = compileTargetMessageMatcher(target);
+  const messageKeys = projectSnapshot.keys.message.filter(targetMatcher);
 
   return buildDatafileFromMessageKeys(
-    projectConfig,
-    datasource,
+    projectSnapshot,
     messageKeys,
     targetKey,
     localeKey,
     revision,
+    createTargetContextSpecializer(projectSnapshot.segments, target?.context),
   );
 }
 
@@ -469,17 +496,28 @@ export async function buildMessageDatafile(
   localeKey: string,
   revision: string,
   targetKey?: string,
+  snapshot?: ProjectSnapshot,
 ): Promise<DatafileContent> {
-  const availableMessageKeys = await datasource.listMessages();
-  const selectedMessageKeys = availableMessageKeys.includes(messageKey) ? [messageKey] : [];
+  const loadedSnapshot =
+    snapshot ||
+    (await loadProjectSnapshot(datasource, {
+      entityTypes: ["locale", "message", "segment", "target"],
+    }));
+  const projectSnapshot = await ensureTargetInSnapshot(loadedSnapshot, datasource, targetKey);
+  const target = targetKey ? projectSnapshot.targets[targetKey] : undefined;
+  const targetMatcher = compileTargetMessageMatcher(target);
+  const selectedMessageKeys =
+    projectSnapshot.keySets.message.has(messageKey) && targetMatcher(messageKey)
+      ? [messageKey]
+      : [];
 
   return buildDatafileFromMessageKeys(
-    projectConfig,
-    datasource,
+    projectSnapshot,
     selectedMessageKeys,
     targetKey,
     localeKey,
     revision,
+    createTargetContextSpecializer(projectSnapshot.segments, target?.context),
   );
 }
 
@@ -489,13 +527,17 @@ export async function buildProject(
   options: BuildProjectOptions = {},
 ) {
   const startTime = Date.now();
-  const [targetKeys, localeKeys] = await Promise.all([
-    datasource.listTargets(),
-    datasource.listLocales(),
-  ]);
+  const snapshot = await loadProjectSnapshot(datasource, {
+    entityTypes: ["locale", "message", "segment", "target"],
+    concurrency: options.snapshotConcurrency,
+  });
+  const targetKeys = snapshot.keys.target;
+  const localeKeys = snapshot.keys.locale;
   const selectedTargetKeys = options.target ? [options.target] : targetKeys;
   const builtDatafiles: DatafileContent[] = [];
-  const previousRevision = await datasource.readRevision();
+  const collectDatafiles = options.collectDatafiles !== false;
+  let datafilesCount = 0;
+  const previousRevision = snapshot.revision;
   let revision = options.revision;
 
   if (!revision) {
@@ -511,7 +553,13 @@ export async function buildProject(
   });
 
   for (const targetKey of selectedTargetKeys) {
-    const target = await datasource.readTarget(targetKey);
+    const target = snapshot.targets[targetKey];
+    if (!target) {
+      throw new Error(`Unknown target "${targetKey}".`);
+    }
+    const targetMatcher = compileTargetMessageMatcher(target);
+    const selectedMessageKeys = snapshot.keys.message.filter(targetMatcher);
+    const targetSimplifier = createTargetContextSpecializer(snapshot.segments, target?.context);
     const selectedLocaleKeys = options.locale
       ? [options.locale]
       : target.locales?.length
@@ -525,7 +573,14 @@ export async function buildProject(
     });
 
     for (const localeKey of selectedLocaleKeys) {
-      let datafile = await buildDatafile(projectConfig, datasource, targetKey, localeKey, revision);
+      let datafile = buildDatafileFromMessageKeys(
+        snapshot,
+        selectedMessageKeys,
+        targetKey,
+        localeKey,
+        revision,
+        targetSimplifier,
+      );
       const datafileOptions = resolveTargetDatafileOptions(target);
 
       if (datafileOptions.revisionFromHash) {
@@ -543,7 +598,10 @@ export async function buildProject(
         await datasource.writeDatafile(datafile, { pretty: datafileOptions.pretty });
       }
 
-      builtDatafiles.push(datafile);
+      datafilesCount += 1;
+      if (collectDatafiles) {
+        builtDatafiles.push(datafile);
+      }
 
       options.onProgress?.({
         type: "localeBuilt",
@@ -568,6 +626,7 @@ export async function buildProject(
   options.onProgress?.({
     type: "complete",
     datafiles: builtDatafiles,
+    datafilesCount,
     duration: Date.now() - startTime,
     revision,
   });
@@ -584,6 +643,7 @@ export async function buildProjectSets(
   const setExecutions = await getProjectSetExecutions(projectConfig, datasource, options.set);
   const setKeys = setExecutions.map((execution) => execution.set);
   const builtDatafiles: DatafileContent[] = [];
+  let datafilesCount = 0;
   const previousRevision = await datasource.readRevision();
   const numericRevision = Number(previousRevision);
   const revision = Number.isNaN(numericRevision) ? previousRevision : String(numericRevision + 1);
@@ -605,12 +665,23 @@ export async function buildProjectSets(
     const datafiles = await buildProject(execution.projectConfig, execution.datasource, {
       ...options,
       onProgress: options.onProjectSetsProgress
-        ? (event) =>
+        ? (event) => {
+            if (event.type === "localeBuilt") {
+              datafilesCount += 1;
+            }
+
             options.onProjectSetsProgress?.({
               ...event,
               set: execution.set,
-            } as BuildProjectSetsProgressEvent)
-        : options.onProgress,
+            } as BuildProjectSetsProgressEvent);
+          }
+        : (event) => {
+            if (event.type === "localeBuilt") {
+              datafilesCount += 1;
+            }
+
+            options.onProgress?.(event);
+          },
     });
 
     builtDatafiles.push(...datafiles);
@@ -627,6 +698,7 @@ export async function buildProjectSets(
       revision,
       sets: setKeys,
       datafiles: builtDatafiles,
+      datafilesCount,
     });
   }
 
@@ -668,7 +740,7 @@ function printBuildProgress(projectConfig: ProjectConfig, event: BuildProgressEv
   console.log("");
   console.log(
     CLI_FORMAT_GREEN,
-    `Built ${event.datafiles.length} datafile(s) in ${formatProjectPath(projectConfig, projectConfig.datafilesDirectoryPath)}`,
+    `Built ${event.datafilesCount} datafile(s) in ${formatProjectPath(projectConfig, projectConfig.datafilesDirectoryPath)}`,
   );
   console.log(CLI_FORMAT_BOLD, `Revision: ${event.revision}`);
   console.log(CLI_FORMAT_BOLD, `Time:  ${prettyDuration(event.duration)}`);
@@ -696,7 +768,7 @@ function printProjectSetsBuildProgress(
     console.log("");
     console.log(
       CLI_FORMAT_GREEN,
-      `Built ${event.datafiles.length} datafile(s) across ${event.sets.length} set(s) in ${formatProjectPath(projectConfig, projectConfig.datafilesDirectoryPath)}`,
+      `Built ${event.datafilesCount} datafile(s) across ${event.sets.length} set(s) in ${formatProjectPath(projectConfig, projectConfig.datafilesDirectoryPath)}`,
     );
     console.log(CLI_FORMAT_BOLD, `Project revision: ${event.revision}`);
     console.log(CLI_FORMAT_BOLD, `Time:  ${prettyDuration(event.duration)}`);
@@ -728,6 +800,10 @@ export const buildPlugin = {
       json: parsed.json,
       pretty: parsed.pretty,
       showSize: parsed.showSize,
+      // The CLI writes datafiles directly through the datasource (or streams
+      // JSON to stdout). Retaining every parsed datafile is only useful to
+      // programmatic callers and needlessly keeps large projects in memory.
+      collectDatafiles: false,
       onProgress: parsed.json ? undefined : (event) => printBuildProgress(projectConfig, event),
       onProjectSetsProgress: parsed.json
         ? undefined

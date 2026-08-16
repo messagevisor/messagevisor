@@ -287,3 +287,5 @@ assertions:
       amount: -1284.5
     expectedTranslation: "Due today: -$1,284.50 · as code -USD 1,284.50 · accounting
       style ($1,284.50)."
+    expectedByRuntime:
+      python: "Due today: -$1,284.50 · as code -USD1,284.50 · accounting style ($1,284.50)."

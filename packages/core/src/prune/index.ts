@@ -16,7 +16,7 @@ import { mergeFormatPresets } from "../formats";
 import { resolveInheritedLocaleValue, resolveLocaleChain } from "../localeResolution";
 import { formatProjectPath } from "../path";
 import { getProjectSetExecutions } from "../sets";
-import { matchesPattern, targetIncludesMessage } from "../targeting";
+import { compileTargetMessageMatcher, matchesPattern } from "../targeting";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 
 type PruneTarget = "translations" | "formats";
@@ -252,8 +252,9 @@ async function getSelectedMessageKeys(
   const selected = new Set<string>();
 
   for (const targetKey of requestedTargets) {
+    const targetMatcher = compileTargetMessageMatcher(targets[targetKey]);
     for (const messageKey of messageKeys) {
-      if (targetIncludesMessage(targets[targetKey], messageKey)) {
+      if (targetMatcher(messageKey)) {
         selected.add(messageKey);
       }
     }

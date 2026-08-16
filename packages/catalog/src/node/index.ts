@@ -168,8 +168,27 @@ export interface CatalogPlugin {
   }[];
 }
 
+type CatalogSnapshotEntityType = "locale" | "message" | "segment" | "attribute" | "target" | "test";
+
+export interface CatalogProjectSnapshot {
+  revision: string;
+  loadedEntityTypes: Set<CatalogSnapshotEntityType>;
+  keys: Record<CatalogSnapshotEntityType, string[]>;
+  keySets: Record<CatalogSnapshotEntityType, Set<string>>;
+  locales: Record<string, Locale>;
+  messages: Record<string, Message>;
+  segments: Record<string, Segment>;
+  attributes: Record<string, Attribute>;
+  targets: Record<string, Target>;
+  tests: Record<string, Test>;
+}
+
 export interface CatalogRuntime {
   reloadProject?: (rootDirectoryPath: string) => { projectConfig: any; datasource: any };
+  loadProjectSnapshot: (
+    datasource: any,
+    options?: { entityTypes?: CatalogSnapshotEntityType[]; concurrency?: number },
+  ) => Promise<CatalogProjectSnapshot>;
   mergeFormats: (parent?: FormatPresets, child?: FormatPresets) => FormatPresets | undefined;
   resolveFormats: (
     localeKey: string,
@@ -182,6 +201,7 @@ export interface CatalogRuntime {
     targetKey: string | undefined,
     localeKey: string,
     revision: string,
+    snapshot?: CatalogProjectSnapshot,
   ) => Promise<DatafileContent>;
   getProjectSetExecutions: (
     projectConfig: any,
@@ -201,6 +221,7 @@ export interface CatalogRuntime {
       translationPattern?: string | RegExp;
       onlyMessages?: boolean;
       onlyLocales?: boolean;
+      snapshot?: CatalogProjectSnapshot;
     },
   ) => Promise<{
     locales: CatalogEvaluatedLocaleExample[];
@@ -211,6 +232,7 @@ export interface CatalogRuntime {
     datasource: any,
   ) => Promise<CatalogDuplicateTranslationsResult>;
   targetIncludesMessage: (target: Target | undefined, messageKey: string) => boolean;
+  compileTargetMessageMatcher: (target?: Target) => (messageKey: string) => boolean;
   expandTestAssertions: (test: Test) => Array<Record<string, unknown>>;
 }
 
@@ -453,14 +475,23 @@ function encodeKey(key: string) {
   return encodeURIComponent(key);
 }
 
-async function readAll<T>(keys: string[], read: (key: string) => Promise<T>) {
-  const result: Record<string, T> = {};
+async function readAll<T>(keys: string[], read: (key: string) => Promise<T>, concurrency = 16) {
+  const entries: Array<[string, T] | undefined> = new Array(keys.length);
+  let nextIndex = 0;
 
-  for (const key of keys) {
-    result[key] = await read(key);
+  async function worker() {
+    while (nextIndex < keys.length) {
+      const index = nextIndex++;
+      const key = keys[index];
+      entries[index] = [key, await read(key)];
+    }
   }
 
-  return result;
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(1, concurrency), keys.length) }, () => worker()),
+  );
+
+  return Object.fromEntries(entries.filter((entry): entry is [string, T] => Boolean(entry)));
 }
 
 function sortStrings(values: string[]) {
@@ -473,7 +504,9 @@ function deepClone<T>(value: T): T {
 
 function getLocaleDirections(locales: Record<string, Locale>) {
   return Object.fromEntries(
-    Object.entries(locales).map(([localeKey, locale]) => [localeKey, locale.direction]),
+    Object.keys(locales)
+      .sort()
+      .map((localeKey) => [localeKey, locales[localeKey].direction]),
   );
 }
 
@@ -550,7 +583,8 @@ function collectSegmentKeys(
 }
 
 function getTargetMessageKeys(runtime: CatalogRuntime, target: Target, messageKeys: string[]) {
-  return messageKeys.filter((key) => runtime.targetIncludesMessage(target, key)).sort();
+  const targetMatcher = runtime.compileTargetMessageMatcher(target);
+  return messageKeys.filter(targetMatcher).sort();
 }
 
 function getHistoryEntityKey(type: CatalogEntityType | "test", key: string, set?: string) {
@@ -711,6 +745,7 @@ function toLocaleDuplicatesFile(
 
 class CatalogJsonWriter {
   private readonly directories = new Map<string, Promise<void>>();
+  private readonly writtenFiles = new Set<string>();
 
   private ensureDirectory(directoryPath: string) {
     let promise = this.directories.get(directoryPath);
@@ -725,7 +760,56 @@ class CatalogJsonWriter {
 
   async write(filePath: string, content: unknown) {
     await this.ensureDirectory(path.dirname(filePath));
-    await fs.promises.writeFile(filePath, JSON.stringify(content, null, 2));
+    const serialized = JSON.stringify(content, null, 2);
+
+    try {
+      if ((await fs.promises.readFile(filePath, "utf8")) === serialized) {
+        this.writtenFiles.add(filePath);
+        return;
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    await fs.promises.writeFile(filePath, serialized);
+    this.writtenFiles.add(filePath);
+  }
+
+  async pruneDirectory(directoryPath: string) {
+    const prune = async (currentDirectoryPath: string): Promise<void> => {
+      let entries: fs.Dirent[];
+
+      try {
+        entries = await fs.promises.readdir(currentDirectoryPath, { withFileTypes: true });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+        throw error;
+      }
+
+      await Promise.all(
+        entries.map(async (entry) => {
+          const entryPath = path.join(currentDirectoryPath, entry.name);
+
+          if (entry.isDirectory()) {
+            await prune(entryPath);
+            try {
+              await fs.promises.rmdir(entryPath);
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== "ENOTEMPTY") throw error;
+            }
+            return;
+          }
+
+          if (!this.writtenFiles.has(entryPath)) {
+            await fs.promises.rm(entryPath, { force: true });
+          }
+        }),
+      );
+    };
+
+    await prune(directoryPath);
   }
 }
 
@@ -1345,23 +1429,17 @@ async function buildSetCatalog(
   const outputDirectoryPath = path.join(context.dataDirectoryPath, outputRelativeDirectory);
   const setStartedAt = context.progress.setStart(set);
   const entitiesStartedAt = context.progress.step("Processing entities");
-  const [localeKeys, messageKeys, attributeKeys, segmentKeys, targetKeys, testKeys] =
-    (await Promise.all([
-      datasource.listLocales(),
-      datasource.listMessages(),
-      datasource.listAttributes(),
-      datasource.listSegments(),
-      datasource.listTargets(),
-      datasource.listTests(),
-    ])) as [string[], string[], string[], string[], string[], string[]];
-  const [locales, messages, attributes, segments, targets, tests] = await Promise.all([
-    readAll<Locale>(localeKeys, (key) => datasource.readLocale(key)),
-    readAll<Message>(messageKeys, (key) => datasource.readMessage(key)),
-    readAll<Attribute>(attributeKeys, (key) => datasource.readAttribute(key)),
-    readAll<Segment>(segmentKeys, (key) => datasource.readSegment(key)),
-    readAll<Target>(targetKeys, (key) => datasource.readTarget(key)),
-    readAll<Test>(testKeys, (key) => datasource.readTest(key)),
-  ]);
+  const snapshot = await context.runtime.loadProjectSnapshot(datasource, {
+    entityTypes: ["locale", "message", "segment", "attribute", "target", "test"],
+  });
+  const { keys } = snapshot;
+  const localeKeys = keys.locale;
+  const messageKeys = keys.message;
+  const attributeKeys = keys.attribute;
+  const segmentKeys = keys.segment;
+  const targetKeys = keys.target;
+  const testKeys = keys.test;
+  const { locales, messages, attributes, segments, targets, tests } = snapshot;
   context.progress.done(
     entitiesStartedAt,
     `(${[
@@ -1542,6 +1620,7 @@ async function buildSetCatalog(
   const evaluatedMessageExamplesByKey = (
     await context.runtime.resolveExamples(projectConfig, datasource, {
       onlyMessages: true,
+      snapshot,
     })
   ).messages.reduce<Record<string, CatalogEvaluatedMessageExample[]>>((accumulator, example) => {
     if (!accumulator[example.message]) {
@@ -1555,6 +1634,7 @@ async function buildSetCatalog(
   const evaluatedLocaleExamplesByKey = (
     await context.runtime.resolveExamples(projectConfig, datasource, {
       onlyLocales: true,
+      snapshot,
     })
   ).locales.reduce<Record<string, CatalogEvaluatedLocaleExample[]>>((accumulator, example) => {
     const originalTranslation = example.message
@@ -1628,12 +1708,13 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "locale", `${encodeKey(localeKey)}.json`),
       detail,
     );
-    skippedEmptyHistoryCount += await writeHistoryPages(
+    const skippedHistory = await writeHistoryPages(
       context.writer,
       path.join(outputDirectoryPath, "history", "locale", encodeKey(localeKey)),
       getHistoryForEntity(context.historyIndex, "locale", localeKey, set || undefined),
       { skipEmpty: true },
     );
+    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(localesStartedAt, `(${pluralize(localeKeys.length, "locale")})`);
 
@@ -1861,12 +1942,13 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "attribute", `${encodeKey(attributeKey)}.json`),
       detail,
     );
-    skippedEmptyHistoryCount += await writeHistoryPages(
+    const skippedHistory = await writeHistoryPages(
       context.writer,
       path.join(outputDirectoryPath, "history", "attribute", encodeKey(attributeKey)),
       getHistoryForEntity(context.historyIndex, "attribute", attributeKey, set || undefined),
       { skipEmpty: true },
     );
+    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(attributesStartedAt, `(${pluralize(attributeKeys.length, "attribute")})`);
 
@@ -1908,12 +1990,13 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "segment", `${encodeKey(segmentKey)}.json`),
       detail,
     );
-    skippedEmptyHistoryCount += await writeHistoryPages(
+    const skippedHistory = await writeHistoryPages(
       context.writer,
       path.join(outputDirectoryPath, "history", "segment", encodeKey(segmentKey)),
       getHistoryForEntity(context.historyIndex, "segment", segmentKey, set || undefined),
       { skipEmpty: true },
     );
+    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(segmentsStartedAt, `(${pluralize(segmentKeys.length, "segment")})`);
 
@@ -1933,6 +2016,7 @@ async function buildSetCatalog(
               targetKey,
               localeKey,
               "__catalog__",
+              snapshot,
             )
           ).formats
         : undefined;
@@ -1980,12 +2064,13 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "target", `${encodeKey(targetKey)}.json`),
       detail,
     );
-    skippedEmptyHistoryCount += await writeHistoryPages(
+    const skippedHistory = await writeHistoryPages(
       context.writer,
       path.join(outputDirectoryPath, "history", "target", encodeKey(targetKey)),
       getHistoryForEntity(context.historyIndex, "target", targetKey, set || undefined),
       { skipEmpty: true },
     );
+    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(targetsStartedAt, `(${pluralize(targetKeys.length, "target")})`);
 
@@ -2259,21 +2344,19 @@ async function tryRebuildCatalogMessage(
     return false;
   }
 
-  const [localeKeys, messageKeys, targetKeys] = (await Promise.all([
-    datasource.listLocales(),
-    datasource.listMessages(),
-    datasource.listTargets(),
-  ])) as [string[], string[], string[]];
+  const snapshot = await runtime.loadProjectSnapshot(datasource, {
+    entityTypes: ["locale", "message", "segment", "target"],
+  });
+  const localeKeys = snapshot.keys.locale;
+  const messageKeys = snapshot.keys.message;
+  const targetKeys = snapshot.keys.target;
   const messageKeySet = new Set(messageKeys);
 
   if (request.messageKeys.some((messageKey) => !messageKeySet.has(messageKey))) {
     return false;
   }
 
-  const [locales, targets] = await Promise.all([
-    readAll<Locale>(localeKeys, (key) => datasource.readLocale(key)),
-    readAll<Target>(targetKeys, (key) => datasource.readTarget(key)),
-  ]);
+  const { locales, targets } = snapshot;
   const localeDirections = getLocaleDirections(locales);
   const targetMessages = Object.fromEntries(
     targetKeys.map((targetKey) => [
@@ -2281,6 +2364,9 @@ async function tryRebuildCatalogMessage(
       getTargetMessageKeys(runtime, targets[targetKey], messageKeys),
     ]),
   ) as Record<string, string[]>;
+  const targetMessageSets = Object.fromEntries(
+    targetKeys.map((targetKey) => [targetKey, new Set(targetMessages[targetKey])]),
+  ) as Record<string, Set<string>>;
   const writer = new CatalogJsonWriter();
 
   for (const messageKey of request.messageKeys) {
@@ -2298,7 +2384,7 @@ async function tryRebuildCatalogMessage(
 
     const message = await datasource.readMessage(messageKey);
     const messageTargets = sortStrings(
-      targetKeys.filter((targetKey) => targetMessages[targetKey].includes(messageKey)),
+      targetKeys.filter((targetKey) => targetMessageSets[targetKey].has(messageKey)),
     );
 
     if (!sameStringList(sortStrings(oldDetail.targets || []), messageTargets)) {
@@ -2322,6 +2408,7 @@ async function tryRebuildCatalogMessage(
       set: request.set,
       message: messageKey,
       onlyMessages: true,
+      snapshot,
     });
     const overrides = (message.overrides || []).map((override: Override) => {
       const attributes = new Set<string>();
@@ -2451,10 +2538,6 @@ async function rebuildCatalogSetForDev(
   }
 
   const outputRelativeDirectory = getOutputRelativeDirectory(projectConfig, execution.set);
-  await fs.promises.rm(path.join(session.outputDirectoryPath, "data", outputRelativeDirectory), {
-    recursive: true,
-    force: true,
-  });
 
   const context: CatalogBuildContext = {
     rootDirectoryPath,
@@ -2478,6 +2561,9 @@ async function rebuildCatalogSetForDev(
     execution.projectConfig,
     execution.datasource,
     outputRelativeDirectory,
+  );
+  await writer.pruneDirectory(
+    path.join(session.outputDirectoryPath, "data", outputRelativeDirectory),
   );
 
   await writeCatalogManifest(writer, rootDirectoryPath, projectConfig, session, {
@@ -2517,11 +2603,6 @@ export async function exportCatalog(
   });
 
   let stepStartedAt = progress.step("Preparing output directory");
-  if (options.preserveAssets) {
-    await fs.promises.rm(dataDirectoryPath, { recursive: true, force: true });
-  } else {
-    await fs.promises.rm(outputDirectoryPath, { recursive: true, force: true });
-  }
   await fs.promises.mkdir(dataDirectoryPath, { recursive: true });
   progress.done(stepStartedAt);
 
@@ -2657,6 +2738,7 @@ export async function exportCatalog(
   };
 
   await writer.write(path.join(dataDirectoryPath, "manifest.json"), manifest);
+  await writer.pruneDirectory(dataDirectoryPath);
   progress.done(stepStartedAt);
 
   progress.complete();
@@ -2795,7 +2877,10 @@ function createCatalogInputWatcher(
     });
   }
 
-  function collectSnapshotEntries(directoryPath: string, snapshotEntries: Map<string, string>) {
+  async function collectSnapshotEntries(
+    directoryPath: string,
+    snapshotEntries: Map<string, string>,
+  ): Promise<void> {
     if (shouldIgnore(directoryPath)) {
       return;
     }
@@ -2803,7 +2888,7 @@ function createCatalogInputWatcher(
     let entries: fs.Dirent[] = [];
 
     try {
-      entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+      entries = await fs.promises.readdir(directoryPath, { withFileTypes: true });
     } catch {
       return;
     }
@@ -2816,7 +2901,7 @@ function createCatalogInputWatcher(
       }
 
       if (entry.isDirectory()) {
-        collectSnapshotEntries(entryPath, snapshotEntries);
+        await collectSnapshotEntries(entryPath, snapshotEntries);
         continue;
       }
 
@@ -2825,7 +2910,7 @@ function createCatalogInputWatcher(
       }
 
       try {
-        const stat = fs.statSync(entryPath);
+        const stat = await fs.promises.stat(entryPath);
         snapshotEntries.set(entryPath, `${stat.size}:${stat.mtimeMs}`);
       } catch {
         // Ignore transient editor save races.
@@ -2833,22 +2918,24 @@ function createCatalogInputWatcher(
     }
   }
 
-  function createSnapshot() {
+  async function createSnapshot() {
     const snapshotEntries = new Map<string, string>();
 
     for (const watchPath of watchPaths) {
-      if (!fs.existsSync(watchPath)) {
+      let stat: fs.Stats;
+
+      try {
+        stat = await fs.promises.stat(watchPath);
+      } catch {
         continue;
       }
-
-      const stat = fs.statSync(watchPath);
 
       if (stat.isFile()) {
         snapshotEntries.set(watchPath, `${stat.size}:${stat.mtimeMs}`);
         continue;
       }
 
-      collectSnapshotEntries(watchPath, snapshotEntries);
+      await collectSnapshotEntries(watchPath, snapshotEntries);
     }
 
     return snapshotEntries;
@@ -2873,21 +2960,36 @@ function createCatalogInputWatcher(
   }
 
   function createPollingWatcher() {
-    let previousSnapshot = createSnapshot();
-    const interval = setInterval(() => {
-      const nextSnapshot = createSnapshot();
-      const changedPaths = getSnapshotChanges(previousSnapshot, nextSnapshot).filter(shouldWatch);
+    let previousSnapshot = new Map<string, string>();
+    let checking = false;
+    let stopped = false;
 
-      previousSnapshot = nextSnapshot;
-
-      if (changedPaths.length === 0) {
+    async function poll() {
+      if (stopped || checking) {
         return;
       }
 
-      onChange(changedPaths);
-    }, 1000);
+      checking = true;
+
+      try {
+        const nextSnapshot = await createSnapshot();
+        const changedPaths = getSnapshotChanges(previousSnapshot, nextSnapshot).filter(shouldWatch);
+
+        previousSnapshot = nextSnapshot;
+
+        if (changedPaths.length > 0) {
+          onChange(changedPaths);
+        }
+      } finally {
+        checking = false;
+      }
+    }
+
+    void poll();
+    const interval = setInterval(() => void poll(), 1000);
 
     return () => {
+      stopped = true;
       clearInterval(interval);
     };
   }

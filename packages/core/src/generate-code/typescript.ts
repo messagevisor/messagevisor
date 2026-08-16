@@ -7,7 +7,7 @@ import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { MessagevisorCLIError } from "../error";
 import { getProjectSetExecutions } from "../sets";
-import { matchesPattern, targetIncludesMessage } from "../targeting";
+import { compileTargetMessageMatcher, matchesPattern } from "../targeting";
 
 export interface TypeScriptCodeGenerationOptions {
   set?: string | string[];
@@ -62,8 +62,9 @@ async function collectTargetMessageKeys(
 
   for (const targetKey of targetKeys) {
     const target = (await datasource.readTarget(targetKey)) as Target;
+    const targetMatcher = compileTargetMessageMatcher(target);
     for (const messageKey of allMessageKeys) {
-      if (targetIncludesMessage(target, messageKey)) {
+      if (targetMatcher(messageKey)) {
         selected.push(messageKey);
       }
     }

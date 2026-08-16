@@ -8,6 +8,7 @@ assertions:
     expectedTranslation: "১,২৩৪.৫৭"
     expectedByRuntime:
       swift: "1,234.57"
+      python: "1,234.57"
   - description: "Number / fixed 2 decimals"
     rawMessage: "{value, number, decimalFixed}"
     values:
@@ -15,6 +16,7 @@ assertions:
     expectedTranslation: "১,২৩৪.৫০"
     expectedByRuntime:
       swift: "1,234.50"
+      python: "1,234.50"
   - description: "Number / grouping auto"
     rawMessage: "{value, number, groupingAuto}"
     values:
@@ -22,6 +24,7 @@ assertions:
     expectedTranslation: "১২,৩৪,৫৬৭"
     expectedByRuntime:
       swift: "12,34,567"
+      python: "12,34,567"
   - description: "Number / grouping off"
     rawMessage: "{value, number, groupingOff}"
     values:
@@ -29,6 +32,7 @@ assertions:
     expectedTranslation: "১২৩৪৫৬৭"
     expectedByRuntime:
       swift: "1234567"
+      python: "1234567"
   - description: "Number / compact short"
     rawMessage: "{value, number, compactShort}"
     values:
@@ -36,6 +40,7 @@ assertions:
     expectedTranslation: "১২\u00A0লা"
     expectedByRuntime:
       swift: "12\u00A0লা"
+      python: "10 লা"
   - description: "Number / scientific notation"
     rawMessage: "{value, number, scientific}"
     values:
@@ -43,6 +48,7 @@ assertions:
     expectedTranslation: "১.২৩৫E৬"
     expectedByRuntime:
       swift: "1.235E6"
+      python: "1.235E6"
   - description: "Number / sign always"
     rawMessage: "{value, number, signAlways}"
     values:
@@ -50,6 +56,7 @@ assertions:
     expectedTranslation: "+১,২৩৫"
     expectedByRuntime:
       swift: "+1,235"
+      python: "+1,234"
   - description: "Number / rounding half even"
     rawMessage: "{value, number, roundingHalfEven}"
     values:
@@ -57,11 +64,14 @@ assertions:
     expectedTranslation: "২"
     expectedByRuntime:
       swift: "2"
+      python: "2"
   - description: "Number / Arabic digits"
     rawMessage: "{value, number, arabicDigits}"
     values:
       value: 2026
     expectedTranslation: "٢٬٠٢٦"
+    expectedByRuntime:
+      python: "2,026"
   - description: "Number / decimal negative"
     rawMessage: "{value, number, decimal}"
     values:
@@ -69,6 +79,7 @@ assertions:
     expectedTranslation: "-১,২৩৪.৫৭"
     expectedByRuntime:
       swift: "-1,234.57"
+      python: "-1,234.57"
   - description: "Number / decimal sub-unit"
     rawMessage: "{value, number, decimal}"
     values:
@@ -76,6 +87,7 @@ assertions:
     expectedTranslation: "০.০১"
     expectedByRuntime:
       swift: "0.01"
+      python: "0.01"
   - description: "Number / compact short thousands"
     rawMessage: "{value, number, compactShort}"
     values:
@@ -83,6 +95,7 @@ assertions:
     expectedTranslation: "১৩\u00A0হা"
     expectedByRuntime:
       swift: "13\u00A0হা"
+      python: "13 হা"
   - description: "Number / compact short negative"
     rawMessage: "{value, number, compactShort}"
     values:
@@ -90,6 +103,7 @@ assertions:
     expectedTranslation: "-১৩\u00A0লা"
     expectedByRuntime:
       swift: "-13\u00A0লা"
+      python: "-10 লা"
   - description: "Number / sign always zero"
     rawMessage: "{value, number, signAlways}"
     values:
@@ -97,6 +111,7 @@ assertions:
     expectedTranslation: "+০"
     expectedByRuntime:
       swift: "+0"
+      python: "+0"
   - description: "Number / rounding half expand negative tie"
     rawMessage: "{value, number, roundingHalfExpand}"
     values:
@@ -104,6 +119,7 @@ assertions:
     expectedTranslation: "-২"
     expectedByRuntime:
       swift: "-2"
+      python: "-2"
   - description: "Number / rounding half even odd tie"
     rawMessage: "{value, number, roundingHalfEven}"
     values:
@@ -111,6 +127,7 @@ assertions:
     expectedTranslation: "৪"
     expectedByRuntime:
       swift: "4"
+      python: "4"
   - description: "Number / Latin digits"
     rawMessage: "{value, number, latinDigits}"
     values:

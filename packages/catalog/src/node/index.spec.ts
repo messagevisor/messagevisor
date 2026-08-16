@@ -9,7 +9,8 @@ import { Datasource } from "../../../core/src/datasource";
 import { resolveExamples } from "../../../core/src/examples";
 import { findDuplicateTranslations } from "../../../core/src/find-duplicates";
 import { getProjectSetExecutions } from "../../../core/src/sets";
-import { targetIncludesMessage } from "../../../core/src/targeting";
+import { loadProjectSnapshot } from "../../../core/src/snapshot";
+import { compileTargetMessageMatcher, targetIncludesMessage } from "../../../core/src/targeting";
 import { expandTestAssertions } from "../../../core/src/tester/matrix";
 import {
   __catalogDevInternals,
@@ -19,22 +20,26 @@ import {
 } from "./index";
 
 const catalogApi = createCatalogApi({
+  loadProjectSnapshot,
   mergeFormats,
   resolveFormats,
   buildDatafile,
   getProjectSetExecutions,
   resolveExamples,
   findDuplicateTranslations,
+  compileTargetMessageMatcher,
   targetIncludesMessage,
   expandTestAssertions,
 });
 const catalogRuntime: CatalogRuntime = {
+  loadProjectSnapshot,
   mergeFormats,
   resolveFormats,
   buildDatafile,
   getProjectSetExecutions,
   resolveExamples,
   findDuplicateTranslations,
+  compileTargetMessageMatcher,
   targetIncludesMessage,
   expandTestAssertions,
 };
@@ -438,6 +443,31 @@ describe("catalog", function () {
     expect(segment.usage.messages).toEqual(["common.welcome"]);
     expect(target.messages).toEqual(["common.draft", "common.welcome"]);
     expect(history.entries).toEqual([]);
+  });
+
+  it("preserves unchanged JSON files and prunes stale generated files", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    const options = { outDir: "catalog-out", copyAssets: false };
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, options);
+
+    const messagePath = path.join(
+      root,
+      "catalog-out/data/root/entities/message/common.welcome.json",
+    );
+    const firstStat = await fs.promises.stat(messagePath);
+    await writeFile(root, "catalog-out/data/root/entities/message/obsolete.json", "obsolete");
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, options);
+
+    const secondStat = await fs.promises.stat(messagePath);
+    expect(secondStat.mtimeMs).toBe(firstStat.mtimeMs);
+    await expect(
+      pathExists(root, "catalog-out/data/root/entities/message/obsolete.json"),
+    ).resolves.toBe(false);
   });
 
   it("resolves target message relationships from string includeMessages and excludeMessages", async function () {

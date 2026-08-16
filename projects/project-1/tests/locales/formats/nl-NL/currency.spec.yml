@@ -23,6 +23,7 @@ assertions:
     expectedTranslation: "$\u00A01.234,50"
     expectedByRuntime:
       swift: "US$\u00A01.234,50"
+      python: "US$ 1.234,50"
   - description: "Currency / name display"
     rawMessage: "{amount, number, moneyName}"
     values:
@@ -51,6 +52,8 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "JP¥\u00A01.235"
+    expectedByRuntime:
+      python: "JP¥ 1.234"
   - description: "Currency / EUR"
     rawMessage: "{amount, number, moneyEur}"
     values:
@@ -76,6 +79,8 @@ assertions:
     values:
       value: 42
     expectedTranslation: "42 km"
+    expectedByRuntime:
+      python: "42 kilometer"
   - description: "Unit and percent / kilometer long"
     rawMessage: "{value, number, unitKilometerLong}"
     values:
@@ -112,6 +117,8 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "JP¥\u00A01.235"
+    expectedByRuntime:
+      python: "JP¥ 1.234"
   - description: "Unit and percent / percent zero"
     rawMessage: "{value, number, percent}"
     values:

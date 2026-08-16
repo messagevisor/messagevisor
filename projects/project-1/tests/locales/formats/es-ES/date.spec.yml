@@ -16,11 +16,15 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12/05/2026"
+    expectedByRuntime:
+      python: "12/5/2026"
   - description: "Date / weekday long"
     rawMessage: "{when, date, weekdayLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "martes, 12 de mayo de 2026"
+    expectedByRuntime:
+      python: "mar, 12 de mayo de 2026"
   - description: "Date / month long"
     rawMessage: "{when, date, monthLong}"
     values:
@@ -31,11 +35,15 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 de mayo de 2026 después de Cristo"
+    expectedByRuntime:
+      python: "12 de mayo de 2026 d. C."
   - description: "Date / Arabic digits"
     rawMessage: "{when, date, arabicNumeric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "١٢/٠٥/٢٠٢٦"
+    expectedByRuntime:
+      python: "12/5/2026"
   - description: "Date / Buddhist calendar"
     rawMessage: "{when, date, buddhistLong}"
     values:
@@ -43,11 +51,16 @@ assertions:
     expectedTranslation: "12 de mayo de 2569 BE"
     expectedByRuntime:
       swift: "12 de mayo de 2569"
+      php: "12 de mayo de 2026 d. C."
+      python: "12 de mayo de 2026"
   - description: "Date / Japanese era calendar"
     rawMessage: "{when, date, japaneseEra}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 de mayo de 8 Reiwa"
+    expectedByRuntime:
+      php: "12 de mayo de 2026 d. C."
+      python: "12 de mayo de 2026 d. C."
   - description: "Date / Gregorian calendar"
     rawMessage: "{when, date, gregorianLong}"
     values:
@@ -60,21 +73,29 @@ assertions:
     expectedTranslation: "25 de dhuʻl-qiʻdah de 1447 AH"
     expectedByRuntime:
       swift: "25 de dhuʻl-qiʻdah de 1447"
+      php: "12 de mayo de 2026 d. C."
+      python: "12 de mayo de 2026"
   - description: "Date / Latin digits"
     rawMessage: "{when, date, latinNumeric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12/05/2026"
+    expectedByRuntime:
+      python: "12/5/2026"
   - description: "Date / leap day"
     rawMessage: "{when, date, numeric}"
     values:
       when: "2028-02-29T12:00:00Z"
     expectedTranslation: "29/02/2028"
+    expectedByRuntime:
+      python: "29/2/2028"
   - description: "Date / year boundary UTC"
     rawMessage: "{when, date, numeric}"
     values:
       when: "2026-01-01T00:30:00Z"
     expectedTranslation: "01/01/2026"
+    expectedByRuntime:
+      python: "1/1/2026"
   - description: "Date / year boundary New York"
     rawMessage: "{when, date, numeric}"
     values:

@@ -55,6 +55,8 @@ export abstract class Adapter {
   abstract listEntities(type: EntityType): Promise<string[]>;
   abstract entityExists(type: EntityType, key: string): Promise<boolean>;
   abstract readEntity<T>(type: EntityType, key: string): Promise<T>;
+  getEntityFingerprint?(type: EntityType, key: string): Promise<string | null>;
+  getSnapshotCachePath?(): string | undefined;
   abstract readEntityDocument<T>(type: EntityType, key: string): Promise<EntityDocument<T>>;
   abstract writeEntity<T>(type: EntityType, key: string, entity: T): Promise<T>;
   abstract deleteEntity(type: EntityType, key: string): Promise<void>;

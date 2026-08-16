@@ -8,11 +8,14 @@ assertions:
     expectedTranslation: "الثلاثاء، ١٢ مايو ٢٠٢٦"
     expectedByRuntime:
       swift: "الثلاثاء، ١٢ مايو، ٢٠٢٦"
+      python: "الثلاثاء، 12 مايو 2026"
   - description: "Date / short style"
     rawMessage: "{when, date, shortStyle}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "١٢\u200F/٥\u200F/٢٠٢٦"
+    expectedByRuntime:
+      python: "12‏/5‏/2026"
   - description: "Date / numeric fields"
     rawMessage: "{when, date, numeric}"
     values:
@@ -20,6 +23,7 @@ assertions:
     expectedTranslation: "١٢\u200F/٠٥\u200F/٢٠٢٦"
     expectedByRuntime:
       swift: "١٢ مايو، ٢٠٢٦ م"
+      python: "12‏/5‏/2026"
   - description: "Date / weekday long"
     rawMessage: "{when, date, weekdayLong}"
     values:
@@ -27,6 +31,7 @@ assertions:
     expectedTranslation: "الثلاثاء، ١٢ مايو ٢٠٢٦"
     expectedByRuntime:
       swift: "الثلاثاء، ١٢ مايو، ٢٠٢٦ م"
+      python: "الثلاثاء، 12 مايو 2026"
   - description: "Date / month long"
     rawMessage: "{when, date, monthLong}"
     values:
@@ -34,6 +39,7 @@ assertions:
     expectedTranslation: "١٢ مايو ٢٠٢٦"
     expectedByRuntime:
       swift: "١٢ مايو، ٢٠٢٦ م"
+      python: "12 مايو 2026"
   - description: "Date / era long"
     rawMessage: "{when, date, eraLong}"
     values:
@@ -41,6 +47,7 @@ assertions:
     expectedTranslation: "١٢ مايو ٢٠٢٦ ميلادي"
     expectedByRuntime:
       swift: "١٢ مايو، ٢٠٢٦ ميلادي"
+      python: "12 مايو 2026 م"
   - description: "Date / Arabic digits"
     rawMessage: "{when, date, arabicNumeric}"
     values:
@@ -48,6 +55,7 @@ assertions:
     expectedTranslation: "١٢\u200F/٠٥\u200F/٢٠٢٦"
     expectedByRuntime:
       swift: "١٢ مايو، ٢٠٢٦ م"
+      python: "12‏/5‏/2026"
   - description: "Date / Buddhist calendar"
     rawMessage: "{when, date, buddhistLong}"
     values:
@@ -55,6 +63,8 @@ assertions:
     expectedTranslation: "١٢ مايو ٢٥٦٩ BE"
     expectedByRuntime:
       swift: "١٢ مايو، ٢٥٦٩ BE"
+      php: "١٢ مايو ٢٠٢٦ م"
+      python: "12 مايو 2026"
   - description: "Date / Japanese era calendar"
     rawMessage: "{when, date, japaneseEra}"
     values:
@@ -62,6 +72,8 @@ assertions:
     expectedTranslation: "١٢ مايو ٨ ريوا"
     expectedByRuntime:
       swift: "١٢ مايو، ٨ ريوا"
+      php: "١٢ مايو ٢٠٢٦ م"
+      python: "12 مايو 2026 م"
   - description: "Date / Gregorian calendar"
     rawMessage: "{when, date, gregorianLong}"
     values:
@@ -69,6 +81,7 @@ assertions:
     expectedTranslation: "١٢ مايو ٢٠٢٦"
     expectedByRuntime:
       swift: "١٢ مايو، ٢٠٢٦ م"
+      python: "12 مايو 2026"
   - description: "Date / Islamic calendar"
     rawMessage: "{when, date, islamicLong}"
     values:
@@ -76,6 +89,8 @@ assertions:
     expectedTranslation: "٢٥ ذو القعدة ١٤٤٧ هـ"
     expectedByRuntime:
       swift: "٢٥ ذو القعدة، ١٤٤٧ هـ"
+      php: "١٢ مايو ٢٠٢٦ م"
+      python: "12 مايو 2026"
   - description: "Date / Latin digits"
     rawMessage: "{when, date, latinNumeric}"
     values:
@@ -83,6 +98,7 @@ assertions:
     expectedTranslation: "12\u200F/05\u200F/2026"
     expectedByRuntime:
       swift: "12 مايو، 2026 م"
+      python: "12‏/5‏/2026"
   - description: "Date / leap day"
     rawMessage: "{when, date, numeric}"
     values:
@@ -90,6 +106,7 @@ assertions:
     expectedTranslation: "٢٩\u200F/٠٢\u200F/٢٠٢٨"
     expectedByRuntime:
       swift: "٢٩ فبراير، ٢٠٢٨ م"
+      python: "29‏/2‏/2028"
   - description: "Date / year boundary UTC"
     rawMessage: "{when, date, numeric}"
     values:
@@ -97,6 +114,7 @@ assertions:
     expectedTranslation: "٠١\u200F/٠١\u200F/٢٠٢٦"
     expectedByRuntime:
       swift: "٠١ يناير، ٢٠٢٦ م"
+      python: "1‏/1‏/2026"
   - description: "Date / year boundary New York"
     rawMessage: "{when, date, numeric}"
     values:
@@ -106,3 +124,4 @@ assertions:
 
     expectedByRuntime:
       swift: "٣١ ديسمبر، ٢٠٢٥ م"
+      python: "31‏/12‏/2025"

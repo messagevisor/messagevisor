@@ -65,6 +65,14 @@ export class Datasource {
     return this.adapter.readEntity<T>(entityType, entityKey);
   }
 
+  getEntityFingerprint(entityType: EntityType, entityKey: string) {
+    return this.adapter.getEntityFingerprint?.(entityType, entityKey) || Promise.resolve(undefined);
+  }
+
+  getSnapshotCachePath() {
+    return this.adapter.getSnapshotCachePath?.();
+  }
+
   readEntityDocument<T>(entityType: EntityType, entityKey: string) {
     return this.adapter.readEntityDocument<T>(entityType, entityKey);
   }

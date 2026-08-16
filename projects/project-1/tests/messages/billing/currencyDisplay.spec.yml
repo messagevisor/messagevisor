@@ -6,12 +6,16 @@ assertions:
     values:
       amount: 12
     expectedTranslation: "Symbol: $12.00; code: USD 12.00; accounting: $12.00"
+    expectedByRuntime:
+      python: "Symbol: $12.00; code: USD12.00; accounting: $12.00"
   - locale: en-US
     target: web
     currency: EUR
     values:
       amount: -12
     expectedTranslation: "Symbol: -€12.00; code: -EUR 12.00; accounting: (€12.00)"
+    expectedByRuntime:
+      python: "Symbol: -€12.00; code: -EUR12.00; accounting: (€12.00)"
   - locale: nl-NL
     target: web
     values:

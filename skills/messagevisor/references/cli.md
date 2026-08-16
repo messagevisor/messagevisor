@@ -197,6 +197,11 @@ npx messagevisor build --json --pretty
 
 Use `--no-stateFiles` only when you intentionally want a build that does not read or update state files.
 
+Project-reading commands keep a best-effort parsed-entity cache under
+`.messagevisor/cache/`. It is safe to remove and should be ignored by source control. Set
+`MESSAGEVISOR_NO_CACHE=1` when diagnosing a stale filesystem, comparing cold-start performance,
+or deliberately forcing every entity to be parsed again.
+
 ### `generate-code`
 
 ```bash

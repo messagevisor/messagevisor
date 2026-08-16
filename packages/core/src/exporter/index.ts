@@ -1,14 +1,15 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import type { Locale, Message, Target, Translation } from "@messagevisor/types";
+import type { Locale, Message, Translation } from "@messagevisor/types";
 
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import { resolveLocaleValue } from "../localeResolution";
 import { getProjectSetExecutions } from "../sets";
-import { matchesPattern, targetIncludesMessage } from "../targeting";
+import { loadProjectSnapshot } from "../snapshot";
+import { compileTargetMessageMatcher, matchesPattern } from "../targeting";
 
 export interface ExportProjectOptions {
   set?: string | string[];
@@ -59,14 +60,6 @@ export interface ExportProjectResult {
 function toArray(value?: string | string[]): string[] {
   if (typeof value === "undefined") return [];
   return Array.isArray(value) ? value : [value];
-}
-
-async function readAll<T>(
-  keys: string[],
-  read: (key: string) => Promise<T>,
-): Promise<Record<string, T>> {
-  const entries = await Promise.all(keys.map(async (key) => [key, await read(key)] as const));
-  return Object.fromEntries(entries);
 }
 
 function isAvailable(message: Message) {
@@ -238,11 +231,12 @@ async function collectRows(
   const includeMessages = toArray(options.includeMessages);
   const excludeMessages = toArray(options.excludeMessages);
 
-  const [localeKeys, targetKeys, messageKeys] = await Promise.all([
-    datasource.listLocales(),
-    datasource.listTargets(),
-    datasource.listMessages(),
-  ]);
+  const snapshot = await loadProjectSnapshot(datasource, {
+    entityTypes: ["locale", "target", "message"],
+  });
+  const localeKeys = snapshot.keys.locale;
+  const targetKeys = snapshot.keys.target;
+  const messageKeys = snapshot.keys.message;
 
   const datasourceLocales = options.allowMissingLocales
     ? requestedLocales.filter((locale) => localeKeys.includes(locale))
@@ -253,11 +247,7 @@ async function collectRows(
   }
   assertKnownValues("target", requestedTargets, targetKeys);
 
-  const [locales, targets, messages] = await Promise.all([
-    readAll<Locale>(localeKeys, (key) => datasource.readLocale(key)),
-    readAll<Target>(targetKeys, (key) => datasource.readTarget(key)),
-    readAll<Message>(messageKeys, (key) => datasource.readMessage(key)),
-  ]);
+  const { locales, targets, messages } = snapshot;
 
   const selectedMessageKeys = new Set<string>();
   const selectedLocales: string[] = [];
@@ -265,6 +255,7 @@ async function collectRows(
   if (requestedTargets.length > 0) {
     for (const targetKey of requestedTargets) {
       const target = targets[targetKey];
+      const targetMatcher = compileTargetMessageMatcher(target);
       const targetLocales = target.locales?.length ? target.locales : localeKeys;
 
       for (const locale of targetLocales) {
@@ -274,7 +265,7 @@ async function collectRows(
       }
 
       for (const messageKey of messageKeys) {
-        if (targetIncludesMessage(target, messageKey)) {
+        if (targetMatcher(messageKey)) {
           selectedMessageKeys.add(messageKey);
         }
       }
@@ -315,22 +306,23 @@ async function collectRows(
       return;
     }
 
+    const resolvedTranslations = Object.fromEntries(
+      selectedLocales.map((locale) => [
+        locale,
+        resolveTranslationStatus(translations, locale, locales),
+      ]),
+    ) as Record<string, { value: string; status: TranslationStatus }>;
+
     rows.push({
       set,
       messageKey,
       isOverride,
       messageDescription: options.withoutDescription ? undefined : description || "",
       translations: Object.fromEntries(
-        selectedLocales.map((locale) => [
-          locale,
-          resolveTranslationStatus(translations, locale, locales).value,
-        ]),
+        selectedLocales.map((locale) => [locale, resolvedTranslations[locale].value]),
       ),
       statuses: Object.fromEntries(
-        selectedLocales.map((locale) => [
-          locale,
-          resolveTranslationStatus(translations, locale, locales).status,
-        ]),
+        selectedLocales.map((locale) => [locale, resolvedTranslations[locale].status]),
       ) as Record<string, TranslationStatus>,
     });
   }

@@ -35,6 +35,8 @@ assertions:
     values:
       when: 2026-11-26T15:05:00.123456Z
     expectedTranslation: 26 November 2026
+    expectedByRuntime:
+      python: "26 Nov 2026"
 
   - description: en-GB short time uses 24-hour output
     rawMessage: "{when, time, short}"

@@ -54,6 +54,10 @@ Target files own runtime artifact behavior:
 
 State files under `.messagevisor/` help Messagevisor track generated output across builds. Do not hand-edit them unless intentionally resetting state.
 
+Parsed entity snapshots use an ephemeral cache under `.messagevisor/cache/`. This cache is separate
+from revision state, is safe to remove, and should be ignored by source control. Set
+`MESSAGEVISOR_NO_CACHE=1` to bypass it for a command invocation.
+
 Use `revisionFromHash: true` on a target when deployment wants content-addressed revisions. This is useful for CDN caching, release comparison, and missing-translation diagnostics.
 
 ## Catalog deployment

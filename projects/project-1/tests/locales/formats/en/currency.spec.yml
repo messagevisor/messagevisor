@@ -16,6 +16,8 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "USD\u00A01,234.50"
+    expectedByRuntime:
+      python: "USD1,234.50"
   - description: "Currency / narrow symbol display"
     rawMessage: "{amount, number, moneyNarrow}"
     values:
@@ -39,6 +41,8 @@ assertions:
       amount: 1234.5
     currency: "EUR"
     expectedTranslation: "EUR\u00A01,234.50"
+    expectedByRuntime:
+      python: "EUR1,234.50"
   - description: "Currency / GBP"
     rawMessage: "{amount, number, moneyGbp}"
     values:
@@ -49,6 +53,8 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "¥1,235"
+    expectedByRuntime:
+      python: "¥1,234"
   - description: "Currency / EUR"
     rawMessage: "{amount, number, moneyEur}"
     values:
@@ -105,11 +111,15 @@ assertions:
       amount: 1234.5
     currency: "GBP"
     expectedTranslation: "GBP\u00A01,234.50"
+    expectedByRuntime:
+      python: "GBP1,234.50"
   - description: "Currency / JPY zero decimals"
     rawMessage: "{amount, number, moneyJpy}"
     values:
       amount: 1234.5
     expectedTranslation: "¥1,235"
+    expectedByRuntime:
+      python: "¥1,234"
   - description: "Unit and percent / percent zero"
     rawMessage: "{value, number, percent}"
     values:

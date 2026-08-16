@@ -330,7 +330,7 @@ try {
     1,
   );
   const structuredError = JSON.parse(structuredErrorResult.stderr);
-  if (structuredError.error?.code !== "cli_error") {
+  if (structuredError.error?.code !== "conflicting_options") {
     throw new Error(`Packed CLI returned an invalid JSON error: ${structuredErrorResult.stderr}`);
   }
 

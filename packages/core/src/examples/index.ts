@@ -122,6 +122,7 @@ function parseOptionalPositiveInteger(name: string, value: unknown): number | un
   if (!Number.isInteger(parsedValue) || parsedValue < 1) {
     throw new MessagevisorCLIError(
       `Invalid ${name}: expected an integer greater than or equal to 1.`,
+      { code: "invalid_option", details: { option: name, value } },
     );
   }
 
@@ -158,7 +159,10 @@ function getExampleSourceSelection(
   const onlyMessages = Boolean(parsed.onlyMessages);
 
   if (onlyLocales && onlyMessages) {
-    throw new MessagevisorCLIError("Pass either --onlyLocales or --onlyMessages, not both.");
+    throw new MessagevisorCLIError("Pass either --onlyLocales or --onlyMessages, not both.", {
+      code: "conflicting_options",
+      details: { options: ["onlyLocales", "onlyMessages"] },
+    });
   }
 
   return {
@@ -505,12 +509,14 @@ async function collectExamplesForExecution(
   if (localeFilter && !localeKeys.includes(localeFilter)) {
     throw new MessagevisorCLIError(
       `Unknown locale "${localeFilter}". Available locales: ${localeKeys.join(", ") || "none"}.`,
+      { code: "unknown_locale", details: { locale: localeFilter } },
     );
   }
 
   if (messageFilter && !messageKeys.includes(messageFilter)) {
     throw new MessagevisorCLIError(
       `Unknown message "${messageFilter}". Available messages: ${messageKeys.join(", ") || "none"}.`,
+      { code: "unknown_message", details: { message: messageFilter } },
     );
   }
 
@@ -547,8 +553,9 @@ async function collectExamplesForExecution(
 
       for (const example of examples) {
         if (!localeKeys.includes(example.locale)) {
-          throw new Error(
+          throw new MessagevisorCLIError(
             `Unknown locale "${example.locale}" in examples for message "${messageKey}". Available locales: ${localeKeys.join(", ") || "none"}.`,
+            { code: "unknown_locale", details: { locale: example.locale, message: messageKey } },
           );
         }
 

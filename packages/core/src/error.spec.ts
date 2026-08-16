@@ -1,4 +1,9 @@
-import { formatMessagevisorCLIError, getMessagevisorCLIError, MessagevisorCLIError } from "./error";
+import {
+  formatMessagevisorCLIError,
+  getMessagevisorCLIError,
+  MESSAGEVISOR_CLI_ERROR_CODES,
+  MessagevisorCLIError,
+} from "./error";
 
 describe("MessagevisorCLIError", () => {
   it("exposes a stable structured JSON envelope", () => {
@@ -40,5 +45,10 @@ describe("MessagevisorCLIError", () => {
     ).toEqual({
       error: { code: "internal_error", message: "Boom", details: {} },
     });
+  });
+  it("exposes the built-in error-code vocabulary", () => {
+    expect(MESSAGEVISOR_CLI_ERROR_CODES.unknownTarget).toBe("unknown_target");
+    expect(MESSAGEVISOR_CLI_ERROR_CODES.jsonPrettyNotSupported).toBe("json_pretty_not_supported");
+    expect(new MessagevisorCLIError("Unclassified").code).toBe("cli_error");
   });
 });

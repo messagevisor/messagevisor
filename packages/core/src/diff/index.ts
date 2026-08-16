@@ -105,7 +105,12 @@ async function run(
     child.on("close", (code) => {
       const result = { stdout: stdout.trim(), stderr: stderr.trim(), code: code || 0 };
       if (result.code !== 0 && !options.allowFailure) {
-        reject(new MessagevisorCLIError(result.stderr || `${command} exited with code ${code}.`));
+        reject(
+          new MessagevisorCLIError(result.stderr || `${command} exited with code ${code}.`, {
+            code: "git_command_failed",
+            details: { command, exitCode: code },
+          }),
+        );
         return;
       }
       resolve(result);
@@ -142,6 +147,7 @@ async function getDefaultBranchRef(gitRoot: string) {
 
   throw new MessagevisorCLIError(
     "Could not find a default main or master branch. Pass --from=<branch-or-ref>.",
+    { code: "missing_git_ref" },
   );
 }
 
@@ -177,7 +183,12 @@ async function writeGitArchive(gitRoot: string, ref: string, outputPath: string)
     child.stdout.pipe(output);
     child.on("close", (code) => {
       if (code !== 0) {
-        reject(new MessagevisorCLIError(stderr.trim() || `Unable to read Git ref "${ref}".`));
+        reject(
+          new MessagevisorCLIError(stderr.trim() || `Unable to read Git ref "${ref}".`, {
+            code: "git_ref_not_found",
+            details: { ref },
+          }),
+        );
         return;
       }
       childClosed = true;
@@ -206,6 +217,7 @@ async function createGitProjectView(
       : "";
     throw new MessagevisorCLIError(
       `Git branch or ref "${ref}" is not available in this checkout.${shallowHint}`,
+      { code: "git_ref_not_found", details: { ref } },
     );
   }
 
@@ -232,7 +244,10 @@ async function createGitProjectView(
     }
 
     if (!fs.existsSync(path.join(projectPath, "messagevisor.config.js"))) {
-      throw new MessagevisorCLIError(`Messagevisor project does not exist at Git ref "${ref}".`);
+      throw new MessagevisorCLIError(`Messagevisor project does not exist at Git ref "${ref}".`, {
+        code: "project_not_found",
+        details: { ref },
+      });
     }
     const config = getProjectConfig(projectPath);
     return {
@@ -551,7 +566,9 @@ export async function diffProject(options: DiffProjectOptions): Promise<MessageD
   const gitRoot = await fs.promises.realpath(await getGitRoot(projectRoot));
   const projectRelativePath = path.relative(gitRoot, projectRoot);
   if (projectRelativePath.startsWith("..") || path.isAbsolute(projectRelativePath)) {
-    throw new MessagevisorCLIError("The Messagevisor project must be inside its Git repository.");
+    throw new MessagevisorCLIError("The Messagevisor project must be inside its Git repository.", {
+      code: "invalid_project_path",
+    });
   }
 
   const dirty = await hasProjectChanges(gitRoot, projectRelativePath);
@@ -579,6 +596,7 @@ export async function diffProject(options: DiffProjectOptions): Promise<MessageD
     if (unknownSets.length) {
       throw new MessagevisorCLIError(
         `Unknown set${unknownSets.length === 1 ? "" : "s"}: ${unknownSets.join(", ")}.`,
+        { code: "unknown_set", details: { sets: unknownSets } },
       );
     }
 
@@ -801,7 +819,10 @@ export const diffPlugin: Plugin = {
   async handler({ rootDirectoryPath, projectConfig, datasource, parsed }) {
     const format = parsed.json ? "json" : parsed.format || "terminal";
     if (!["terminal", "markdown", "json"].includes(format)) {
-      throw new MessagevisorCLIError("Invalid --format. Use terminal, markdown, or json.");
+      throw new MessagevisorCLIError("Invalid --format. Use terminal, markdown, or json.", {
+        code: "invalid_format",
+        details: { option: "format", value: format },
+      });
     }
     const result = await diffProject({
       rootDirectoryPath,

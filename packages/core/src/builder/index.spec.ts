@@ -94,6 +94,24 @@ describe("buildProject", function () {
     expect(Object.keys(datafile.translations)).toEqual(["auth.signin"]);
   });
 
+  it("classifies an unknown build target for automation", async function () {
+    const root = await createProject();
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await expect(
+      buildProject(projectConfig, datasource, {
+        target: "missing",
+        locale: "en-US",
+        json: true,
+        noStateFiles: true,
+      }),
+    ).rejects.toMatchObject({
+      code: "unknown_target",
+      details: { target: "missing" },
+    });
+  });
+
   it("merges format presets by type and style while replacing declared styles", function () {
     const formats = mergeFormats(
       {
@@ -1004,52 +1022,38 @@ describe("buildProject", function () {
     expect(content).toContain('  "schemaVersion":');
   });
 
-  it("uses target-level pretty for JSON output and allows CLI pretty to force formatting", async function () {
+  it("emits one compact JSON document per line and rejects pretty JSON output", async function () {
     const root = await createProject();
+    await writeFile(
+      root,
+      "targets/another.yml",
+      "description: Another\nincludeMessages:\n  - auth*\nlocales:\n  - en-US\n",
+    );
     const projectConfig = getProjectConfig(root);
     const datasource = new Datasource(projectConfig, root);
     const logSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
 
     try {
       await buildProject(projectConfig, datasource, {
-        target: "web",
-        locale: "en-US",
         noStateFiles: true,
         json: true,
       });
 
-      expect(logSpy.mock.calls[0][0]).not.toContain("\n");
+      expect(logSpy).toHaveBeenCalledTimes(2);
+      for (const [line] of logSpy.mock.calls) {
+        expect(line).not.toContain("\n");
+        expect(JSON.parse(line as string).schemaVersion).toBe("1");
+      }
 
-      await writeFile(
-        root,
-        "targets/web.yml",
-        "description: Web\nincludeMessages:\n  - auth*\nlocales:\n  - en-US\npretty: true\n",
-      );
-
-      await buildProject(projectConfig, datasource, {
-        target: "web",
-        locale: "en-US",
-        noStateFiles: true,
-        json: true,
-      });
-
-      expect(logSpy.mock.calls[1][0]).toContain("\n");
-
-      await writeFile(
-        root,
-        "targets/web.yml",
-        "description: Web\nincludeMessages:\n  - auth*\nlocales:\n  - en-US\n",
-      );
-
-      await buildProject(projectConfig, datasource, {
-        target: "web",
-        locale: "en-US",
-        noStateFiles: true,
-        json: true,
-        pretty: true,
-      });
-
-      expect(logSpy.mock.calls[2][0]).toContain("\n");
+      await expect(
+        buildProject(projectConfig, datasource, {
+          target: "web",
+          locale: "en-US",
+          noStateFiles: true,
+          json: true,
+          pretty: true,
+        }),
+      ).rejects.toMatchObject({ code: "json_pretty_not_supported" });
     } finally {
       logSpy.mockRestore();
     }

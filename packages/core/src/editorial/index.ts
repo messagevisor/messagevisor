@@ -15,6 +15,7 @@ import { getMessageZodSchema } from "../linter/messageSchema";
 import { getSegmentZodSchema } from "../linter/segmentSchema";
 import { getTargetZodSchema } from "../linter/targetSchema";
 import { getTestZodSchema } from "../linter/testSchema";
+import { MessagevisorCLIError } from "../error";
 
 export interface EditorialValidationIssue {
   type: EntityType;
@@ -264,9 +265,16 @@ export async function renameEntity(
   to: string,
   options: RenameEntityOptions = {},
 ): Promise<RenameEntityResult> {
-  if (from === to) throw new Error("Source and destination entity keys must be different.");
+  if (from === to)
+    throw new MessagevisorCLIError("Source and destination entity keys must be different.", {
+      code: "conflicting_options",
+      details: { from, to },
+    });
   if (await datasource.entityExists(type, to)) {
-    throw new Error(`${type} "${to}" already exists.`);
+    throw new MessagevisorCLIError(`${type} "${to}" already exists.`, {
+      code: "entity_already_exists",
+      details: { type, key: to },
+    });
   }
 
   const source = await datasource.readEntityDocument(type, from);

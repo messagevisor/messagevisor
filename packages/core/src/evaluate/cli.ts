@@ -23,7 +23,10 @@ function parseJsonOption(optionName: string, value: string) {
   try {
     return JSON.parse(value);
   } catch (error) {
-    throw new MessagevisorCLIError(`Invalid ${optionName}: expected valid JSON`);
+    throw new MessagevisorCLIError(`Invalid ${optionName}: expected valid JSON`, {
+      code: "invalid_json",
+      details: { option: optionName },
+    });
   }
 }
 
@@ -34,11 +37,15 @@ export const evaluatePlugin = {
       if (!projectConfig.sets && parsed.set) {
         throw new MessagevisorCLIError(
           "Option --set can only be used when project sets are enabled.",
+          { code: "sets_not_enabled", details: { option: "set" } },
         );
       }
 
       if (projectConfig.sets && !parsed.set) {
-        throw new MessagevisorCLIError("Pass --set=<set>");
+        throw new MessagevisorCLIError("Pass --set=<set>", {
+          code: "missing_required_option",
+          details: { option: "set" },
+        });
       }
 
       if (projectConfig.sets) {
@@ -55,12 +62,20 @@ export const evaluatePlugin = {
       if (subjects.length > 1) {
         throw new MessagevisorCLIError(
           "Pass exactly one of --message=<key>, --rawMessage=<message>, or --segment=<key>.",
+          {
+            code: "conflicting_options",
+            details: { options: ["message", "rawMessage", "segment"] },
+          },
         );
       }
 
       if (subjects.length === 0) {
         throw new MessagevisorCLIError(
           "Pass --message=<key>, --rawMessage=<message>, or --segment=<key>",
+          {
+            code: "missing_required_option",
+            details: { options: ["message", "rawMessage", "segment"] },
+          },
         );
       }
 
@@ -80,7 +95,10 @@ export const evaluatePlugin = {
       }
 
       if (!parsed.locale) {
-        throw new MessagevisorCLIError("Pass --locale=<locale>");
+        throw new MessagevisorCLIError("Pass --locale=<locale>", {
+          code: "missing_required_option",
+          details: { option: "locale" },
+        });
       }
 
       const locale = parsed.locale;
@@ -111,7 +129,9 @@ export const evaluatePlugin = {
         return;
       }
 
-      throw new MessagevisorCLIError("Unable to evaluate the requested subject.");
+      throw new MessagevisorCLIError("Unable to evaluate the requested subject.", {
+        code: "invalid_input",
+      });
     } catch (error) {
       if (printMessagevisorCLIError(error, parsed)) {
         return false;

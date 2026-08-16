@@ -20,6 +20,7 @@ export async function getProjectSetExecutions(
     if (selectedSet) {
       throw new MessagevisorCLIError(
         "Option --set can only be used when project sets are enabled.",
+        { code: "sets_not_enabled", details: { option: "set" } },
       );
     }
 
@@ -31,13 +32,16 @@ export async function getProjectSetExecutions(
   if (selectedSet && !availableSetKeys.includes(selectedSet)) {
     throw new MessagevisorCLIError(
       `Unknown set "${selectedSet}". Available sets: ${availableSetKeys.join(", ") || "none"}.`,
+      { code: "unknown_set", details: { set: selectedSet } },
     );
   }
 
   const setKeys = selectedSet ? [selectedSet] : availableSetKeys;
 
   if (setKeys.length === 0) {
-    throw new MessagevisorCLIError(`No sets found in ${projectConfig.setsDirectoryPath}.`);
+    throw new MessagevisorCLIError(`No sets found in ${projectConfig.setsDirectoryPath}.`, {
+      code: "no_sets",
+    });
   }
 
   return setKeys.map((set) => {
@@ -59,6 +63,7 @@ export function assertProjectSetJsonSelection(
   if (projectConfig.sets && json && !selectedSet) {
     throw new MessagevisorCLIError(
       "Pass --set=<set> when using --json in a project with sets enabled.",
+      { code: "set_required_for_json", details: { option: "set" } },
     );
   }
 }

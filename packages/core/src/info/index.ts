@@ -29,6 +29,7 @@ export const infoPlugin = {
     if (!projectConfig.sets && parsed.set) {
       throw new MessagevisorCLIError(
         "Option --set can only be used when project sets are enabled.",
+        { code: "sets_not_enabled", details: { option: "set" } },
       );
     }
     assertProjectSetJsonSelection(projectConfig, parsed.set, parsed.json);

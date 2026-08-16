@@ -81,6 +81,18 @@ function emptyEntities(): Record<EntityType, Record<string, SnapshotEntity>> {
   };
 }
 
+function orderEntityRecord<T>(keys: string[], values: Record<string, T>): Record<string, T> {
+  const ordered: Record<string, T> = {};
+
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(values, key)) {
+      ordered[key] = values[key];
+    }
+  }
+
+  return ordered;
+}
+
 async function readSnapshotCacheFile(directoryPath: string, entityType: EntityType) {
   const cachePath = path.join(directoryPath, `${entityType}.json`);
 
@@ -215,6 +227,13 @@ export async function loadProjectSnapshot(
   }
 
   await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, () => worker()));
+
+  // Workers finish in filesystem and parser dependent order. Rebuild every
+  // loaded collection from the already sorted key list so consumers never
+  // observe a different insertion order for the same project.
+  for (const entityType of entityTypes) {
+    entities[entityType] = orderEntityRecord(keys[entityType], entities[entityType]);
+  }
 
   // Only listed types are pruned intentionally. Reading unrelated shards to
   // remove stale keys would make narrow lint and editor workflows slower.

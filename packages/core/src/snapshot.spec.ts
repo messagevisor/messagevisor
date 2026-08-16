@@ -85,4 +85,32 @@ describe("loadProjectSnapshot", function () {
       await fs.promises.rm(root, { recursive: true, force: true });
     }
   });
+
+  it("preserves sorted insertion order after concurrent parsing", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-snapshot-order-"));
+
+    try {
+      await writeFile(root, "messagevisor.config.js", "module.exports = {}\n");
+      await writeFile(root, "locales/en.yml", "description: English\n");
+
+      await Promise.all(
+        Array.from({ length: 220 }, (_, index) => {
+          const key = `message-${String(index).padStart(3, "0")}`;
+          return writeFile(root, `messages/${key}.yml`, `translations:\n  en: ${key}\n`);
+        }),
+      );
+
+      const datasource = new Datasource(getProjectConfig(root), root);
+      const snapshot = await loadProjectSnapshot(datasource, {
+        entityTypes: ["message"],
+        concurrency: 16,
+        cache: false,
+      });
+
+      expect(Object.keys(snapshot.messages)).toEqual(snapshot.keys.message);
+      expect(snapshot.keys.message).toEqual([...snapshot.keys.message].sort());
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
 });

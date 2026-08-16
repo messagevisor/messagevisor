@@ -22,7 +22,10 @@ function parseJsonOption(optionName: string, value: string) {
   try {
     return JSON.parse(value);
   } catch (error) {
-    throw new MessagevisorCLIError(`Invalid ${optionName}: expected valid JSON`);
+    throw new MessagevisorCLIError(`Invalid ${optionName}: expected valid JSON`, {
+      code: "invalid_json",
+      details: { option: optionName },
+    });
   }
 }
 
@@ -339,11 +342,15 @@ export const benchmarkPlugin: Plugin = {
       if (!projectConfig.sets && parsed.set) {
         throw new MessagevisorCLIError(
           "Option --set can only be used when project sets are enabled.",
+          { code: "sets_not_enabled", details: { option: "set" } },
         );
       }
 
       if (projectConfig.sets && !parsed.set) {
-        throw new MessagevisorCLIError("Pass --set=<set>");
+        throw new MessagevisorCLIError("Pass --set=<set>", {
+          code: "missing_required_option",
+          details: { option: "set" },
+        });
       }
 
       if (projectConfig.sets) {
@@ -355,15 +362,22 @@ export const benchmarkPlugin: Plugin = {
       if (parsed.message && parsed.rawMessage) {
         throw new MessagevisorCLIError(
           "Pass either --message=<key> or --rawMessage=<message>, not both",
+          { code: "conflicting_options", details: { options: ["message", "rawMessage"] } },
         );
       }
 
       if (!parsed.message && !parsed.rawMessage) {
-        throw new MessagevisorCLIError("Pass --message=<key> or --rawMessage=<message>");
+        throw new MessagevisorCLIError("Pass --message=<key> or --rawMessage=<message>", {
+          code: "missing_required_option",
+          details: { options: ["message", "rawMessage"] },
+        });
       }
 
       if (!parsed.locale) {
-        throw new MessagevisorCLIError("Pass --locale=<locale>");
+        throw new MessagevisorCLIError("Pass --locale=<locale>", {
+          code: "missing_required_option",
+          details: { option: "locale" },
+        });
       }
 
       const target = parsed.target;

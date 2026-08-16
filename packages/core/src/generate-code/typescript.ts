@@ -39,11 +39,17 @@ function resolveSelectedSet(projectConfig: ProjectConfig, value?: string | strin
   const sets = toArray(value);
 
   if (!projectConfig.sets && sets.length > 0) {
-    throw new MessagevisorCLIError("Option --set can only be used when project sets are enabled.");
+    throw new MessagevisorCLIError("Option --set can only be used when project sets are enabled.", {
+      code: "sets_not_enabled",
+      details: { option: "set" },
+    });
   }
 
   if (sets.length > 1) {
-    throw new MessagevisorCLIError("Only one --set value can be used for code generation.");
+    throw new MessagevisorCLIError("Only one --set value can be used for code generation.", {
+      code: "invalid_option",
+      details: { option: "set" },
+    });
   }
 
   return sets[0];
@@ -154,7 +160,10 @@ export function setInstance(messagevisor: Messagevisor) {
 
 export function getInstance() {
   if (!instance) {
-    throw new Error("Messagevisor instance is not set. Call setInstance(instance) first.");
+    throw new MessagevisorCLIError("Messagevisor instance is not set. Call setInstance(instance) first.", {
+      code: "invalid_input",
+      details: { operation: "setInstance" },
+    });
   }
 
   return instance;

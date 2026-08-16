@@ -75,6 +75,7 @@ async function assertDestinationReady(directoryPath: string, overwrite?: boolean
   if (entries.length > 0 && !overwrite) {
     throw new MessagevisorCLIError(
       `Destination directory is not empty: ${directoryPath}. Pass --overwrite to initialize there and skip conflicting files.`,
+      { code: "entity_already_exists", details: { directoryPath } },
     );
   }
 }
@@ -101,6 +102,7 @@ function validateNewDirectoryName(directoryName: string) {
   if (!trimmed) {
     throw new MessagevisorCLIError(
       "Directory name is required to initialize a new Messagevisor project.",
+      { code: "missing_required_option", details: { option: "directory" } },
     );
   }
 
@@ -113,6 +115,7 @@ function validateNewDirectoryName(directoryName: string) {
   ) {
     throw new MessagevisorCLIError(
       "Directory name must be a simple folder name, not an absolute path or nested path.",
+      { code: "invalid_input", details: { option: "directory" } },
     );
   }
 
@@ -134,6 +137,7 @@ async function promptForNewDirectoryName(
   if (!canPrompt) {
     throw new MessagevisorCLIError(
       "Current working directory is not empty. Run `messagevisor init` from an empty directory, or pass --overwrite.",
+      { code: "entity_already_exists" },
     );
   }
 
@@ -155,8 +159,9 @@ async function getTarballStream(options: InitProjectOptions = {}) {
   const response = await fetchImpl(options.tarballUrl || EXAMPLES_TAR_URL);
 
   if (!response.ok || !response.body) {
-    throw new Error(
+    throw new MessagevisorCLIError(
       `Unable to download Messagevisor examples tarball: ${response.status} ${response.statusText}`,
+      { code: "download_failed", details: { status: response.status } },
     );
   }
 
@@ -221,6 +226,7 @@ export async function initProject(
   if (!matchedProjectPath) {
     throw new MessagevisorCLIError(
       `Unknown project "${projectName}". No matching project-${projectName} found in examples tarball.`,
+      { code: "project_not_found", details: { project: projectName } },
     );
   }
 
@@ -252,6 +258,7 @@ export async function initProjectFromCLI(
   if (!(await isDirectoryEmpty(destinationDirectoryPath))) {
     throw new MessagevisorCLIError(
       `Destination directory is not empty: ${destinationDirectoryPath}. Please choose a different directory name.`,
+      { code: "entity_already_exists", details: { directoryPath: destinationDirectoryPath } },
     );
   }
 

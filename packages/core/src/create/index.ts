@@ -25,12 +25,14 @@ function getSelectedEntityType(parsed: Record<string, unknown>): CreateEntityTyp
   if (selected.length === 0) {
     throw new MessagevisorCLIError(
       "Nothing to create. Pass exactly one of --messages, --locales, --targets, --attributes, or --segments.",
+      { code: "missing_required_option" },
     );
   }
 
   if (selected.length > 1) {
     throw new MessagevisorCLIError(
       "Pass exactly one of --messages, --locales, --targets, --attributes, or --segments.",
+      { code: "conflicting_options" },
     );
   }
 
@@ -45,6 +47,7 @@ async function readInputKeys(parsed: Record<string, unknown>) {
   if (process.stdin.isTTY) {
     throw new MessagevisorCLIError(
       "Pass --keys=<multiline string> or provide newline-separated keys via stdin.",
+      { code: "missing_required_option", details: { option: "keys" } },
     );
   }
 
@@ -73,7 +76,10 @@ function parseKeys(input: string) {
   }
 
   if (keys.length === 0) {
-    throw new MessagevisorCLIError("No keys found. Pass at least one newline-separated key.");
+    throw new MessagevisorCLIError("No keys found. Pass at least one newline-separated key.", {
+      code: "invalid_input",
+      details: { option: "keys" },
+    });
   }
 
   return keys;
@@ -122,6 +128,7 @@ async function createEntityShell(
     if (localeKeys.length === 0) {
       throw new MessagevisorCLIError(
         "Cannot create messages without at least one locale. Create a locale first.",
+        { code: "missing_locale" },
       );
     }
 
@@ -254,11 +261,15 @@ export const createPlugin: Plugin = {
       if (!projectConfig.sets && parsed.set) {
         throw new MessagevisorCLIError(
           "Option --set can only be used when project sets are enabled.",
+          { code: "sets_not_enabled", details: { option: "set" } },
         );
       }
 
       if (projectConfig.sets && !parsed.set) {
-        throw new MessagevisorCLIError("Pass --set=<set>");
+        throw new MessagevisorCLIError("Pass --set=<set>", {
+          code: "missing_required_option",
+          details: { option: "set" },
+        });
       }
 
       if (projectConfig.sets) {

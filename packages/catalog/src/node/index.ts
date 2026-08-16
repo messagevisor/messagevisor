@@ -504,7 +504,9 @@ function deepClone<T>(value: T): T {
 
 function getLocaleDirections(locales: Record<string, Locale>) {
   return Object.fromEntries(
-    Object.entries(locales).map(([localeKey, locale]) => [localeKey, locale.direction]),
+    Object.keys(locales)
+      .sort()
+      .map((localeKey) => [localeKey, locales[localeKey].direction]),
   );
 }
 
@@ -1706,12 +1708,13 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "locale", `${encodeKey(localeKey)}.json`),
       detail,
     );
-    skippedEmptyHistoryCount += await writeHistoryPages(
+    const skippedHistory = await writeHistoryPages(
       context.writer,
       path.join(outputDirectoryPath, "history", "locale", encodeKey(localeKey)),
       getHistoryForEntity(context.historyIndex, "locale", localeKey, set || undefined),
       { skipEmpty: true },
     );
+    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(localesStartedAt, `(${pluralize(localeKeys.length, "locale")})`);
 
@@ -1939,12 +1942,13 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "attribute", `${encodeKey(attributeKey)}.json`),
       detail,
     );
-    skippedEmptyHistoryCount += await writeHistoryPages(
+    const skippedHistory = await writeHistoryPages(
       context.writer,
       path.join(outputDirectoryPath, "history", "attribute", encodeKey(attributeKey)),
       getHistoryForEntity(context.historyIndex, "attribute", attributeKey, set || undefined),
       { skipEmpty: true },
     );
+    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(attributesStartedAt, `(${pluralize(attributeKeys.length, "attribute")})`);
 
@@ -1986,12 +1990,13 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "segment", `${encodeKey(segmentKey)}.json`),
       detail,
     );
-    skippedEmptyHistoryCount += await writeHistoryPages(
+    const skippedHistory = await writeHistoryPages(
       context.writer,
       path.join(outputDirectoryPath, "history", "segment", encodeKey(segmentKey)),
       getHistoryForEntity(context.historyIndex, "segment", segmentKey, set || undefined),
       { skipEmpty: true },
     );
+    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(segmentsStartedAt, `(${pluralize(segmentKeys.length, "segment")})`);
 
@@ -2059,12 +2064,13 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "target", `${encodeKey(targetKey)}.json`),
       detail,
     );
-    skippedEmptyHistoryCount += await writeHistoryPages(
+    const skippedHistory = await writeHistoryPages(
       context.writer,
       path.join(outputDirectoryPath, "history", "target", encodeKey(targetKey)),
       getHistoryForEntity(context.historyIndex, "target", targetKey, set || undefined),
       { skipEmpty: true },
     );
+    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(targetsStartedAt, `(${pluralize(targetKeys.length, "target")})`);
 

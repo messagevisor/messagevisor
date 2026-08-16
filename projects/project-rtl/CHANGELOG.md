@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.3.0](https://github.com/messagevisor/messagevisor/compare/v1.2.0...v1.3.0) (2026-08-16)
+
+
+### Features
+
+* CLI performance improvements ([#39](https://github.com/messagevisor/messagevisor/issues/39)) ([72fdaea](https://github.com/messagevisor/messagevisor/commit/72fdaea667822c3f34c70ccb11a014357d972b01))
+
+
+
+
+
 # [1.2.0](https://github.com/messagevisor/messagevisor/compare/v1.1.0...v1.2.0) (2026-08-09)
 
 **Note:** Version bump only for package @messagevisor/project-rtl

@@ -125,6 +125,7 @@ async function findDuplicatesInDatasource(
   if (options.locale && !localeKeys.includes(options.locale)) {
     throw new MessagevisorCLIError(
       `Unknown locale "${options.locale}". Available locales: ${localeKeys.join(", ") || "none"}.`,
+      { code: "unknown_locale", details: { locale: options.locale } },
     );
   }
 
@@ -178,7 +179,10 @@ export async function findDuplicateTranslations(
   options: FindDuplicatesOptions = {},
 ): Promise<FindDuplicatesResult> {
   if (!projectConfig.sets && options.set) {
-    throw new MessagevisorCLIError("Option --set can only be used when project sets are enabled.");
+    throw new MessagevisorCLIError("Option --set can only be used when project sets are enabled.", {
+      code: "sets_not_enabled",
+      details: { option: "set" },
+    });
   }
 
   const executions = await getProjectSetExecutions(projectConfig, datasource, options.set);

@@ -34,6 +34,7 @@ function parseFormatKey(format: string): [string, string] {
   if (separatorIndex <= 0 || separatorIndex === format.length - 1) {
     throw new MessagevisorCLIError(
       `Invalid format "${format}". Expected <type>.<preset>, for example number.currency.`,
+      { code: "invalid_format", details: { format } },
     );
   }
 
@@ -86,7 +87,10 @@ export async function findUsage(
           ? (["locale", query.locale, localeKeys] as const)
           : undefined;
   if (selectedEntity && !selectedEntity[2].includes(selectedEntity[1])) {
-    throw new MessagevisorCLIError(`Unknown ${selectedEntity[0]} "${selectedEntity[1]}".`);
+    throw new MessagevisorCLIError(`Unknown ${selectedEntity[0]} "${selectedEntity[1]}".`, {
+      code: `unknown_${selectedEntity[0]}`,
+      details: { key: selectedEntity[1] },
+    });
   }
 
   const formatKey = query.format ? parseFormatKey(query.format) : undefined;
@@ -284,11 +288,13 @@ export const findUsagePlugin = {
       if (Object.values(query).filter(Boolean).length !== 1) {
         throw new MessagevisorCLIError(
           "Provide exactly one of --message, --segment, --attribute, --locale, or --format.",
+          { code: "conflicting_options" },
         );
       }
       if (!projectConfig.sets && parsed.set) {
         throw new MessagevisorCLIError(
           "Option --set can only be used when project sets are enabled.",
+          { code: "sets_not_enabled", details: { option: "set" } },
         );
       }
       assertProjectSetJsonSelection(projectConfig, parsed.set, parsed.json);

@@ -1,10 +1,13 @@
 import * as path from "path";
 
 import type { ProjectConfig } from "../config";
+import { MessagevisorCLIError } from "../error";
 
 export function assertValidEntityKey(config: ProjectConfig, key: string) {
   if (typeof key !== "string" || key.length === 0) {
-    throw new Error("Entity key must be a non-empty string.");
+    throw new MessagevisorCLIError("Entity key must be a non-empty string.", {
+      code: "invalid_entity_key",
+    });
   }
 
   const segments = key.split(config.namespaceCharacter);
@@ -20,8 +23,9 @@ export function assertValidEntityKey(config: ProjectConfig, key: string) {
         !/^[a-zA-Z0-9_-]+$/.test(segment),
     )
   ) {
-    throw new Error(
+    throw new MessagevisorCLIError(
       `Invalid entity key "${key}". Namespace segments must be non-empty and contain only letters, numbers, "_", and "-".`,
+      { code: "invalid_entity_key", details: { key } },
     );
   }
 
@@ -32,7 +36,13 @@ export function assertPathWithinDirectory(directoryPath: string, filePath: strin
   const relative = path.relative(path.resolve(directoryPath), path.resolve(filePath));
 
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error(`Resolved entity path escapes its configured directory: ${filePath}`);
+    throw new MessagevisorCLIError(
+      `Resolved entity path escapes its configured directory: ${filePath}`,
+      {
+        code: "invalid_entity_path",
+        details: { filePath },
+      },
+    );
   }
 
   return filePath;

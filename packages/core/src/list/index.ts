@@ -51,7 +51,10 @@ function parseBooleanOption(name: string, value: unknown): boolean {
     return false;
   }
 
-  throw new MessagevisorCLIError(`Invalid ${name}: expected true or false`);
+  throw new MessagevisorCLIError(`Invalid ${name}: expected true or false`, {
+    code: "invalid_option",
+    details: { option: name, value },
+  });
 }
 
 function matchesOptionalBoolean(
@@ -130,12 +133,14 @@ function getSelectedEntityType(options: any): ListType {
   if (selected.length === 0) {
     throw new MessagevisorCLIError(
       "Nothing to list. Pass exactly one of --datafiles, --messages, --locales, --segments, --attributes, --targets, or --tests.",
+      { code: "missing_required_option" },
     );
   }
 
   if (selected.length > 1) {
     throw new MessagevisorCLIError(
       "Pass exactly one of --datafiles, --messages, --locales, --segments, --attributes, --targets, or --tests.",
+      { code: "conflicting_options" },
     );
   }
 
@@ -153,13 +158,20 @@ function validateFilters(entityType: EntityType, options: any) {
 
   for (const [withOption, withoutOption] of opposingFilters) {
     if (options[withOption] && options[withoutOption]) {
-      throw new MessagevisorCLIError(`Use either --${withOption} or --${withoutOption}, not both.`);
+      throw new MessagevisorCLIError(
+        `Use either --${withOption} or --${withoutOption}, not both.`,
+        {
+          code: "conflicting_options",
+          details: { options: [withOption, withoutOption] },
+        },
+      );
     }
   }
 
   if ((options.withTests || options.withoutTests) && entityType === "attributes") {
     throw new MessagevisorCLIError(
       "--with-tests and --without-tests are not supported for attributes.",
+      { code: "invalid_option", details: { option: "with-tests" } },
     );
   }
 
@@ -184,7 +196,10 @@ function validateFilters(entityType: EntityType, options: any) {
 
   for (const [option, allowedEntityTypes] of Object.entries(allowedEntityTypesByOption)) {
     if (typeof options[option] !== "undefined" && !allowedEntityTypes.includes(entityType)) {
-      throw new MessagevisorCLIError(`Option --${option} cannot be used with --${entityType}.`);
+      throw new MessagevisorCLIError(`Option --${option} cannot be used with --${entityType}.`, {
+        code: "invalid_option",
+        details: { option, entityType },
+      });
     }
   }
 }
@@ -525,6 +540,7 @@ export const listPlugin = {
       if (!projectConfig.sets && parsed.set) {
         throw new MessagevisorCLIError(
           "Option --set can only be used when project sets are enabled.",
+          { code: "sets_not_enabled", details: { option: "set" } },
         );
       }
       const entityType = getSelectedEntityType(parsed);

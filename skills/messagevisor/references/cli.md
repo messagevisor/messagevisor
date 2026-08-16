@@ -8,9 +8,11 @@ npx messagevisor <command> [options]
 
 The CLI searches upwards from the current directory for `messagevisor.config.js`. The global `--rootDirectoryPath=/absolute/path` option starts project discovery from another path.
 
-Use `--json --pretty` for machine-readable output when a command supports it. Many commands also support `--set=<name>` in `sets: true` projects.
+Use `--json --pretty` for machine-readable output when a command supports it, except for `build`: `build --json` is newline-delimited JSON and cannot be combined with `--pretty`. Many commands also support `--set=<name>` in `sets: true` projects.
 
 With `--json`, command failures use a stable `error` envelope containing `code`, `message`, and optional `details`. Inspect those fields instead of parsing terminal prose.
+
+Built-in error codes are documented in the website's CLI error code reference. `cli_error` is the compatibility fallback for unclassified third-party plugin errors; `internal_error` is reserved for unexpected failures.
 
 Unknown commands, options, extra positional arguments, invalid option values, and invalid regular expressions fail with a non-zero exit code. Only pass `--set` when sets are enabled.
 
@@ -192,8 +194,10 @@ npx messagevisor build
 npx messagevisor build --target=web --locale=en-US
 npx messagevisor build --set=production
 npx messagevisor build --showSize
-npx messagevisor build --json --pretty
+npx messagevisor build --json
 ```
+
+`build --json` emits one compact datafile per line. Parse it as NDJSON rather than as one JSON array or one combined JSON object. Use target-level `pretty: true` when writing human-readable datafiles to disk.
 
 Use `--no-stateFiles` only when you intentionally want a build that does not read or update state files.
 

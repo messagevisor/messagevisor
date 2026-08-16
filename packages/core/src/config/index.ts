@@ -7,6 +7,7 @@ import type { MessagevisorModule } from "@messagevisor/sdk";
 import { FilesystemAdapter } from "../datasource/filesystemAdapter";
 import type { Plugin } from "../cli";
 import type { AdapterConstructor } from "../datasource/adapter";
+import { MessagevisorCLIError } from "../error";
 
 export const LOCALES_DIRECTORY_NAME = "locales";
 export const MESSAGES_DIRECTORY_NAME = "messages";
@@ -95,7 +96,12 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
   const customConfig = require(resolvedConfigModulePath);
 
   if (typeof customConfig !== "object" || customConfig === null || Array.isArray(customConfig)) {
-    throw new Error("Invalid Messagevisor configuration: expected an object export.");
+    throw new MessagevisorCLIError(
+      "Invalid Messagevisor configuration: expected an object export.",
+      {
+        code: "invalid_configuration",
+      },
+    );
   }
 
   const unknownConfigKeys = Object.keys(customConfig).filter(
@@ -103,10 +109,11 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
   );
 
   if (unknownConfigKeys.length > 0) {
-    throw new Error(
+    throw new MessagevisorCLIError(
       `Unknown Messagevisor configuration option${unknownConfigKeys.length === 1 ? "" : "s"}: ${unknownConfigKeys
         .sort()
         .join(", ")}.`,
+      { code: "invalid_configuration", details: { options: unknownConfigKeys } },
     );
   }
 
@@ -129,8 +136,9 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
     finalConfig.namespaceCharacter === "/" ||
     finalConfig.namespaceCharacter === "\\"
   ) {
-    throw new Error(
+    throw new MessagevisorCLIError(
       `Invalid namespaceCharacter: ${finalConfig.namespaceCharacter}. It must be a non-empty string and cannot be a path separator.`,
+      { code: "invalid_configuration", details: { option: "namespaceCharacter" } },
     );
   }
 
@@ -140,67 +148,95 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
     finalConfig.exportOverrideKeySeparator === "/" ||
     finalConfig.exportOverrideKeySeparator === "\\"
   ) {
-    throw new Error(
+    throw new MessagevisorCLIError(
       `Invalid exportOverrideKeySeparator: ${finalConfig.exportOverrideKeySeparator}. It must be a non-empty string and cannot be a path separator.`,
+      { code: "invalid_configuration", details: { option: "exportOverrideKeySeparator" } },
     );
   }
 
   if (finalConfig.exportOverrideKeySeparator === finalConfig.namespaceCharacter) {
-    throw new Error(
+    throw new MessagevisorCLIError(
       `Invalid exportOverrideKeySeparator: it cannot be the same as namespaceCharacter "${finalConfig.namespaceCharacter}".`,
+      { code: "invalid_configuration", details: { option: "exportOverrideKeySeparator" } },
     );
   }
 
   if (typeof finalConfig.icuSkeleton !== "boolean") {
-    throw new Error(`Invalid icuSkeleton: ${finalConfig.icuSkeleton}. It must be a boolean.`);
+    throw new MessagevisorCLIError(
+      `Invalid icuSkeleton: ${finalConfig.icuSkeleton}. It must be a boolean.`,
+      {
+        code: "invalid_configuration",
+        details: { option: "icuSkeleton" },
+      },
+    );
   }
 
   if (typeof finalConfig.lintIcu !== "boolean") {
-    throw new Error(`Invalid lintIcu: ${finalConfig.lintIcu}. It must be a boolean.`);
+    throw new MessagevisorCLIError(
+      `Invalid lintIcu: ${finalConfig.lintIcu}. It must be a boolean.`,
+      {
+        code: "invalid_configuration",
+        details: { option: "lintIcu" },
+      },
+    );
   }
 
   if (
     typeof finalConfig.sourceLocale !== "undefined" &&
     (typeof finalConfig.sourceLocale !== "string" || finalConfig.sourceLocale.length === 0)
   ) {
-    throw new Error(
+    throw new MessagevisorCLIError(
       `Invalid sourceLocale: ${finalConfig.sourceLocale}. It must be a non-empty string.`,
+      { code: "invalid_configuration", details: { option: "sourceLocale" } },
     );
   }
 
   if (!Array.isArray(finalConfig.modules)) {
-    throw new Error(`Invalid modules: ${finalConfig.modules}. It must be an array.`);
+    throw new MessagevisorCLIError(
+      `Invalid modules: ${finalConfig.modules}. It must be an array.`,
+      {
+        code: "invalid_configuration",
+        details: { option: "modules" },
+      },
+    );
   }
 
   if (typeof finalConfig.sets !== "boolean") {
-    throw new Error(`Invalid sets: ${finalConfig.sets}. It must be a boolean.`);
+    throw new MessagevisorCLIError(`Invalid sets: ${finalConfig.sets}. It must be a boolean.`, {
+      code: "invalid_configuration",
+      details: { option: "sets" },
+    });
   }
 
   if (typeof finalConfig.promotionFlows !== "undefined") {
     if (!Array.isArray(finalConfig.promotionFlows)) {
-      throw new Error(
+      throw new MessagevisorCLIError(
         `Invalid promotionFlows: ${finalConfig.promotionFlows}. It must be an array.`,
+        { code: "invalid_configuration", details: { option: "promotionFlows" } },
       );
     }
 
     finalConfig.promotionFlows.forEach((entry: any, index: number) => {
       if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
-        throw new Error(
+        throw new MessagevisorCLIError(
           `Invalid promotionFlows[${index}]: ${entry}. Each entry must be an object with exactly "from" and "to" string fields.`,
+          { code: "invalid_configuration", details: { option: `promotionFlows[${index}]` } },
         );
       }
 
       const keys = Object.keys(entry).sort();
 
       if (keys.length !== 2 || keys[0] !== "from" || keys[1] !== "to") {
-        throw new Error(
+        throw new MessagevisorCLIError(
           `Invalid promotionFlows[${index}]: ${JSON.stringify(entry)}. Each entry must contain exactly "from" and "to".`,
+          { code: "invalid_configuration", details: { option: `promotionFlows[${index}]` } },
         );
       }
 
       if (typeof entry.from !== "string" || typeof entry.to !== "string") {
-        throw new Error(
+        throw new MessagevisorCLIError(
           `Invalid promotionFlows[${index}]: ${JSON.stringify(entry)}. "from" and "to" must be strings.`,
+          { code: "invalid_configuration", details: { option: `promotionFlows[${index}]` } },
         );
       }
     });
@@ -210,7 +246,10 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
     const allowedParsers = Object.keys(parsers);
 
     if (allowedParsers.indexOf(finalConfig.parser) === -1) {
-      throw new Error(`Invalid parser: ${finalConfig.parser}`);
+      throw new MessagevisorCLIError(`Invalid parser: ${finalConfig.parser}`, {
+        code: "invalid_configuration",
+        details: { option: "parser" },
+      });
     }
 
     finalConfig.parser = parsers[finalConfig.parser];

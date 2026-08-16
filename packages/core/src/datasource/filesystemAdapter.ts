@@ -15,6 +15,7 @@ import type {
 } from "@messagevisor/types";
 
 import { formatDatafilePath, type ProjectConfig } from "../config";
+import { MessagevisorCLIError } from "../error";
 import {
   Adapter,
   type ApplyEntityMutationsOptions,
@@ -139,8 +140,9 @@ export class FilesystemAdapter extends Adapter {
         continue;
       }
 
-      throw new Error(
+      throw new MessagevisorCLIError(
         `Invalid ${type} path "${entryPath}": ${label} "${reservedCharacter}" is not allowed in directory or file names.`,
+        { code: "invalid_entity_path", details: { type, path: entryPath } },
       );
     }
   }
@@ -221,7 +223,9 @@ export class FilesystemAdapter extends Adapter {
         }
 
         if (Date.now() >= deadline) {
-          throw new Error("Another editorial mutation is currently in progress.");
+          throw new MessagevisorCLIError("Another editorial mutation is currently in progress.", {
+            code: "editorial_mutation_in_progress",
+          });
         }
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
@@ -368,7 +372,12 @@ export class FilesystemAdapter extends Adapter {
   ): Promise<EntityMutationResult[]> {
     const identities = mutations.map((mutation) => `${mutation.type}\0${mutation.key}`);
     if (new Set(identities).size !== identities.length) {
-      throw new Error("A mutation batch cannot contain the same entity more than once.");
+      throw new MessagevisorCLIError(
+        "A mutation batch cannot contain the same entity more than once.",
+        {
+          code: "duplicate_mutation",
+        },
+      );
     }
     const snapshots = new Map<string, Buffer | null>();
     const paths = mutations.map((mutation) => this.getEntityPath(mutation.type, mutation.key));
@@ -379,8 +388,9 @@ export class FilesystemAdapter extends Adapter {
       const version = await this.getFileVersion(filePath);
 
       if (typeof mutation.expectedVersion !== "undefined" && mutation.expectedVersion !== version) {
-        throw new Error(
+        throw new MessagevisorCLIError(
           `Entity conflict for ${mutation.type} "${mutation.key}": expected version ${mutation.expectedVersion ?? "missing"}, found ${version ?? "missing"}.`,
+          { code: "entity_conflict", details: { type: mutation.type, key: mutation.key } },
         );
       }
 

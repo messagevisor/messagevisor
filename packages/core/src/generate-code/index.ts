@@ -24,16 +24,23 @@ export async function generateCodeForProject(
   options: GenerateCodeOptions,
 ) {
   if (!options.language) {
-    throw new MessagevisorCLIError("Option --language is required.");
+    throw new MessagevisorCLIError("Option --language is required.", {
+      code: "missing_required_option",
+      details: { option: "language" },
+    });
   }
 
   if (!options.outDir) {
-    throw new MessagevisorCLIError("Option --out-dir is required.");
+    throw new MessagevisorCLIError("Option --out-dir is required.", {
+      code: "missing_required_option",
+      details: { option: "out-dir" },
+    });
   }
 
   if (ALLOWED_LANGUAGES_FOR_CODE_GENERATION.indexOf(options.language) === -1) {
     throw new MessagevisorCLIError(
       `Language ${options.language} is not supported. Supported languages: ${ALLOWED_LANGUAGES_FOR_CODE_GENERATION.join(", ")}.`,
+      { code: "invalid_option", details: { option: "language", value: options.language } },
     );
   }
 

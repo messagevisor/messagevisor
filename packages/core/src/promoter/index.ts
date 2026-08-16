@@ -114,6 +114,7 @@ function assertAllowedPromotionFlow(projectConfig: ProjectConfig, from: string, 
 
   throw new MessagevisorCLIError(
     `Promotion from "${from}" to "${to}" is not allowed by this project's configured promotionFlows.\nAllowed flows: ${allowedList}.\nChoose one of the allowed promotion paths or update messagevisor.config.js if this flow should be permitted.`,
+    { code: "promotion_not_allowed", details: { from, to } },
   );
 }
 
@@ -567,13 +568,17 @@ function validateMessageOverrideKeys(messageKey: string, message: Message) {
     const override = (message.overrides || [])[index];
 
     if (!override.key) {
-      throw new Error(
+      throw new MessagevisorCLIError(
         `Message "${messageKey}" override at index ${index} must define a key before promotion.`,
+        { code: "invalid_override", details: { message: messageKey, index } },
       );
     }
 
     if (keys.has(override.key)) {
-      throw new Error(`Message "${messageKey}" has duplicate override key "${override.key}".`);
+      throw new MessagevisorCLIError(
+        `Message "${messageKey}" has duplicate override key "${override.key}".`,
+        { code: "duplicate_override", details: { message: messageKey, key: override.key } },
+      );
     }
 
     keys.add(override.key);
@@ -613,7 +618,10 @@ async function assertSetLintsClean(set: string, datasource: Datasource) {
   const result = await lintProject(datasource.getConfig(), datasource);
 
   if (result.hasError) {
-    throw new Error(formatLintPreflightErrors(set, result.errors));
+    throw new MessagevisorCLIError(formatLintPreflightErrors(set, result.errors), {
+      code: "promotion_preflight_failed",
+      details: { set, errorCount: result.errors.length },
+    });
   }
 }
 
@@ -668,8 +676,9 @@ async function getPromotionPlan(
 
   for (const locale of Array.from(requestedLocales)) {
     if (!localeKeys.includes(locale)) {
-      throw new Error(
+      throw new MessagevisorCLIError(
         `Unknown source locale "${locale}". Available locales: ${localeKeys.join(", ") || "none"}.`,
+        { code: "unknown_locale", details: { locale } },
       );
     }
   }
@@ -703,7 +712,12 @@ async function getPromotionPlan(
     localeKeys.forEach((key) => explicitRuntimeLocales.add(key));
   } else {
     selectedTargets.forEach((key) => {
-      if (!targets[key]) throw new Error(`Unknown source target "${key}".`);
+      if (!targets[key]) {
+        throw new MessagevisorCLIError(`Unknown source target "${key}".`, {
+          code: "unknown_target",
+          details: { target: key },
+        });
+      }
       promotedTargetKeys.add(key);
       (targets[key].locales || localeKeys).forEach((locale) => explicitRuntimeLocales.add(locale));
 
@@ -736,8 +750,9 @@ async function getPromotionPlan(
       }
 
       if (matchedMessageCount === 0 && !options.allowEmpty) {
-        throw new Error(
+        throw new MessagevisorCLIError(
           `No source messages matched --includeMessages=${includeMessages.join(", ")}.`,
+          { code: "no_matching_messages", details: { patterns: includeMessages } },
         );
       }
     }
@@ -1013,6 +1028,7 @@ function normalizeConflictPolicy(value: unknown): ConflictPolicy {
 
   throw new MessagevisorCLIError(
     `Invalid --conflicts value "${String(value)}". Use source, destination, or fail.`,
+    { code: "invalid_conflict_strategy", details: { value: String(value) } },
   );
 }
 
@@ -1029,7 +1045,13 @@ function normalizeAuditFormat(value: unknown): PromotionAuditFormat | false {
     return value;
   }
 
-  throw new MessagevisorCLIError(`Invalid --audit value "${String(value)}". Use json or markdown.`);
+  throw new MessagevisorCLIError(
+    `Invalid --audit value "${String(value)}". Use json or markdown.`,
+    {
+      code: "invalid_audit_format",
+      details: { value: String(value) },
+    },
+  );
 }
 
 function getTimestamp() {
@@ -1163,20 +1185,35 @@ export async function promoteProjectSets(
   const auditFormat = normalizeAuditFormat(options.audit);
 
   if (!projectConfig.sets)
-    throw new MessagevisorCLIError("Promotion is only available when `sets: true` is configured.");
-  if (!options.from) throw new MessagevisorCLIError("Pass --from=<set>.");
-  if (!options.to) throw new MessagevisorCLIError("Pass --to=<set>.");
+    throw new MessagevisorCLIError("Promotion is only available when `sets: true` is configured.", {
+      code: "sets_not_enabled",
+    });
+  if (!options.from)
+    throw new MessagevisorCLIError("Pass --from=<set>.", {
+      code: "missing_required_option",
+      details: { option: "from" },
+    });
+  if (!options.to)
+    throw new MessagevisorCLIError("Pass --to=<set>.", {
+      code: "missing_required_option",
+      details: { option: "to" },
+    });
   if (options.from === options.to)
-    throw new MessagevisorCLIError("--from and --to must be different sets.");
+    throw new MessagevisorCLIError("--from and --to must be different sets.", {
+      code: "conflicting_options",
+      details: { options: ["from", "to"] },
+    });
 
   const sets = await datasource.listSets();
   if (!sets.includes(options.from))
     throw new MessagevisorCLIError(
       `Unknown source set "${options.from}". Available sets: ${sets.join(", ") || "none"}.`,
+      { code: "unknown_set", details: { set: options.from, role: "source" } },
     );
   if (!sets.includes(options.to))
     throw new MessagevisorCLIError(
       `Unknown destination set "${options.to}". Available sets: ${sets.join(", ") || "none"}.`,
+      { code: "unknown_set", details: { set: options.to, role: "destination" } },
     );
 
   assertAllowedPromotionFlow(projectConfig, options.from, options.to);
@@ -1207,6 +1244,7 @@ export async function promoteProjectSets(
 
     throw new MessagevisorCLIError(
       `Promotion has ${conflicts.length} conflict(s) and --conflicts=fail was used.\n${preview}${suffix}`,
+      { code: "promotion_conflict", details: { count: conflicts.length } },
     );
   }
 

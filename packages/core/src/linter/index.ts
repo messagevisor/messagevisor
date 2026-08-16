@@ -95,6 +95,31 @@ export interface LintResult {
   duration: number;
 }
 
+function compareDeterministically(left: string, right: string) {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
+function sortLintErrors(errors: LintError[]) {
+  return [...errors].sort((left, right) => {
+    const fields = [
+      [left.filePath, right.filePath],
+      [left.entityKey, right.entityKey],
+      [left.path.map(String).join("."), right.path.map(String).join(".")],
+      [left.code || "", right.code || ""],
+      [left.entityType, right.entityType],
+      [left.message, right.message],
+    ];
+
+    for (const [leftField, rightField] of fields) {
+      const comparison = compareDeterministically(leftField, rightField);
+      if (comparison !== 0) return comparison;
+    }
+
+    return 0;
+  });
+}
+
 const ENTITY_NAME_REGEX_ERROR =
   "Names must use non-empty namespace segments containing only letters, numbers, _, and -.";
 
@@ -594,7 +619,7 @@ export async function lintProject(
 
   return {
     hasError: errors.length > 0,
-    errors,
+    errors: sortLintErrors(errors),
     duration: Date.now() - startTime,
   };
 }
@@ -652,7 +677,7 @@ async function lintProjectSets(
 
   return {
     hasError: errors.length > 0,
-    errors,
+    errors: sortLintErrors(errors),
     duration: Date.now() - startTime,
   };
 }

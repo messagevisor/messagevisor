@@ -157,6 +157,7 @@ async function getExportFilePath(
     if (!options.force && fs.existsSync(filePath)) {
       throw new MessagevisorCLIError(
         `Export output file already exists: ${filePath}. Pass --force to overwrite.`,
+        { code: "entity_already_exists", details: { filePath } },
       );
     }
 
@@ -190,6 +191,7 @@ function assertKnownValues(label: string, requested: string[], available: string
     if (!available.includes(value)) {
       throw new MessagevisorCLIError(
         `Unknown ${label} "${value}". Available ${label}s: ${available.join(", ") || "none"}.`,
+        { code: `unknown_${label}`, details: { [label]: value } },
       );
     }
   }
@@ -443,15 +445,25 @@ function assertExportOptions(options: ExportProjectOptions) {
   if (options.onlyUntranslated && options.onlyDirectlyUntranslated) {
     throw new MessagevisorCLIError(
       "Use either --onlyUntranslated or --onlyDirectlyUntranslated, not both.",
+      {
+        code: "conflicting_options",
+        details: { options: ["onlyUntranslated", "onlyDirectlyUntranslated"] },
+      },
     );
   }
 
   if (typeof options.delimiter !== "undefined" && options.delimiter.length !== 1) {
-    throw new MessagevisorCLIError("--delimiter must be a single character.");
+    throw new MessagevisorCLIError("--delimiter must be a single character.", {
+      code: "invalid_option",
+      details: { option: "delimiter" },
+    });
   }
 
   if (options.print && options.output) {
-    throw new MessagevisorCLIError("Use either --print or --output, not both.");
+    throw new MessagevisorCLIError("Use either --print or --output, not both.", {
+      code: "conflicting_options",
+      details: { options: ["print", "output"] },
+    });
   }
 
   if (
@@ -459,7 +471,10 @@ function assertExportOptions(options: ExportProjectOptions) {
     options.lineEnding !== "lf" &&
     options.lineEnding !== "crlf"
   ) {
-    throw new MessagevisorCLIError("--lineEnding must be either lf or crlf.");
+    throw new MessagevisorCLIError("--lineEnding must be either lf or crlf.", {
+      code: "invalid_option",
+      details: { option: "lineEnding" },
+    });
   }
 }
 
@@ -471,7 +486,10 @@ export async function exportProject(
   assertExportOptions(options);
 
   if (!projectConfig.sets && toArray(options.set).length > 0) {
-    throw new MessagevisorCLIError("--set can only be used when `sets: true` is configured.");
+    throw new MessagevisorCLIError("--set can only be used when `sets: true` is configured.", {
+      code: "sets_not_enabled",
+      details: { option: "set" },
+    });
   }
 
   const collected = await collectRows(projectConfig, datasource, options);

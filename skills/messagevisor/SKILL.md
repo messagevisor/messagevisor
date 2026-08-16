@@ -288,6 +288,8 @@ All `messagevisor` CLI commands are local and safe to run without confirmation. 
 
 Full command reference is in [references/cli.md](references/cli.md). Prefer CLI over grepping when answering questions about the project — `evaluate`, `list`, and `find-usage` are authoritative; hand-tracing YAML is not.
 
+For automation, use the JSON error envelope's stable `error.code` rather than matching prose. `build --json` is newline-delimited JSON, with one compact datafile per line, and does not accept `--pretty`.
+
 ## What not to do
 
 - Do not edit `datafiles/`, `catalog/`, or `.messagevisor/`. They are generated.

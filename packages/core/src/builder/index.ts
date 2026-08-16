@@ -22,6 +22,7 @@ import { resolveLocaleChain, resolveLocaleValue } from "../localeResolution";
 import { formatProjectPath } from "../path";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
 import { loadProjectSnapshot, type ProjectSnapshot } from "../snapshot";
+import { MessagevisorCLIError } from "../error";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
 import { compileTargetMessageMatcher, matchesPattern } from "../targeting";
@@ -441,7 +442,10 @@ async function ensureTargetInSnapshot(
 ): Promise<ProjectSnapshot> {
   if (!targetKey || snapshot.loadedEntityTypes.has("target")) {
     if (targetKey && !snapshot.keySets.target.has(targetKey)) {
-      throw new Error(`Unknown target "${targetKey}".`);
+      throw new MessagevisorCLIError(`Unknown target "${targetKey}".`, {
+        code: "unknown_target",
+        details: { target: targetKey },
+      });
     }
 
     return snapshot;
@@ -526,6 +530,13 @@ export async function buildProject(
   datasource: Datasource,
   options: BuildProjectOptions = {},
 ) {
+  if (options.json && options.pretty) {
+    throw new MessagevisorCLIError(
+      "Option --pretty cannot be used with `build --json`; JSON output is newline-delimited.",
+      { code: "json_pretty_not_supported", details: { command: "build" } },
+    );
+  }
+
   const startTime = Date.now();
   const snapshot = await loadProjectSnapshot(datasource, {
     entityTypes: ["locale", "message", "segment", "target"],
@@ -555,7 +566,10 @@ export async function buildProject(
   for (const targetKey of selectedTargetKeys) {
     const target = snapshot.targets[targetKey];
     if (!target) {
-      throw new Error(`Unknown target "${targetKey}".`);
+      throw new MessagevisorCLIError(`Unknown target "${targetKey}".`, {
+        code: "unknown_target",
+        details: { target: targetKey },
+      });
     }
     const targetMatcher = compileTargetMessageMatcher(target);
     const selectedMessageKeys = snapshot.keys.message.filter(targetMatcher);
@@ -592,8 +606,9 @@ export async function buildProject(
       }
 
       if (options.json) {
-        const pretty = options.pretty === true || datafileOptions.pretty;
-        console.log(pretty ? JSON.stringify(datafile, null, 2) : JSON.stringify(datafile));
+        // Keep each datafile on one line so multi-target and multi-locale
+        // builds remain valid newline-delimited JSON (NDJSON).
+        console.log(JSON.stringify(datafile));
       } else {
         await datasource.writeDatafile(datafile, { pretty: datafileOptions.pretty });
       }

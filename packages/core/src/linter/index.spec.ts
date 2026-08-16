@@ -1322,4 +1322,41 @@ describe("lintProject", function () {
     result = await lintProject(config, datasource);
     expect(result.errors.map((error) => error.code)).toContain("stale_translation");
   });
+
+  it("returns lint errors in stable file, entity, path, and code order", async function () {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-lint-order-"));
+
+    try {
+      await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+      await writeFile(root, "locales/en.yml", "description: English\n");
+      await writeFile(
+        root,
+        "messages/zulu.yml",
+        "description: Zulu\ntranslations:\n  en: Zulu\nunknown: true\n",
+      );
+      await writeFile(
+        root,
+        "messages/alpha.yml",
+        "description: Alpha\ntranslations:\n  en: Alpha\nunknown: true\n",
+      );
+
+      const projectConfig = getProjectConfig(root);
+      const result = await lintProject(projectConfig, new Datasource(projectConfig, root));
+      const sortKey = (error: (typeof result.errors)[number]) =>
+        [
+          error.filePath,
+          error.entityKey,
+          error.path.map(String).join("."),
+          error.code || "",
+          error.entityType,
+          error.message,
+        ].join("\u0000");
+
+      expect(result.errors.length).toBeGreaterThan(1);
+      expect(result.errors.map(sortKey)).toEqual([...result.errors].map(sortKey).sort());
+      expect(result.errors[0].filePath).toBe(path.join("messages", "alpha.yml"));
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
 });

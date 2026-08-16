@@ -473,9 +473,9 @@ describe("listPlugin", function () {
       ).resolves.toEqual(false);
       expect(JSON.parse(errorSpy.mock.calls[0][0])).toEqual({
         error: {
-          code: "cli_error",
+          code: "set_required_for_json",
           message: "Pass --set=<set> when using --json in a project with sets enabled.",
-          details: {},
+          details: { option: "set" },
         },
       });
     } finally {

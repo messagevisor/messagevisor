@@ -151,11 +151,15 @@ function parseCsv(content: string, delimiter = ","): CsvContent {
         cell = "";
         quoteClosed = false;
       } else {
-        throw new MessagevisorCLIError("Invalid CSV: unexpected character after closing quote.");
+        throw new MessagevisorCLIError("Invalid CSV: unexpected character after closing quote.", {
+          code: "invalid_csv",
+        });
       }
     } else if (char === '"') {
       if (cell.length > 0) {
-        throw new MessagevisorCLIError("Invalid CSV: unexpected quote in unquoted field.");
+        throw new MessagevisorCLIError("Invalid CSV: unexpected quote in unquoted field.", {
+          code: "invalid_csv",
+        });
       }
       inQuotes = true;
     } else if (char === delimiter) {
@@ -178,7 +182,9 @@ function parseCsv(content: string, delimiter = ","): CsvContent {
   }
 
   if (inQuotes) {
-    throw new MessagevisorCLIError("Invalid CSV: unterminated quoted field.");
+    throw new MessagevisorCLIError("Invalid CSV: unterminated quoted field.", {
+      code: "invalid_csv",
+    });
   }
 
   if (cell.length > 0 || row.length > 0 || quoteClosed) {
@@ -200,6 +206,7 @@ function parseCsv(content: string, delimiter = ","): CsvContent {
         if (dataRow.length > headers.length) {
           throw new MessagevisorCLIError(
             `Invalid CSV: row ${rowNumber} has ${dataRow.length} cells but only ${headers.length} headers.`,
+            { code: "invalid_csv", details: { row: rowNumber } },
           );
         }
 
@@ -210,15 +217,24 @@ function parseCsv(content: string, delimiter = ","): CsvContent {
 
 function assertOptions(options: ImportProjectOptions) {
   if (typeof options.delimiter !== "undefined" && options.delimiter.length !== 1) {
-    throw new MessagevisorCLIError("--delimiter must be a single character.");
+    throw new MessagevisorCLIError("--delimiter must be a single character.", {
+      code: "invalid_option",
+      details: { option: "delimiter" },
+    });
   }
 
   if (options.fromJson && typeof options.delimiter !== "undefined") {
-    throw new MessagevisorCLIError("--delimiter can only be used with CSV imports.");
+    throw new MessagevisorCLIError("--delimiter can only be used with CSV imports.", {
+      code: "invalid_option",
+      details: { option: "delimiter" },
+    });
   }
 
   if (options.fromJson && typeof options.bom !== "undefined") {
-    throw new MessagevisorCLIError("--bom can only be used with CSV imports.");
+    throw new MessagevisorCLIError("--bom can only be used with CSV imports.", {
+      code: "invalid_option",
+      details: { option: "bom" },
+    });
   }
 }
 
@@ -238,6 +254,7 @@ function getInputFilePath(
       options.fromJson
         ? "Pass a JSON file path or URL: messagevisor import <jsonFilePathOrUrl> --from-json --locale=<locale>."
         : "Pass an input file path: messagevisor import <file>.",
+      { code: "missing_required_option", details: { option: "input" } },
     );
   }
 
@@ -311,6 +328,7 @@ function assertKnownLocales(requestedLocales: string[], localeKeys: string[]) {
     if (!localeKeys.includes(locale)) {
       throw new MessagevisorCLIError(
         `Unknown locale "${locale}". Available locales: ${localeKeys.join(", ") || "none"}.`,
+        { code: "unknown_locale", details: { locale } },
       );
     }
   }
@@ -338,7 +356,9 @@ function toImportRows(
   localeHeaders: string[],
 ): ImportRow[] {
   if (!csv.headers.includes("messageKey")) {
-    throw new MessagevisorCLIError('CSV must include a "messageKey" column.');
+    throw new MessagevisorCLIError('CSV must include a "messageKey" column.', {
+      code: "invalid_csv",
+    });
   }
 
   return csv.rows.map((row, index) => {
@@ -664,7 +684,10 @@ function createResult(
 
 async function readCsv(inputFilePath: string, options: ImportProjectOptions) {
   if (!fs.existsSync(inputFilePath)) {
-    throw new MessagevisorCLIError(`CSV file does not exist: ${inputFilePath}`);
+    throw new MessagevisorCLIError(`CSV file does not exist: ${inputFilePath}`, {
+      code: "entity_not_found",
+      details: { filePath: inputFilePath },
+    });
   }
 
   return parseCsv(await fs.promises.readFile(inputFilePath, "utf8"), options.delimiter || ",");
@@ -677,12 +700,16 @@ async function readJsonText(inputFilePath: string) {
     try {
       response = await fetch(inputFilePath);
     } catch (error) {
-      throw new MessagevisorCLIError(`Unable to fetch JSON from ${inputFilePath}.`);
+      throw new MessagevisorCLIError(`Unable to fetch JSON from ${inputFilePath}.`, {
+        code: "invalid_json",
+        details: { input: inputFilePath },
+      });
     }
 
     if (!response.ok) {
       throw new MessagevisorCLIError(
         `Unable to fetch JSON from ${inputFilePath}: ${response.status} ${response.statusText}`.trim(),
+        { code: "invalid_json", details: { input: inputFilePath, status: response.status } },
       );
     }
 
@@ -690,7 +717,10 @@ async function readJsonText(inputFilePath: string) {
   }
 
   if (!fs.existsSync(inputFilePath)) {
-    throw new MessagevisorCLIError(`JSON file does not exist: ${inputFilePath}`);
+    throw new MessagevisorCLIError(`JSON file does not exist: ${inputFilePath}`, {
+      code: "entity_not_found",
+      details: { filePath: inputFilePath },
+    });
   }
 
   return fs.promises.readFile(inputFilePath, "utf8");
@@ -700,7 +730,9 @@ function parseJson(content: string) {
   try {
     return JSON.parse(content);
   } catch (error) {
-    throw new MessagevisorCLIError("Invalid JSON: unable to parse input.");
+    throw new MessagevisorCLIError("Invalid JSON: unable to parse input.", {
+      code: "invalid_json",
+    });
   }
 }
 
@@ -714,18 +746,27 @@ function selectJsonPath(content: unknown, jsonPath?: string) {
   }
 
   if (jsonPath.trim() === "") {
-    throw new MessagevisorCLIError("--json-path cannot be empty.");
+    throw new MessagevisorCLIError("--json-path cannot be empty.", {
+      code: "invalid_option",
+      details: { option: "json-path" },
+    });
   }
 
   let current = content;
 
   for (const segment of jsonPath.split(".")) {
     if (!segment) {
-      throw new MessagevisorCLIError(`Invalid JSON path "${jsonPath}".`);
+      throw new MessagevisorCLIError(`Invalid JSON path "${jsonPath}".`, {
+        code: "invalid_json",
+        details: { path: jsonPath },
+      });
     }
 
     if (!isPlainObject(current) || !(segment in current)) {
-      throw new MessagevisorCLIError(`JSON path "${jsonPath}" was not found.`);
+      throw new MessagevisorCLIError(`JSON path "${jsonPath}" was not found.`, {
+        code: "invalid_json",
+        details: { path: jsonPath },
+      });
     }
 
     current = current[segment];
@@ -747,12 +788,16 @@ function jsonToImportRows(
       jsonPath
         ? `JSON path "${jsonPath}" must resolve to a flat object.`
         : "JSON import input must be a flat object.",
+      { code: "invalid_json", details: { path: jsonPath } },
     );
   }
 
   return Object.entries(selected).map(([key, value], index) => {
     if (typeof value !== "string") {
-      throw new MessagevisorCLIError(`JSON translation value for "${key}" must be a string.`);
+      throw new MessagevisorCLIError(`JSON translation value for "${key}" must be a string.`, {
+        code: "invalid_json",
+        details: { key },
+      });
     }
 
     const { messageKey, overrideKey } = splitMessageKey(projectConfig, key);
@@ -772,7 +817,10 @@ function getJsonImportLocale(options: ImportProjectOptions) {
   const requestedLocales = toArray(options.locale);
 
   if (requestedLocales.length !== 1) {
-    throw new MessagevisorCLIError("--from-json requires exactly one --locale=<locale>.");
+    throw new MessagevisorCLIError("--from-json requires exactly one --locale=<locale>.", {
+      code: "invalid_option",
+      details: { option: "locale" },
+    });
   }
 
   return requestedLocales[0];
@@ -806,6 +854,7 @@ async function readCsvImportInput(
   if (csv.headers.includes("set") && hasNonEmptySetValues(csv)) {
     throw new MessagevisorCLIError(
       'CSV "set" column can only contain values when `sets: true` is configured.',
+      { code: "sets_not_enabled", details: { option: "set" } },
     );
   }
 
@@ -851,7 +900,10 @@ export async function importProject(
   }
 
   if (toArray(options.set).length > 0) {
-    throw new MessagevisorCLIError("--set can only be used when `sets: true` is configured.");
+    throw new MessagevisorCLIError("--set can only be used when `sets: true` is configured.", {
+      code: "sets_not_enabled",
+      details: { option: "set" },
+    });
   }
 
   const inputFilePath = getInputFilePath(projectConfig, options, parsed);
@@ -914,6 +966,7 @@ export async function importProjectSets(
   if (unknownRequestedSets.length > 0) {
     throw new MessagevisorCLIError(
       `Unknown set "${unknownRequestedSets[0]}". Available sets: ${executionSets.join(", ") || "none"}.`,
+      { code: "unknown_set", details: { set: unknownRequestedSets[0] } },
     );
   }
 
@@ -921,6 +974,7 @@ export async function importProjectSets(
     if (requestedSets.length !== 1) {
       throw new MessagevisorCLIError(
         "--from-json requires exactly one --set=<set> when `sets: true` is configured.",
+        { code: "invalid_option", details: { option: "set" } },
       );
     }
 
@@ -970,7 +1024,10 @@ export async function importProjectSets(
   const hasSetColumn = csv.headers.includes("set");
 
   if (!hasSetColumn && requestedSets.length !== 1) {
-    throw new MessagevisorCLIError('CSV without a "set" column requires exactly one --set=<set>.');
+    throw new MessagevisorCLIError('CSV without a "set" column requires exactly one --set=<set>.', {
+      code: "missing_required_option",
+      details: { option: "set" },
+    });
   }
 
   const localeKeysBySet = await getAllLocaleKeysBySet(selectedExecutions);
@@ -1097,6 +1154,7 @@ export const importPlugin = {
       if (parsed.file && parsed.input) {
         throw new MessagevisorCLIError(
           "Provide the import file either as a positional argument or with --input, not both.",
+          { code: "conflicting_options", details: { options: ["input", "file"] } },
         );
       }
 

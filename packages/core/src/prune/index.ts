@@ -18,6 +18,7 @@ import { formatProjectPath } from "../path";
 import { getProjectSetExecutions } from "../sets";
 import { compileTargetMessageMatcher, matchesPattern } from "../targeting";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
+import { MessagevisorCLIError } from "../error";
 
 type PruneTarget = "translations" | "formats";
 type EntryKind = "message" | "override" | "locale";
@@ -77,8 +78,9 @@ function cloneWithoutKey<T extends Record<string, unknown>>(entity: T): T {
 function assertKnownValues(label: string, requested: string[], available: string[]) {
   for (const value of requested) {
     if (!available.includes(value)) {
-      throw new Error(
+      throw new MessagevisorCLIError(
         `Unknown ${label} "${value}". Available ${label}s: ${available.join(", ") || "none"}.`,
+        { code: `unknown_${label}`, details: { [label]: value } },
       );
     }
   }
@@ -562,11 +564,17 @@ function getTarget(parsed: Record<string, unknown>): PruneTarget {
   ) as PruneTarget[];
 
   if (selected.length === 0) {
-    throw new Error("Pass exactly one of --translations or --formats.");
+    throw new MessagevisorCLIError("Pass exactly one of --translations or --formats.", {
+      code: "conflicting_options",
+      details: { options: ["translations", "formats"] },
+    });
   }
 
   if (selected.length > 1) {
-    throw new Error("Pass exactly one of --translations or --formats.");
+    throw new MessagevisorCLIError("Pass exactly one of --translations or --formats.", {
+      code: "conflicting_options",
+      details: { options: ["translations", "formats"] },
+    });
   }
 
   return selected[0];

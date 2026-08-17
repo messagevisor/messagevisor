@@ -72,6 +72,20 @@ describe("runCLI", function () {
     expect(process.exitCode).toBe(1);
   });
 
+  it("rejects the removed Catalog layout option", async function () {
+    process.argv = ["node", "messagevisor", "catalog", "--layout=blocks"];
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await runCLI({
+      rootDirectoryPath: "/tmp/messagevisor-test",
+      projectConfig: {} as any,
+      datasource: {} as any,
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith("Unknown argument: layout");
+    expect(process.exitCode).toBe(1);
+  });
+
   it("accepts options declared by custom plugins", async function () {
     process.argv = [
       "node",

@@ -114,6 +114,86 @@ describe("catalog api", function () {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it("shares concurrent index and index layer requests", async function () {
+    const meta = {
+      set: "root",
+      formatVersion: 3,
+      counts: { locale: 0, message: 1, attribute: 0, segment: 0, target: 0 },
+      dictionaries: { targets: ["web"], locales: ["en"], commits: [], authors: [] },
+      layers: {
+        core: "index/core.json",
+        descriptions: "index/descriptions.json",
+        display: "index/display.json",
+      },
+      types: { message: { count: 1 } },
+    };
+    const fetchMock = jest.fn().mockImplementation(async (url: string) => {
+      if (url === "/data/root/index.json") {
+        return { ok: true, json: async () => meta };
+      }
+
+      if (url === "/data/root/index/core.json") {
+        return {
+          ok: true,
+          json: async () => ({
+            formatVersion: 3,
+            entities: { message: { columns: ["key"], rows: [["welcome"]] } },
+          }),
+        };
+      }
+
+      if (url === "/data/root/index/display.json") {
+        return {
+          ok: true,
+          json: async () => ({
+            formatVersion: 3,
+            entities: { message: { columns: ["overrideCount"], rows: [[2]] } },
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const [firstIndex, secondIndex, firstDisplay, secondDisplay] = await Promise.all([
+      fetchIndex(),
+      fetchIndex(),
+      fetchIndexLayer("display"),
+      fetchIndexLayer("display"),
+    ]);
+
+    expect(firstIndex).toEqual(secondIndex);
+    expect(firstDisplay).toEqual(secondDisplay);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(
+      expect.arrayContaining([
+        "/data/root/index.json",
+        "/data/root/index/core.json",
+        "/data/root/index/display.json",
+      ]),
+    );
+  });
+
+  it("evicts a rejected index request so a later call can retry", async function () {
+    const index = {
+      set: "root",
+      formatVersion: 2,
+      counts: { locale: 0, message: 0, attribute: 0, segment: 0, target: 0 },
+      dictionaries: { targets: [], locales: [] },
+      entities: {},
+    };
+    const fetchMock = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("temporary failure"))
+      .mockResolvedValueOnce({ ok: true, json: async () => index });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(fetchIndex()).rejects.toThrow("temporary failure");
+    await expect(fetchIndex()).resolves.toMatchObject({ counts: index.counts });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("loads message details from a block layout and caches the block", async function () {
     const manifest = {
       schemaVersion: "1",
@@ -122,7 +202,6 @@ describe("catalog api", function () {
       setKeys: [],
       layout: {
         version: 1,
-        mode: "blocks",
         blockSize: 262144,
         vbucketBits: 16,
         blockedTypes: ["message"],
@@ -149,6 +228,67 @@ describe("catalog api", function () {
       }
 
       if (url === "/data/root/blocks/message/block-hash.json") {
+        return {
+          ok: true,
+          json: async () => ({ welcome: detail, other: { ...detail, key: "other" } }),
+        };
+      }
+
+      throw new Error(`Unexpected URL: ${url}`);
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await fetchManifest();
+    const [first, second] = await Promise.all([
+      fetchEntityDetail("message", "welcome"),
+      fetchEntityDetail("message", "other"),
+    ]);
+
+    expect(first).toEqual(detail);
+    expect(second).toEqual({ ...detail, key: "other" });
+    await expect(fetchEntityDetail("message", "welcome")).resolves.toEqual(detail);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("evicts a rejected block request so a later detail load can retry", async function () {
+    const manifest = {
+      schemaVersion: "1",
+      generatedAt: "2026-01-01T00:00:00.000Z",
+      sets: false,
+      setKeys: [],
+      layout: {
+        version: 1,
+        blockSize: 262144,
+        vbucketBits: 16,
+        blockedTypes: ["message"],
+      },
+      paths: { projectHistory: "data/project/history/page-1.json" },
+      counts: { root: { locale: 0, message: 1, attribute: 0, segment: 0, target: 0 } },
+    };
+    const detail = { type: "message", key: "welcome", entity: { translations: {} } };
+    const fetchMock = jest.fn().mockImplementation(async (url: string) => {
+      if (url === "/data/manifest.json") {
+        return { ok: true, json: async () => manifest };
+      }
+
+      if (url === "/data/root/blocks/message/ranges.json") {
+        return {
+          ok: true,
+          json: async () => ({
+            layoutVersion: 1,
+            vbucketBits: 16,
+            blockSize: 262144,
+            blocks: [[0, "block-hash"]],
+          }),
+        };
+      }
+
+      if (url === "/data/root/blocks/message/block-hash.json") {
+        if (fetchMock.mock.calls.filter(([callUrl]) => callUrl === url).length === 1) {
+          throw new Error("temporary block failure");
+        }
+
         return { ok: true, json: async () => ({ welcome: detail }) };
       }
 
@@ -157,10 +297,11 @@ describe("catalog api", function () {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     await fetchManifest();
+    await expect(fetchEntityDetail("message", "welcome")).rejects.toThrow(
+      "temporary block failure",
+    );
     await expect(fetchEntityDetail("message", "welcome")).resolves.toEqual(detail);
-    await expect(fetchEntityDetail("message", "welcome")).resolves.toEqual(detail);
-
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("block-hash.json"))).toHaveLength(2);
   });
 
   it("rejects a Catalog layout newer than the UI understands", async function () {
@@ -173,7 +314,6 @@ describe("catalog api", function () {
         setKeys: [],
         layout: {
           version: 2,
-          mode: "blocks",
           blockSize: 262144,
           vbucketBits: 16,
           blockedTypes: [],
@@ -199,7 +339,6 @@ describe("catalog api", function () {
       setKeys: [],
       layout: {
         version: 1,
-        mode: "blocks",
         blockSize: 262144,
         vbucketBits: 16,
         blockedTypes: ["message"],

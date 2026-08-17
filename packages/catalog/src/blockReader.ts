@@ -30,6 +30,7 @@ export function findBlockHash(ranges: CatalogRangeTable, vbucket: number): strin
 export interface BlockCache<T> {
   get: (key: string) => T | undefined;
   set: (key: string, value: T) => void;
+  delete: (key: string) => void;
   clear: () => void;
 }
 
@@ -55,6 +56,9 @@ export function createBlockCache<T>(maxBlocks = 16): BlockCache<T> {
         const oldest = values.keys().next().value;
         if (typeof oldest === "string") values.delete(oldest);
       }
+    },
+    delete(key) {
+      values.delete(key);
     },
     clear() {
       values.clear();

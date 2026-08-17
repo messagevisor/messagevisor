@@ -23,16 +23,10 @@ function sidebarClass({ isActive }: { isActive: boolean }) {
 }
 
 function Sidebar(props: { setKey?: string }) {
-  const [index, setIndex] = React.useState<CatalogIndex | null>(null);
+  const { manifest } = useCatalog();
   const basePath = getBasePath(props.setKey);
   const historyLabel = "History";
-
-  React.useEffect(() => {
-    setIndex(null);
-    fetchIndex(props.setKey)
-      .then(setIndex)
-      .catch(() => setIndex(null));
-  }, [props.setKey]);
+  const counts = manifest.counts[props.setKey || "root"] || {};
 
   return (
     <aside className="rounded-lg bg-surface p-4 shadow-md ring-1 ring-black/5 md:w-56">
@@ -47,7 +41,7 @@ function Sidebar(props: { setKey?: string }) {
             <NavLink key={entityPath} to={`${basePath}/${entityPath}`} className={sidebarClass}>
               <span>{entityLabels[type].plural}</span>
               <span className="rounded-full bg-pill px-2 py-0.5 text-xs font-black text-header">
-                {index?.counts[type] ?? "-"}
+                {counts[type] ?? 0}
               </span>
             </NavLink>
           );

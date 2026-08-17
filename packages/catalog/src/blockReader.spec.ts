@@ -42,4 +42,14 @@ describe("catalog block reader", () => {
     expect(cache.get("b")).toBeUndefined();
     expect(cache.get("c")).toBe("C");
   });
+
+  it("can retain in-flight promises as cache values", async () => {
+    const cache = createBlockCache<Promise<string>>(2);
+    const pending = Promise.resolve("A");
+
+    cache.set("a", pending);
+
+    expect(cache.get("a")).toBe(pending);
+    await expect(cache.get("a")).resolves.toBe("A");
+  });
 });

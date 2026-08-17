@@ -21,12 +21,28 @@ import { encodeRouteSegment, getDataBasePath } from "./entityTypes";
 
 let routerMode: CatalogManifest["router"] = "browser";
 let catalogManifestCache: CatalogManifest | undefined;
+let catalogManifestPromise: Promise<CatalogManifest> | undefined;
 
-const _catalogRangeCache = new Map<string, CatalogRangeTable>();
-const _catalogBlockCache = createBlockCache<Record<string, EntityDetail>>(16);
-const _catalogIndexMetaCache = new Map<string, EncodedCatalogIndexMeta | null>();
-const _catalogIndexLayerCache = new Map<string, DecodedCatalogIndexLayer>();
+const _catalogRangeCache = new Map<string, Promise<CatalogRangeTable>>();
+const _catalogBlockCache = createBlockCache<Promise<Record<string, EntityDetail>>>(16);
+const _catalogIndexMetaCache = new Map<string, Promise<EncodedCatalogIndexMeta | undefined>>();
+const _catalogIndexLayerCache = new Map<string, Promise<DecodedCatalogIndexLayer | undefined>>();
 const _catalogIndexInputCache = new Map<string, unknown>();
+
+function singleFlight<T>(store: Map<string, Promise<T>>, cacheKey: string, load: () => Promise<T>) {
+  const existing = store.get(cacheKey);
+  if (existing) return existing;
+
+  const promise = Promise.resolve()
+    .then(load)
+    .catch((error) => {
+      store.delete(cacheKey);
+      throw error;
+    });
+
+  store.set(cacheKey, promise);
+  return promise;
+}
 
 interface CatalogRangeTable {
   layoutVersion: number;
@@ -76,7 +92,10 @@ export async function fetchJson<T>(url: string): Promise<T> {
 }
 
 export function fetchManifest() {
-  return fetchJson<CatalogManifest>(getDataUrl("data/manifest.json"))
+  if (catalogManifestPromise) return catalogManifestPromise;
+
+  catalogManifestPromise = Promise.resolve()
+    .then(() => fetchJson<CatalogManifest>(getDataUrl("data/manifest.json")))
     .catch(() => fetchJson<CatalogManifest>("/data/manifest.json"))
     .then((manifest) => {
       catalogManifestCache = manifest;
@@ -86,11 +105,18 @@ export function fetchManifest() {
       _catalogIndexLayerCache.clear();
       _catalogIndexInputCache.clear();
       return manifest;
+    })
+    .catch((error) => {
+      catalogManifestPromise = undefined;
+      throw error;
     });
+
+  return catalogManifestPromise;
 }
 
 export function __resetCatalogApiCaches() {
   catalogManifestCache = undefined;
+  catalogManifestPromise = undefined;
   _catalogRangeCache.clear();
   _catalogBlockCache.clear();
   _catalogIndexMetaCache.clear();
@@ -101,37 +127,26 @@ export function __resetCatalogApiCaches() {
 
 async function fetchIndexMeta(setKey?: string) {
   const cacheKey = setKey || "__root__";
-  if (_catalogIndexMetaCache.has(cacheKey)) {
-    return _catalogIndexMetaCache.get(cacheKey) || undefined;
-  }
-
-  const input = _catalogIndexInputCache.has(cacheKey)
-    ? _catalogIndexInputCache.get(cacheKey)
-    : await fetchJson<unknown>(getDataUrl(`${getDataBasePath(setKey)}/index.json`));
-  _catalogIndexInputCache.set(cacheKey, input);
-  const meta = isLayeredCatalogIndex(input) ? decodeLayeredCatalogIndexMeta(input) : undefined;
-  _catalogIndexMetaCache.set(cacheKey, meta || null);
-  return meta;
+  return singleFlight(_catalogIndexMetaCache, cacheKey, async () => {
+    const input = await fetchJson<unknown>(getDataUrl(`${getDataBasePath(setKey)}/index.json`));
+    _catalogIndexInputCache.set(cacheKey, input);
+    return isLayeredCatalogIndex(input) ? decodeLayeredCatalogIndexMeta(input) : undefined;
+  });
 }
 
 async function loadIndexLayer(setKey: string | undefined, layer: CatalogIndexLayer) {
-  const meta = await fetchIndexMeta(setKey);
-  if (!meta) {
-    return undefined;
-  }
-
   const cacheKey = `${setKey || "__root__"}:${layer}`;
-  const cached = _catalogIndexLayerCache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
+  return singleFlight(_catalogIndexLayerCache, cacheKey, async () => {
+    const meta = await fetchIndexMeta(setKey);
+    if (!meta) {
+      return undefined;
+    }
 
-  const input = await fetchJson<unknown>(
-    getDataUrl(`${getDataBasePath(setKey)}/${meta.layers[layer]}`),
-  );
-  const decoded = decodeLayeredCatalogIndexLayer(input, meta);
-  _catalogIndexLayerCache.set(cacheKey, decoded);
-  return decoded;
+    const input = await fetchJson<unknown>(
+      getDataUrl(`${getDataBasePath(setKey)}/${meta.layers[layer]}`),
+    );
+    return decodeLayeredCatalogIndexLayer(input, meta);
+  });
 }
 
 export async function fetchIndex(setKey?: string) {
@@ -152,7 +167,7 @@ export async function fetchIndexLayer(
   return loadIndexLayer(setKey, layer);
 }
 
-function fetchLegacyEntityDetail(type: EntityType, key: string, setKey?: string) {
+function fetchEntityDetailFile(type: EntityType, key: string, setKey?: string) {
   return fetchJson<EntityDetail>(
     getDataUrl(`${getDataBasePath(setKey)}/entities/${type}/${encodeRouteSegment(key)}.json`),
   );
@@ -171,10 +186,6 @@ function getCatalogLayout() {
     );
   }
 
-  if (layout.mode !== "files" && layout.mode !== "blocks") {
-    throw new Error(`Catalog data uses an unsupported layout mode (${String(layout.mode)}).`);
-  }
-
   if (!Array.isArray(layout.blockedTypes)) {
     throw new Error("Catalog data has an invalid blocked entity type list.");
   }
@@ -190,17 +201,11 @@ function getCatalogLayout() {
 
 async function fetchCatalogRanges(type: EntityType, setKey?: string) {
   const cacheKey = `${setKey || "__root__"}:${type}`;
-  const cached = _catalogRangeCache.get(cacheKey);
-
-  if (cached) {
-    return cached;
-  }
-
-  const ranges = await fetchJson<CatalogRangeTable>(
-    getDataUrl(`${getDataBasePath(setKey)}/blocks/${type}/ranges.json`),
+  return singleFlight(_catalogRangeCache, cacheKey, () =>
+    fetchJson<CatalogRangeTable>(
+      getDataUrl(`${getDataBasePath(setKey)}/blocks/${type}/ranges.json`),
+    ),
   );
-  _catalogRangeCache.set(cacheKey, ranges);
-  return ranges;
 }
 
 async function fetchCatalogBlock(type: EntityType, hash: string, setKey?: string) {
@@ -211,18 +216,21 @@ async function fetchCatalogBlock(type: EntityType, hash: string, setKey?: string
     return cached;
   }
 
-  const block = await fetchJson<Record<string, EntityDetail>>(
+  const promise = fetchJson<Record<string, EntityDetail>>(
     getDataUrl(`${getDataBasePath(setKey)}/blocks/${type}/${hash}.json`),
-  );
-  _catalogBlockCache.set(cacheKey, block);
-  return block;
+  ).catch((error) => {
+    _catalogBlockCache.delete(cacheKey);
+    throw error;
+  });
+  _catalogBlockCache.set(cacheKey, promise);
+  return promise;
 }
 
 export async function fetchEntityDetail(type: EntityType, key: string, setKey?: string) {
   const layout = getCatalogLayout();
 
-  if (layout?.mode !== "blocks" || !layout.blockedTypes.includes(type)) {
-    return fetchLegacyEntityDetail(type, key, setKey);
+  if (!layout?.blockedTypes.includes(type)) {
+    return fetchEntityDetailFile(type, key, setKey);
   }
 
   try {
@@ -240,14 +248,13 @@ export async function fetchEntityDetail(type: EntityType, key: string, setKey?: 
 
     return detail;
   } catch (error) {
-    // A blocks manifest may cover a set that is below the block threshold and
-    // therefore still has legacy entity files. Preserve that mixed-layout
-    // compatibility while allowing ordinary entity errors to surface.
+    // Preserve compatibility with mixed exports where a blocked type has no
+    // range table yet, while allowing ordinary entity errors to surface.
     if (
       error instanceof CatalogResourceNotFoundError &&
       error.url.endsWith(`/blocks/${type}/ranges.json`)
     ) {
-      return fetchLegacyEntityDetail(type, key, setKey);
+      return fetchEntityDetailFile(type, key, setKey);
     }
 
     throw error;
@@ -296,7 +303,7 @@ export function fetchLocaleDuplicates(localeKey: string, setKey?: string) {
 
 export type TranslationShard = Record<string, string[]>;
 
-const _translationShardCache = new Map<string, TranslationShard>();
+const _translationShardCache = new Map<string, Promise<TranslationShard>>();
 
 function prefixToFilename(prefix: string): string {
   return Array.from(new TextEncoder().encode(prefix))
@@ -306,18 +313,9 @@ function prefixToFilename(prefix: string): string {
 
 export function fetchTranslationShard(prefix: string, setKey?: string): Promise<TranslationShard> {
   const cacheKey = `${setKey ?? "__root__"}:${prefix}`;
-  const cached = _translationShardCache.get(cacheKey);
-  if (cached) return Promise.resolve(cached);
-  return fetchJson<TranslationShard>(
-    getDataUrl(`${getDataBasePath(setKey)}/translations/${prefixToFilename(prefix)}.json`),
-  )
-    .then((data) => {
-      _translationShardCache.set(cacheKey, data);
-      return data;
-    })
-    .catch(() => {
-      const empty: TranslationShard = {};
-      _translationShardCache.set(cacheKey, empty);
-      return empty;
-    });
+  return singleFlight(_translationShardCache, cacheKey, () =>
+    fetchJson<TranslationShard>(
+      getDataUrl(`${getDataBasePath(setKey)}/translations/${prefixToFilename(prefix)}.json`),
+    ),
+  ).catch(() => ({}));
 }

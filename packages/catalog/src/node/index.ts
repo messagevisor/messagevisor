@@ -30,7 +30,14 @@ import {
   sortCatalogSetKeys,
 } from "./setSelection";
 import { decodeCatalogIndex } from "../indexFormat";
-import { encodeLayeredCatalogIndex, isLayeredCatalogIndex } from "../layeredIndex";
+import {
+  createCatalogIndexFromLayer,
+  decodeLayeredCatalogIndexLayer,
+  decodeLayeredCatalogIndexMeta,
+  encodeLayeredCatalogIndex,
+  isLayeredCatalogIndex,
+  mergeCatalogIndexLayer,
+} from "../layeredIndex";
 import { toCatalogBlocks, toCatalogRangeTable, type BlockPlanEntry } from "./blockWriter";
 import { VBUCKET_BITS } from "../utils/hashEntityKey";
 
@@ -390,9 +397,7 @@ export interface CatalogExportOptions {
   sets?: string[];
   devSession?: CatalogDevSession;
   preserveAssets?: boolean;
-  layout?: "files" | "blocks";
   blockSize?: number;
-  blockThreshold?: number;
   prettyOutput?: boolean;
 }
 
@@ -423,9 +428,7 @@ interface CatalogBuildContext {
   withDuplicates: boolean;
   progress: CatalogProgressReporter;
   writer: CatalogJsonWriter;
-  layout: "files" | "blocks";
   blockSize: number;
-  blockThreshold: number;
   prettyOutput: boolean;
 }
 
@@ -439,10 +442,9 @@ interface CatalogDevSession {
 }
 
 interface CatalogDevRebuildRequest {
-  kind: "full" | "set" | "message";
+  kind: "full" | "set";
   reason: string;
   set?: string;
-  messageKeys?: string[];
 }
 
 interface SourceFileInfo {
@@ -833,30 +835,16 @@ class CatalogJsonWriter {
   }
 }
 
-interface CatalogLayoutOptions {
-  layout: "files" | "blocks";
+interface CatalogOutputOptions {
   blockSize: number;
-  blockThreshold: number;
   prettyOutput: boolean;
 }
 
-function resolveCatalogLayoutOptions(
+function resolveCatalogOutputOptions(
   projectConfig: any,
-  options: Pick<
-    CatalogExportOptions,
-    "layout" | "blockSize" | "blockThreshold" | "prettyOutput"
-  > = {},
-): CatalogLayoutOptions {
-  const layout = options.layout ?? projectConfig.catalogLayout ?? "files";
+  options: Pick<CatalogExportOptions, "blockSize" | "prettyOutput"> = {},
+): CatalogOutputOptions {
   const blockSize = options.blockSize ?? projectConfig.catalogBlockSize ?? 262144;
-  const blockThreshold = options.blockThreshold ?? projectConfig.catalogBlockThreshold ?? 500;
-
-  if (layout !== "files" && layout !== "blocks") {
-    throw createCatalogCLIError(
-      `Invalid Catalog layout "${String(layout)}". Use "files" or "blocks".`,
-      "invalid_catalog_layout",
-    );
-  }
 
   if (!Number.isInteger(blockSize) || blockSize < 16384 || blockSize > 8388608) {
     throw createCatalogCLIError(
@@ -865,23 +853,10 @@ function resolveCatalogLayoutOptions(
     );
   }
 
-  if (!Number.isInteger(blockThreshold) || blockThreshold < 0) {
-    throw createCatalogCLIError(
-      "Invalid Catalog block threshold. Use a non-negative integer.",
-      "invalid_catalog_block_threshold",
-    );
-  }
-
   return {
-    layout,
     blockSize,
-    blockThreshold,
     prettyOutput: options.prettyOutput === true,
   };
-}
-
-function shouldBlockMessages(context: CatalogBuildContext, messageCount: number) {
-  return context.layout === "blocks" && messageCount >= context.blockThreshold;
 }
 
 async function mapWithConcurrency<T>(
@@ -1822,7 +1797,6 @@ async function buildSetCatalog(
 
   const messagesStartedAt = context.progress.step("Writing messages");
   const messageDetailsStartedAt = context.progress.substep("Writing message details");
-  const messageBlocksEnabled = shouldBlockMessages(context, messageKeys.length);
   const messageBlockEntries: BlockPlanEntry[] = [];
   let skippedEmptyMessageHistoryCount = 0;
   await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
@@ -1895,35 +1869,26 @@ async function buildSetCatalog(
         ...(overrideLocalesList.length > 0 ? { overrideLocales: overrideLocalesList } : {}),
       }),
     );
-    if (messageBlocksEnabled) {
-      messageBlockEntries.push({ key: messageKey, payload: detail });
-    } else {
-      await context.writer.write(
-        path.join(outputDirectoryPath, "entities", "message", `${encodeKey(messageKey)}.json`),
-        detail,
-      );
-    }
+    messageBlockEntries.push({ key: messageKey, payload: detail });
   });
   context.progress.done(messageDetailsStartedAt, `(${pluralize(messageKeys.length, "message")})`);
 
-  if (messageBlocksEnabled) {
-    const messageBlocksStartedAt = context.progress.substep("Writing message blocks");
-    const blocks = toCatalogBlocks(messageBlockEntries, context.blockSize);
-    const blockDirectoryPath = path.join(outputDirectoryPath, "blocks", "message");
+  const messageBlocksStartedAt = context.progress.substep("Writing message blocks");
+  const blocks = toCatalogBlocks(messageBlockEntries, context.blockSize);
+  const blockDirectoryPath = path.join(outputDirectoryPath, "blocks", "message");
 
-    for (const block of blocks) {
-      await context.writer.writeSerialized(
-        path.join(blockDirectoryPath, `${block.contentHash}.json`),
-        block.serialized,
-      );
-    }
-
-    await context.writer.write(
-      path.join(blockDirectoryPath, "ranges.json"),
-      toCatalogRangeTable(blocks, context.blockSize),
+  for (const block of blocks) {
+    await context.writer.writeSerialized(
+      path.join(blockDirectoryPath, `${block.contentHash}.json`),
+      block.serialized,
     );
-    context.progress.done(messageBlocksStartedAt, `(${pluralize(blocks.length, "block")})`);
   }
+
+  await context.writer.write(
+    path.join(blockDirectoryPath, "ranges.json"),
+    toCatalogRangeTable(blocks, context.blockSize),
+  );
+  context.progress.done(messageBlocksStartedAt, `(${pluralize(blocks.length, "block")})`);
 
   const messageHistoryStartedAt = context.progress.substep("Writing message history pages");
   await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
@@ -2236,11 +2201,34 @@ async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
 
 async function readCatalogSetIndex(filePath: string): Promise<CatalogSetIndex | undefined> {
   const index = await readJsonFile<unknown>(filePath);
-  if (!index || isLayeredCatalogIndex(index)) {
+  if (!index) {
     return undefined;
   }
 
-  return decodeCatalogIndex(index) as CatalogSetIndex;
+  if (!isLayeredCatalogIndex(index)) {
+    return decodeCatalogIndex(index) as CatalogSetIndex;
+  }
+
+  const meta = decodeLayeredCatalogIndexMeta(index);
+  let decoded = createCatalogIndexFromLayer(
+    meta,
+    decodeLayeredCatalogIndexLayer(
+      await readJsonFile<unknown>(path.join(path.dirname(filePath), meta.layers.core)),
+      meta,
+    ),
+  );
+
+  for (const layer of ["descriptions", "display"] as const) {
+    decoded = mergeCatalogIndexLayer(
+      decoded,
+      decodeLayeredCatalogIndexLayer(
+        await readJsonFile<unknown>(path.join(path.dirname(filePath), meta.layers[layer])),
+        meta,
+      ),
+    );
+  }
+
+  return decoded as CatalogSetIndex;
 }
 
 async function writeCatalogSetIndex(
@@ -2261,14 +2249,6 @@ async function writeCatalogSetIndex(
 
 function getOutputRelativeDirectory(projectConfig: any, set?: string) {
   return projectConfig.sets ? path.join("sets", set || "") : "root";
-}
-
-function getDataOutputDirectoryPath(session: CatalogDevSession, projectConfig: any, set?: string) {
-  return path.join(
-    session.outputDirectoryPath,
-    "data",
-    getOutputRelativeDirectory(projectConfig, set),
-  );
 }
 
 function getEntityKeyFromChangedPath(
@@ -2317,20 +2297,6 @@ function classifyCatalogDevChanges(
   const set = Array.from(sets)[0] || undefined;
 
   if (
-    types.size === 1 &&
-    types.has("message") &&
-    !options.withTranslationSearch &&
-    !options.withDuplicates
-  ) {
-    return {
-      kind: "message",
-      reason,
-      set,
-      messageKeys: sortStrings(infos.map((info) => info?.key || "").filter(Boolean)),
-    };
-  }
-
-  if (
     projectConfig.sets &&
     set &&
     types.size > 0 &&
@@ -2353,7 +2319,7 @@ async function writeCatalogManifest(
     browserRouter: boolean;
     withTranslationSearch: boolean;
     withDuplicates: boolean;
-    layoutOptions: CatalogLayoutOptions;
+    outputOptions: CatalogOutputOptions;
     setIndexes: Record<string, CatalogSetIndex>;
     executions: Array<{ set: string; projectConfig: any; datasource: any }>;
   },
@@ -2374,10 +2340,9 @@ async function writeCatalogManifest(
     },
     layout: {
       version: 1,
-      mode: options.layoutOptions.layout,
-      blockSize: options.layoutOptions.blockSize,
+      blockSize: options.outputOptions.blockSize,
       vbucketBits: VBUCKET_BITS,
-      blockedTypes: options.layoutOptions.layout === "blocks" ? ["message"] : [],
+      blockedTypes: ["message"],
     },
     links: session.links,
     paths: {
@@ -2398,228 +2363,6 @@ async function writeCatalogManifest(
   };
 
   await writer.write(path.join(session.outputDirectoryPath, "data", "manifest.json"), manifest);
-  return manifest;
-}
-
-function getMessageRelationshipFingerprint(message: Message) {
-  const attributes = new Set<string>();
-  const segments = new Set<string>();
-
-  for (const override of message.overrides || []) {
-    collectAttributeKeysFromConditions(override.conditions, attributes);
-    collectSegmentKeys(override.segments, segments);
-  }
-
-  return {
-    attributes: sortStrings(Array.from(attributes)),
-    segments: sortStrings(Array.from(segments)),
-  };
-}
-
-function sameStringList(left: string[] = [], right: string[] = []) {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((value, index) => value === right[index]);
-}
-
-function summarizeMessage(
-  message: Message,
-  messageKey: string,
-  historyIndex: CatalogHistoryIndex,
-  set: string | undefined,
-  targets: string[],
-) {
-  const directLocales = Object.keys(message.translations || {});
-  const overrideLocalesSet = new Set<string>();
-
-  for (const override of message.overrides || []) {
-    for (const localeKey of Object.keys(override.translations || {})) {
-      overrideLocalesSet.add(localeKey);
-    }
-  }
-
-  const overrideLocales = sortStrings(Array.from(overrideLocalesSet));
-
-  return getEntitySummary(message, "message", messageKey, historyIndex, set, {
-    targets,
-    ...((message.overrides || []).length > 0
-      ? { overrideCount: (message.overrides || []).length }
-      : {}),
-    ...(directLocales.length > 0 ? { locales: sortStrings(directLocales) } : {}),
-    ...(overrideLocales.length > 0 ? { overrideLocales } : {}),
-  });
-}
-
-async function tryRebuildCatalogMessage(
-  runtime: CatalogRuntime,
-  rootDirectoryPath: string,
-  rootProjectConfig: any,
-  projectConfig: any,
-  datasource: any,
-  session: CatalogDevSession,
-  request: CatalogDevRebuildRequest,
-  prettyOutput = false,
-) {
-  if (request.kind !== "message" || !request.messageKeys || request.messageKeys.length === 0) {
-    return false;
-  }
-
-  const dataDirectoryPath = getDataOutputDirectoryPath(session, rootProjectConfig, request.set);
-  const indexPath = path.join(dataDirectoryPath, "index.json");
-  const index = await readCatalogSetIndex(indexPath);
-
-  if (!index) {
-    return false;
-  }
-
-  const snapshot = await runtime.loadProjectSnapshot(datasource, {
-    entityTypes: ["locale", "message", "segment", "target"],
-  });
-  const localeKeys = snapshot.keys.locale;
-  const messageKeys = snapshot.keys.message;
-  const targetKeys = snapshot.keys.target;
-  const messageKeySet = new Set(messageKeys);
-
-  if (request.messageKeys.some((messageKey) => !messageKeySet.has(messageKey))) {
-    return false;
-  }
-
-  const { locales, targets } = snapshot;
-  const localeDirections = getLocaleDirections(locales);
-  const targetMessages = Object.fromEntries(
-    targetKeys.map((targetKey) => [
-      targetKey,
-      getTargetMessageKeys(runtime, targets[targetKey], messageKeys),
-    ]),
-  ) as Record<string, string[]>;
-  const targetMessageSets = Object.fromEntries(
-    targetKeys.map((targetKey) => [targetKey, new Set(targetMessages[targetKey])]),
-  ) as Record<string, Set<string>>;
-  const writer = new CatalogJsonWriter(prettyOutput);
-
-  for (const messageKey of request.messageKeys) {
-    const oldDetailPath = path.join(
-      dataDirectoryPath,
-      "entities",
-      "message",
-      `${encodeKey(messageKey)}.json`,
-    );
-    const oldDetail = await readJsonFile<any>(oldDetailPath);
-
-    if (!oldDetail) {
-      return false;
-    }
-
-    const message = await datasource.readMessage(messageKey);
-    const messageTargets = sortStrings(
-      targetKeys.filter((targetKey) => targetMessageSets[targetKey].has(messageKey)),
-    );
-
-    if (!sameStringList(sortStrings(oldDetail.targets || []), messageTargets)) {
-      return false;
-    }
-
-    const oldRelationshipFingerprint = getMessageRelationshipFingerprint(oldDetail.entity || {});
-    const nextRelationshipFingerprint = getMessageRelationshipFingerprint(message);
-
-    if (
-      !sameStringList(
-        oldRelationshipFingerprint.attributes,
-        nextRelationshipFingerprint.attributes,
-      ) ||
-      !sameStringList(oldRelationshipFingerprint.segments, nextRelationshipFingerprint.segments)
-    ) {
-      return false;
-    }
-
-    const examples = await runtime.resolveExamples(projectConfig, datasource, {
-      set: request.set,
-      message: messageKey,
-      onlyMessages: true,
-      snapshot,
-    });
-    const overrides = (message.overrides || []).map((override: Override) => {
-      const attributes = new Set<string>();
-      const overrideSegments = new Set<string>();
-      collectAttributeKeysFromConditions(override.conditions, attributes);
-      collectSegmentKeys(override.segments, overrideSegments);
-
-      return {
-        ...override,
-        usedAttributes: sortStrings(Array.from(attributes)),
-        usedSegments: sortStrings(Array.from(overrideSegments)),
-      };
-    });
-    const sourceFileInfo = getSourceFileInfo(
-      session.repositorySourceRootDirectoryPath,
-      rootDirectoryPath,
-      projectConfig,
-      "message",
-      messageKey,
-      { resolveAbsolutePath: session.devEditors.length > 0 },
-    );
-    const detail = {
-      type: "message",
-      key: messageKey,
-      entity: { ...message, overrides },
-      sourcePath: sourceFileInfo.sourcePath,
-      editLinks: getEditorLinks(session.devEditors, sourceFileInfo),
-      targets: messageTargets,
-      localeKeys,
-      localeDirections,
-      translations: localeKeys.map((localeKey) =>
-        resolveTranslationRow(message.translations, localeKey, locales, {
-          states: message.translationStates,
-          sourceLocale: projectConfig.sourceLocale,
-        }),
-      ),
-      evaluatedExamples: examples.messages,
-      overrideTranslations: overrides.map((override: Override) => ({
-        key: override.key,
-        rows: localeKeys.map((localeKey) =>
-          resolveTranslationRow(override.translations, localeKey, locales, {
-            states: override.translationStates,
-            sourceLocale: projectConfig.sourceLocale,
-          }),
-        ),
-      })),
-      lastModified: getLastModified(session.historyIndex, "message", messageKey, request.set),
-    };
-
-    await writer.write(oldDetailPath, detail);
-
-    await writeHistoryPages(
-      writer,
-      path.join(dataDirectoryPath, "history", "message", encodeKey(messageKey)),
-      getHistoryForEntity(session.historyIndex, "message", messageKey, request.set),
-      { skipEmpty: true },
-    );
-
-    const nextSummary = summarizeMessage(
-      message,
-      messageKey,
-      session.historyIndex,
-      request.set,
-      messageTargets,
-    );
-    const existingSummaryIndex = index.entities.message.findIndex(
-      (entry) => entry.key === messageKey,
-    );
-
-    if (existingSummaryIndex === -1) {
-      index.entities.message.push(nextSummary);
-    } else {
-      index.entities.message[existingSummaryIndex] = nextSummary;
-    }
-  }
-
-  index.entities.message.sort((left, right) => left.key.localeCompare(right.key));
-  index.counts.message = messageKeys.length;
-  await writeCatalogSetIndex(writer, dataDirectoryPath, index);
-
-  return true;
 }
 
 async function rebuildCatalogSetForDev(
@@ -2634,14 +2377,12 @@ async function rebuildCatalogSetForDev(
     browserRouter: boolean;
     withTranslationSearch: boolean;
     withDuplicates: boolean;
-    layout?: "files" | "blocks";
     blockSize?: number;
-    blockThreshold?: number;
     prettyOutput?: boolean;
   },
 ) {
-  const layoutOptions = resolveCatalogLayoutOptions(projectConfig, options);
-  const writer = new CatalogJsonWriter(layoutOptions.prettyOutput);
+  const outputOptions = resolveCatalogOutputOptions(projectConfig, options);
+  const writer = new CatalogJsonWriter(outputOptions.prettyOutput);
   const progress = new CatalogProgressReporter(rootDirectoryPath, session.outputDirectoryPath);
   const executions = filterCatalogSetExecutions(
     await runtime.getProjectSetExecutions(projectConfig, datasource),
@@ -2688,10 +2429,8 @@ async function rebuildCatalogSetForDev(
     withDuplicates: options.withDuplicates,
     progress,
     writer,
-    layout: layoutOptions.layout,
-    blockSize: layoutOptions.blockSize,
-    blockThreshold: layoutOptions.blockThreshold,
-    prettyOutput: layoutOptions.prettyOutput,
+    blockSize: outputOptions.blockSize,
+    prettyOutput: outputOptions.prettyOutput,
   };
 
   setIndexes[execution.set || "root"] = await buildSetCatalog(
@@ -2709,7 +2448,7 @@ async function rebuildCatalogSetForDev(
     browserRouter: options.browserRouter,
     withTranslationSearch: options.withTranslationSearch,
     withDuplicates: options.withDuplicates,
-    layoutOptions,
+    outputOptions,
     setIndexes,
     executions,
   });
@@ -2730,9 +2469,9 @@ export async function exportCatalog(
   const dataDirectoryPath = path.join(outputDirectoryPath, "data");
   const withTranslationSearch = options.withTranslationSearch === true;
   const withDuplicates = options.withDuplicates === true;
-  const layoutOptions = resolveCatalogLayoutOptions(projectConfig, options);
+  const outputOptions = resolveCatalogOutputOptions(projectConfig, options);
   const progress = new CatalogProgressReporter(rootDirectoryPath, outputDirectoryPath);
-  const writer = new CatalogJsonWriter(layoutOptions.prettyOutput);
+  const writer = new CatalogJsonWriter(outputOptions.prettyOutput);
 
   progress.start({
     browserRouter: options.browserRouter !== false,
@@ -2814,10 +2553,8 @@ export async function exportCatalog(
     withDuplicates,
     progress,
     writer,
-    layout: layoutOptions.layout,
-    blockSize: layoutOptions.blockSize,
-    blockThreshold: layoutOptions.blockThreshold,
-    prettyOutput: layoutOptions.prettyOutput,
+    blockSize: outputOptions.blockSize,
+    prettyOutput: outputOptions.prettyOutput,
   };
   stepStartedAt = progress.step("Discovering project sets");
   const executions = filterCatalogSetExecutions(
@@ -2868,10 +2605,9 @@ export async function exportCatalog(
     },
     layout: {
       version: 1,
-      mode: layoutOptions.layout,
-      blockSize: layoutOptions.blockSize,
+      blockSize: outputOptions.blockSize,
       vbucketBits: VBUCKET_BITS,
-      blockedTypes: layoutOptions.layout === "blocks" ? ["message"] : [],
+      blockedTypes: ["message"],
     },
     links,
     paths: {
@@ -3408,7 +3144,6 @@ function assertCatalogOptionScope(parsed: CatalogPluginParsedOptions) {
       parsed["with-duplicates"],
       parsed.withTranslationSearch,
       parsed["with-translation-search"],
-      parsed.layout,
       parsed.blockSize,
       parsed["block-size"],
       parsed.prettyOutput,
@@ -3444,7 +3179,6 @@ export function createCatalogPlugin(
       const browserRouter = !(parsed.hashRouter || parsed["hash-router"]);
       const withTranslationSearch = isWithTranslationSearchEnabled(parsed);
       const withDuplicates = isWithDuplicatesEnabled(parsed);
-      const layout = parsed.layout as "files" | "blocks" | undefined;
       const blockSize = parsed.blockSize ?? parsed["block-size"];
       const prettyOutput = parsed.prettyOutput === true || parsed["pretty-output"] === true;
       const selectedSets = normalizeSelectedSets(parsed.set);
@@ -3470,7 +3204,6 @@ export function createCatalogPlugin(
           devSession,
           withTranslationSearch,
           withDuplicates,
-          layout,
           blockSize,
           prettyOutput,
           sets: selectedSets,
@@ -3563,30 +3296,6 @@ export function createCatalogPlugin(
 
             let handled = false;
 
-            const activeLayout = resolveCatalogLayoutOptions(activeProjectConfig, {
-              layout,
-              blockSize,
-              prettyOutput,
-            }).layout;
-
-            if (request.kind === "message" && activeLayout !== "blocks") {
-              const [execution] = await runtime.getProjectSetExecutions(
-                activeProjectConfig,
-                activeDatasource,
-                request.set,
-              );
-              handled = await tryRebuildCatalogMessage(
-                runtime,
-                rootDirectoryPath,
-                activeProjectConfig,
-                execution.projectConfig,
-                execution.datasource,
-                devSession,
-                request,
-                prettyOutput,
-              );
-            }
-
             if (!handled && request.kind === "set" && request.set) {
               handled = await rebuildCatalogSetForDev(
                 runtime,
@@ -3600,7 +3309,6 @@ export function createCatalogPlugin(
                   browserRouter,
                   withTranslationSearch,
                   withDuplicates,
-                  layout,
                   blockSize,
                   prettyOutput,
                 },
@@ -3617,7 +3325,6 @@ export function createCatalogPlugin(
                 devSession,
                 withTranslationSearch,
                 withDuplicates,
-                layout,
                 blockSize,
                 prettyOutput,
                 sets: selectedSets,
@@ -3664,7 +3371,6 @@ export function createCatalogPlugin(
           browserRouter,
           withTranslationSearch,
           withDuplicates,
-          layout,
           blockSize,
           prettyOutput,
           sets: selectedSets,

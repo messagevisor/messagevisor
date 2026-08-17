@@ -26,6 +26,8 @@ import {
   isLayeredCatalogIndex,
   mergeCatalogIndexLayer,
 } from "../layeredIndex";
+import { findBlockHash } from "../blockReader";
+import { getVirtualBucket } from "../utils/hashEntityKey";
 
 const catalogApi = createCatalogApi({
   loadProjectSnapshot,
@@ -100,6 +102,17 @@ async function readJson<T>(root: string, relativePath: string): Promise<T> {
   }
 
   return index as T;
+}
+
+async function readMessageDetail<T>(root: string, dataDirectory: string, key: string): Promise<T> {
+  const ranges = await readJson<any>(root, `${dataDirectory}/blocks/message/ranges.json`);
+  const hash = findBlockHash(ranges, getVirtualBucket(key));
+  const block = await readJson<Record<string, T>>(
+    root,
+    `${dataDirectory}/blocks/message/${hash}.json`,
+  );
+
+  return block[key];
 }
 
 async function pathExists(root: string, relativePath: string) {
@@ -330,10 +343,7 @@ describe("catalog", function () {
     const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
     const index = await readJson<any>(root, "catalog-out/data/root/index.json");
     const locale = await readJson<any>(root, "catalog-out/data/root/entities/locale/en-US.json");
-    const message = await readJson<any>(
-      root,
-      "catalog-out/data/root/entities/message/common.welcome.json",
-    );
+    const message = await readMessageDetail<any>(root, "catalog-out/data/root", "common.welcome");
     const attribute = await readJson<any>(
       root,
       "catalog-out/data/root/entities/attribute/plan.json",
@@ -501,23 +511,24 @@ describe("catalog", function () {
 
     await catalogApi.exportCatalog(root, projectConfig, datasource, options);
 
+    const ranges = await readJson<any>(root, "catalog-out/data/root/blocks/message/ranges.json");
     const messagePath = path.join(
       root,
-      "catalog-out/data/root/entities/message/common.welcome.json",
+      `catalog-out/data/root/blocks/message/${ranges.blocks[0][1]}.json`,
     );
     const firstStat = await fs.promises.stat(messagePath);
-    await writeFile(root, "catalog-out/data/root/entities/message/obsolete.json", "obsolete");
+    await writeFile(root, "catalog-out/data/root/blocks/message/obsolete.json", "obsolete");
 
     await catalogApi.exportCatalog(root, projectConfig, datasource, options);
 
     const secondStat = await fs.promises.stat(messagePath);
     expect(secondStat.mtimeMs).toBe(firstStat.mtimeMs);
     await expect(
-      pathExists(root, "catalog-out/data/root/entities/message/obsolete.json"),
+      pathExists(root, "catalog-out/data/root/blocks/message/obsolete.json"),
     ).resolves.toBe(false);
   });
 
-  it("consolidates message details into blocks when block layout is enabled", async function () {
+  it("consolidates all message details into blocks", async function () {
     const root = await createProject();
     roots.push(root);
     const projectConfig = getProjectConfig(root);
@@ -526,8 +537,6 @@ describe("catalog", function () {
     await catalogApi.exportCatalog(root, projectConfig, datasource, {
       outDir: "catalog-blocks",
       copyAssets: false,
-      layout: "blocks",
-      blockThreshold: 0,
       blockSize: 16384,
     });
 
@@ -538,7 +547,6 @@ describe("catalog", function () {
     const ranges = await readJson<any>(root, "catalog-blocks/data/root/blocks/message/ranges.json");
 
     expect(manifest.layout).toMatchObject({
-      mode: "blocks",
       blockSize: 16384,
       blockedTypes: ["message"],
     });
@@ -555,8 +563,6 @@ describe("catalog", function () {
     await catalogApi.exportCatalog(root, projectConfig, datasource, {
       outDir: "catalog-blocks",
       copyAssets: false,
-      layout: "blocks",
-      blockThreshold: 0,
       blockSize: 16384,
     });
     const secondRanges = await fs.promises.readFile(
@@ -930,14 +936,8 @@ describe("catalog", function () {
     });
 
     const index = await readJson<any>(root, "catalog-out/data/root/index.json");
-    const firstMessage = await readJson<any>(
-      root,
-      "catalog-out/data/root/entities/message/bulk.0000.json",
-    );
-    const lastMessage = await readJson<any>(
-      root,
-      "catalog-out/data/root/entities/message/bulk.1199.json",
-    );
+    const firstMessage = await readMessageDetail<any>(root, "catalog-out/data/root", "bulk.0000");
+    const lastMessage = await readMessageDetail<any>(root, "catalog-out/data/root", "bulk.1199");
 
     expect(index.counts.message).toBe(messageCount);
     expect(index.entities.message.slice(0, 3).map((entry: any) => entry.key)).toEqual([
@@ -1005,10 +1005,7 @@ describe("catalog", function () {
       "catalog-out/data/root/history/message/common.with-space/page-1.json",
     );
     const index = await readJson<any>(root, "catalog-out/data/root/index.json");
-    const message = await readJson<any>(
-      root,
-      "catalog-out/data/root/entities/message/common.welcome.json",
-    );
+    const message = await readMessageDetail<any>(root, "catalog-out/data/root", "common.welcome");
 
     expect(projectHistory.entries).toHaveLength(2);
     expect(projectHistory.entries[0].entities).toEqual(
@@ -1204,10 +1201,7 @@ describe("catalog", function () {
     });
 
     const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
-    const message = await readJson<any>(
-      root,
-      "catalog-out/data/root/entities/message/common.welcome.json",
-    );
+    const message = await readMessageDetail<any>(root, "catalog-out/data/root", "common.welcome");
 
     expect(manifest.links).toBeUndefined();
     expect(manifest.dev).toEqual({
@@ -1251,9 +1245,10 @@ describe("catalog", function () {
       copyAssets: false,
     });
 
-    const message = await readJson<any>(
+    const message = await readMessageDetail<any>(
       projectRoot,
-      "catalog-out/data/root/entities/message/common.welcome.json",
+      "catalog-out/data/root",
+      "common.welcome",
     );
 
     expect(message.sourcePath).toBe("projects/shop/messages/common/welcome.yml");
@@ -1309,7 +1304,7 @@ describe("catalog", function () {
     expect(storefront.counts.message).toBe(2);
     expect(admin.counts.message).toBe(2);
     await expect(
-      readJson<any>(root, "catalog-out/data/sets/storefront/entities/message/common.welcome.json"),
+      readMessageDetail<any>(root, "catalog-out/data/sets/storefront", "common.welcome"),
     ).resolves.toMatchObject({
       key: "common.welcome",
       entity: { translations: { en: "storefront" } },
@@ -1650,7 +1645,7 @@ describe("catalog", function () {
     expect(watchPaths).not.toContain(path.join(root, "node_modules"));
   });
 
-  it("plans incremental message rebuilds only for safe dev changes", async function () {
+  it("plans full rebuilds for message changes in non-set projects", async function () {
     const root = await createProject();
     roots.push(root);
     const projectConfig = getProjectConfig(root);
@@ -1662,12 +1657,7 @@ describe("catalog", function () {
         withTranslationSearch: false,
         withDuplicates: false,
       }),
-    ).toEqual(
-      expect.objectContaining({
-        kind: "message",
-        messageKeys: ["common.welcome"],
-      }),
-    );
+    ).toEqual(expect.objectContaining({ kind: "full" }));
 
     expect(
       __catalogDevInternals.classifyCatalogDevChanges(root, projectConfig, [messagePath], {
@@ -1711,13 +1701,7 @@ describe("catalog", function () {
         withTranslationSearch: false,
         withDuplicates: false,
       }),
-    ).toEqual(
-      expect.objectContaining({
-        kind: "message",
-        set: "storefront",
-        messageKeys: ["common.welcome"],
-      }),
-    );
+    ).toEqual(expect.objectContaining({ kind: "set", set: "storefront" }));
     expect(
       __catalogDevInternals.classifyCatalogDevChanges(root, projectConfig, [localePath], {
         withTranslationSearch: false,
@@ -1805,13 +1789,12 @@ describe("catalog plugin", function () {
     );
   });
 
-  it("forwards large-project layout options to catalog export", async function () {
+  it("forwards large-project block options to catalog export", async function () {
     const { handler } = createPlugin();
 
     await handler({
       _: ["catalog", "export"],
       subcommand: "export",
-      layout: "blocks",
       blockSize: 524288,
       prettyOutput: true,
     });
@@ -1821,7 +1804,6 @@ describe("catalog plugin", function () {
       expect.any(Object),
       expect.any(Object),
       expect.objectContaining({
-        layout: "blocks",
         blockSize: 524288,
         prettyOutput: true,
       }),
@@ -1963,14 +1945,6 @@ describe("catalog plugin", function () {
       }),
     ).rejects.toThrow("can only be used with `catalog` or `catalog export`");
     expect(serveMock).not.toHaveBeenCalled();
-
-    await expect(
-      handler({
-        _: ["catalog", "serve"],
-        subcommand: "serve",
-        layout: "blocks",
-      }),
-    ).rejects.toThrow("can only be used with `catalog` or `catalog export`");
   });
 
   it("lets serveCatalog apply its default port when no port option is provided", async function () {

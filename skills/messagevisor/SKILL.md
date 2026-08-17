@@ -236,7 +236,7 @@ Import previews by default — show the user the preview before `--apply`.
 
 ### Visual review with Catalog
 
-`npx messagevisor catalog` serves a browsable UI of the whole project **in dev mode: it watches authored inputs and live-reloads the browser on every save**. Every message with its translations, overrides, examples, and target inclusion; every locale with inherited formats; targets, segments, tests (matrix-expanded), and history. For very large projects, use `--layout=blocks` to consolidate message detail output into content-addressed blocks while keeping the same Catalog UI. That makes it the ideal companion to an authoring session:
+`npx messagevisor catalog` serves a browsable UI of the whole project **in dev mode: it watches authored inputs and live-reloads the browser on every save**. Every message with its translations, overrides, examples, and target inclusion; every locale with inherited formats; targets, segments, tests (matrix-expanded), and history. Message details are stored in content-addressed blocks, which keeps the same Catalog UI efficient for very large projects. That makes it the ideal companion to an authoring session:
 
 1. Start it once as a background process (it's local and read-only — safe to leave running).
 2. If you have a browser tool, open the printed URL in it; otherwise give the user the URL.
@@ -282,7 +282,7 @@ All `messagevisor` CLI commands are local and safe to run without confirmation. 
 | `npx messagevisor test [--keyPattern=...]`                       | Run test specs                              |
 | `npx messagevisor build [--target=...] [--locale=...]`           | Build datafiles                             |
 | `npx messagevisor catalog`                                       | Live-reloading Catalog UI (dev mode)        |
-| `npx messagevisor catalog export --layout=blocks`                | Large-project Catalog export                |
+| `npx messagevisor catalog export`                                | Static Catalog export                       |
 | `npx messagevisor export` / `import` (preview-first)             | Translator CSV/JSON round trip              |
 | `npx messagevisor find-duplicates --locale=<locale>`             | Duplicate translations                      |
 | `npx messagevisor prune --translations` (preview-first)          | Remove translations no target ships         |

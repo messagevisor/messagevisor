@@ -49,12 +49,7 @@ const definitions: Record<string, CLIOptionDefinitions> = {
     assets: { type: "boolean", description: "copy Catalog UI assets; use --no-assets to skip" },
     noAssets: { type: "boolean", description: "skip copying Catalog UI assets" },
     hashRouter: { type: "boolean", description: "use hash-based browser routes" },
-    layout: {
-      type: "string",
-      choices: ["files", "blocks"],
-      description: "Catalog entity data layout",
-    },
-    blockSize: { type: "number", description: "block size in bytes when layout=blocks" },
+    blockSize: { type: "number", description: "Catalog block size in bytes" },
     prettyOutput: { type: "boolean", description: "pretty-print generated Catalog JSON" },
     withDuplicates: { type: "boolean", description: "generate duplicate reports" },
     withTranslationSearch: { type: "boolean", description: "generate translation search data" },

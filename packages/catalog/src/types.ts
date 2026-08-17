@@ -100,7 +100,6 @@ export interface CatalogManifest {
   };
   layout?: {
     version: number;
-    mode: "files" | "blocks";
     blockSize: number;
     vbucketBits: number;
     blockedTypes: EntityType[];

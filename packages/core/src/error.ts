@@ -14,6 +14,7 @@ export const MESSAGEVISOR_CLI_ERROR_CODES = {
   invalidRegularExpression: "invalid_regular_expression",
   invalidInput: "invalid_input",
   invalidConfiguration: "invalid_configuration",
+  unknownConfigOption: "unknown_config_option",
   invalidProjectConfiguration: "invalid_project_configuration",
   invalidEntityKey: "invalid_entity_key",
   invalidEntityPath: "invalid_entity_path",

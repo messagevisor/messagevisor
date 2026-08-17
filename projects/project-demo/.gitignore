@@ -3,5 +3,7 @@ datafiles
 src
 catalog
 out
+exports
+imports
 .messagevisor/memory
 .messagevisor/cache

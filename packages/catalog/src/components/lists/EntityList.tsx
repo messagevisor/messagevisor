@@ -31,6 +31,7 @@ function matchesQuery(
   parsed: ParsedQuery,
   translationShard: TranslationShard | null,
   translationSearchEnabled: boolean,
+  descriptionSearchReady: boolean,
 ): boolean {
   const { freeText, qualifiers } = parsed;
 
@@ -48,6 +49,7 @@ function matchesQuery(
   for (const q of qualifiers) {
     switch (q.key) {
       case "description": {
+        if (!descriptionSearchReady) break;
         const desc = (entity.description || "").toLowerCase();
         if (!desc.includes(q.value.toLowerCase())) return false;
         break;
@@ -638,6 +640,8 @@ export function EntityList(props: {
   setKey?: string;
   allEntities?: Record<EntityType, EntitySummary[]>;
   translationSearchEnabled?: boolean;
+  descriptionSearchReady?: boolean;
+  descriptionSearchError?: string | null;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showAll, setShowAll] = React.useState(false);
@@ -674,6 +678,7 @@ export function EntityList(props: {
   const firstTargetKey = props.allEntities?.target?.find((e) => !e.archived)?.key;
   const firstLocaleKey = props.allEntities?.locale?.find((e) => !e.archived)?.key;
   const translationSearchEnabled = props.translationSearchEnabled === true;
+  const descriptionSearchReady = props.descriptionSearchReady !== false;
 
   // Compute the 3-char shard prefix needed for the current query
   const _translationQual = parseQuery(query).qualifiers.find((q) => q.key === "translation");
@@ -723,14 +728,27 @@ export function EntityList(props: {
 
     const matching = props.entities.filter((entity) => {
       if (!hasQuery) return true;
-      return matchesQuery(entity, parsed, activeShard, translationSearchEnabled);
+      return matchesQuery(
+        entity,
+        parsed,
+        activeShard,
+        translationSearchEnabled,
+        descriptionSearchReady,
+      );
     });
 
     return matching.slice().sort((left, right) => {
       const result = left.key.localeCompare(left.key === right.key ? "" : right.key);
       return sortDirection === "desc" ? result * -1 : result;
     });
-  }, [query, props.entities, sortDirection, activeShard, translationSearchEnabled]);
+  }, [
+    query,
+    props.entities,
+    sortDirection,
+    activeShard,
+    translationSearchEnabled,
+    descriptionSearchReady,
+  ]);
 
   const visible = showAll ? filtered : filtered.slice(0, CATALOG_LIST_INITIAL_LIMIT);
   const hasHiddenEntities = filtered.length > CATALOG_LIST_INITIAL_LIMIT && !showAll;
@@ -793,6 +811,13 @@ export function EntityList(props: {
           </button>
         </div>
       </div>
+
+      {!descriptionSearchReady && (
+        <p className="px-6 text-sm text-muted">Loading description search...</p>
+      )}
+      {props.descriptionSearchError && (
+        <p className="px-6 text-sm text-danger">Description search unavailable</p>
+      )}
 
       {filtered.length === 0 && <EmptyState title="No results found" />}
 

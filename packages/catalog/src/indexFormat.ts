@@ -1,4 +1,3 @@
-import { entityTypeToPath } from "./entityTypes";
 import type { CatalogIndex, EntitySummary, EntityType } from "./types";
 
 export const CATALOG_INDEX_FORMAT_VERSION = 2;
@@ -270,7 +269,7 @@ export function decodeCatalogIndex(input: unknown): CatalogIndex {
         throw new Error(`Invalid Catalog index ${type} row: missing key.`);
       }
 
-      summary.href = `entities/${entityTypeToPath[type] === "messages" ? "message" : entityTypeToPath[type].slice(0, -1)}/${encodeURIComponent(summary.key)}.json`;
+      summary.href = `entities/${type}/${encodeURIComponent(summary.key)}.json`;
       return summary;
     });
   }

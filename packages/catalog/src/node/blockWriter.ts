@@ -7,16 +7,27 @@ export interface BlockPlanEntry<T = unknown> {
   payload: T;
 }
 
+interface PreparedBlockPlanEntry<T = unknown> extends BlockPlanEntry<T> {
+  serializedByteLength: number;
+}
+
 export interface PlannedBlock<T = unknown> {
   vbucketStart: number;
   vbucketEnd: number;
   entries: BlockPlanEntry<T>[];
 }
 
+interface PreparedPlannedBlock<T = unknown> {
+  vbucketStart: number;
+  vbucketEnd: number;
+  entries: PreparedBlockPlanEntry<T>[];
+}
+
 export interface CatalogBlock<T = unknown> {
   vbucketStart: number;
   contentHash: string;
   content: Record<string, T>;
+  serialized: string;
 }
 
 export interface CatalogRangeTable {
@@ -27,22 +38,40 @@ export interface CatalogRangeTable {
 }
 
 function serializeEntries<T>(entries: BlockPlanEntry<T>[]) {
-  const content: Record<string, T> = {};
+  return `{${[...entries]
+    .sort((left, right) => left.key.localeCompare(right.key))
+    .map((entry) => serializeEntry(entry))
+    .join(",")}}`;
+}
 
-  for (const entry of [...entries].sort((left, right) => left.key.localeCompare(right.key))) {
-    content[entry.key] = entry.payload;
+function serializeEntry<T>(entry: BlockPlanEntry<T>) {
+  return `${JSON.stringify(entry.key)}:${JSON.stringify(entry.payload) ?? "null"}`;
+}
+
+function prepareEntries<T>(entries: BlockPlanEntry<T>[]): PreparedBlockPlanEntry<T>[] {
+  return [...entries]
+    .sort((left, right) => left.key.localeCompare(right.key))
+    .map((entry) => ({
+      ...entry,
+      serializedByteLength: Buffer.byteLength(serializeEntry(entry), "utf8"),
+    }));
+}
+
+function getSerializedByteLength<T>(entries: PreparedBlockPlanEntry<T>[]) {
+  if (entries.length === 0) {
+    return 2;
   }
 
-  return JSON.stringify(content);
+  return (
+    2 +
+    entries.reduce((total, entry) => total + entry.serializedByteLength, 0) +
+    Math.max(0, entries.length - 1)
+  );
 }
 
-function getSerializedByteLength(value: string) {
-  return Buffer.byteLength(value, "utf8");
-}
-
-function splitEntries<T>(entries: BlockPlanEntry<T>[], splitAt: number) {
-  const left: BlockPlanEntry<T>[] = [];
-  const right: BlockPlanEntry<T>[] = [];
+function splitEntries<T>(entries: PreparedBlockPlanEntry<T>[], splitAt: number) {
+  const left: PreparedBlockPlanEntry<T>[] = [];
+  const right: PreparedBlockPlanEntry<T>[] = [];
 
   for (const entry of entries) {
     if (getVirtualBucket(entry.key) < splitAt) {
@@ -59,23 +88,22 @@ function splitEntries<T>(entries: BlockPlanEntry<T>[], splitAt: number) {
  * Plans deterministic, contiguous virtual-bucket ranges. Empty children are
  * omitted from the returned plan; the reader treats the previous non-empty
  * range as the owner of any gap, which still gives correct results for known
- * keys.
+ * keys. Midpoint splitting intentionally favours stable insertion behaviour
+ * over perfect packing, so blocks may average below the configured budget.
  */
 export function planBlocks<T>(entries: BlockPlanEntry<T>[], blockSize: number): PlannedBlock<T>[] {
-  const initial: PlannedBlock<T> = {
+  const initial: PreparedPlannedBlock<T> = {
     vbucketStart: 0,
     vbucketEnd: VBUCKET_COUNT,
-    entries: [...entries].sort((left, right) => left.key.localeCompare(right.key)),
+    entries: prepareEntries(entries),
   };
-  const pending = [initial];
-  const planned: PlannedBlock<T>[] = [];
+  const pending: PreparedPlannedBlock<T>[] = [initial];
+  const planned: PreparedPlannedBlock<T>[] = [];
 
   while (pending.length > 0) {
-    const block = pending.shift() as PlannedBlock<T>;
-    const serialized = serializeEntries(block.entries);
-
+    const block = pending.shift() as PreparedPlannedBlock<T>;
     if (
-      getSerializedByteLength(serialized) > blockSize &&
+      getSerializedByteLength(block.entries) > blockSize &&
       block.vbucketEnd - block.vbucketStart > 1
     ) {
       const splitAt = Math.floor((block.vbucketStart + block.vbucketEnd) / 2);
@@ -111,18 +139,23 @@ export function serializeBlock<T>(entries: BlockPlanEntry<T>[]) {
 }
 
 export function hashBlockContent(content: string) {
-  return crypto.createHash("sha256").update(content, "utf8").digest("hex");
+  return crypto.createHash("sha256").update(content, "utf8").digest("hex").slice(0, 16);
 }
 
 export function toCatalogBlocks<T>(entries: BlockPlanEntry<T>[], blockSize: number) {
   return planBlocks(entries, blockSize).map((planned) => {
-    const content = JSON.parse(serializeBlock(planned.entries)) as Record<string, T>;
-    const serialized = JSON.stringify(content);
+    const serialized = serializeBlock(planned.entries);
+    const content: Record<string, T> = {};
+
+    for (const entry of planned.entries) {
+      content[entry.key] = entry.payload;
+    }
 
     return {
       vbucketStart: planned.vbucketStart,
       contentHash: hashBlockContent(serialized),
       content,
+      serialized,
     } satisfies CatalogBlock<T>;
   });
 }

@@ -6,6 +6,15 @@ import type {
   LocaleDuplicates,
 } from "./types";
 import { decodeCatalogIndex } from "./indexFormat";
+import {
+  createCatalogIndexFromLayer,
+  decodeLayeredCatalogIndexLayer,
+  decodeLayeredCatalogIndexMeta,
+  isLayeredCatalogIndex,
+  type CatalogIndexLayer,
+  type DecodedCatalogIndexLayer,
+  type EncodedCatalogIndexMeta,
+} from "./layeredIndex";
 import { createBlockCache, findBlockHash } from "./blockReader";
 import { getVirtualBucket } from "./utils/hashEntityKey";
 import { encodeRouteSegment, getDataBasePath } from "./entityTypes";
@@ -15,12 +24,35 @@ let catalogManifestCache: CatalogManifest | undefined;
 
 const _catalogRangeCache = new Map<string, CatalogRangeTable>();
 const _catalogBlockCache = createBlockCache<Record<string, EntityDetail>>(16);
+const _catalogIndexMetaCache = new Map<string, EncodedCatalogIndexMeta | null>();
+const _catalogIndexLayerCache = new Map<string, DecodedCatalogIndexLayer>();
+const _catalogIndexInputCache = new Map<string, unknown>();
 
 interface CatalogRangeTable {
   layoutVersion: number;
   vbucketBits: number;
   blockSize: number;
   blocks: Array<[number, string]>;
+}
+
+export class CatalogResourceNotFoundError extends Error {
+  constructor(
+    public readonly url: string,
+    public readonly status: number,
+  ) {
+    super(`Unable to load ${url}`);
+    this.name = "CatalogResourceNotFoundError";
+  }
+}
+
+export class CatalogBlockKeyMissingError extends Error {
+  constructor(
+    public readonly type: EntityType,
+    public readonly key: string,
+  ) {
+    super(`Catalog block does not contain ${type} "${key}".`);
+    this.name = "CatalogBlockKeyMissingError";
+  }
 }
 
 function getDataUrl(path: string) {
@@ -37,7 +69,7 @@ export async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(`Unable to load ${url}`);
+    throw new CatalogResourceNotFoundError(url, response.status);
   }
 
   return response.json() as Promise<T>;
@@ -50,6 +82,9 @@ export function fetchManifest() {
       catalogManifestCache = manifest;
       _catalogRangeCache.clear();
       _catalogBlockCache.clear();
+      _catalogIndexMetaCache.clear();
+      _catalogIndexLayerCache.clear();
+      _catalogIndexInputCache.clear();
       return manifest;
     });
 }
@@ -58,13 +93,63 @@ export function __resetCatalogApiCaches() {
   catalogManifestCache = undefined;
   _catalogRangeCache.clear();
   _catalogBlockCache.clear();
+  _catalogIndexMetaCache.clear();
+  _catalogIndexLayerCache.clear();
+  _catalogIndexInputCache.clear();
   _translationShardCache.clear();
 }
 
-export function fetchIndex(setKey?: string) {
-  return fetchJson<unknown>(getDataUrl(`${getDataBasePath(setKey)}/index.json`)).then(
-    decodeCatalogIndex,
+async function fetchIndexMeta(setKey?: string) {
+  const cacheKey = setKey || "__root__";
+  if (_catalogIndexMetaCache.has(cacheKey)) {
+    return _catalogIndexMetaCache.get(cacheKey) || undefined;
+  }
+
+  const input = _catalogIndexInputCache.has(cacheKey)
+    ? _catalogIndexInputCache.get(cacheKey)
+    : await fetchJson<unknown>(getDataUrl(`${getDataBasePath(setKey)}/index.json`));
+  _catalogIndexInputCache.set(cacheKey, input);
+  const meta = isLayeredCatalogIndex(input) ? decodeLayeredCatalogIndexMeta(input) : undefined;
+  _catalogIndexMetaCache.set(cacheKey, meta || null);
+  return meta;
+}
+
+async function loadIndexLayer(setKey: string | undefined, layer: CatalogIndexLayer) {
+  const meta = await fetchIndexMeta(setKey);
+  if (!meta) {
+    return undefined;
+  }
+
+  const cacheKey = `${setKey || "__root__"}:${layer}`;
+  const cached = _catalogIndexLayerCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const input = await fetchJson<unknown>(
+    getDataUrl(`${getDataBasePath(setKey)}/${meta.layers[layer]}`),
   );
+  const decoded = decodeLayeredCatalogIndexLayer(input, meta);
+  _catalogIndexLayerCache.set(cacheKey, decoded);
+  return decoded;
+}
+
+export async function fetchIndex(setKey?: string) {
+  const meta = await fetchIndexMeta(setKey);
+  if (!meta) {
+    const input = _catalogIndexInputCache.get(setKey || "__root__");
+    return decodeCatalogIndex(input);
+  }
+
+  const core = await loadIndexLayer(setKey, "core");
+  return createCatalogIndexFromLayer(meta, core || {});
+}
+
+export async function fetchIndexLayer(
+  layer: CatalogIndexLayer,
+  setKey?: string,
+): Promise<DecodedCatalogIndexLayer | undefined> {
+  return loadIndexLayer(setKey, layer);
 }
 
 function fetchLegacyEntityDetail(type: EntityType, key: string, setKey?: string) {
@@ -150,9 +235,7 @@ export async function fetchEntityDetail(type: EntityType, key: string, setKey?: 
     const detail = block[key];
 
     if (!detail) {
-      throw new Error(
-        `Unable to load ${getDataUrl(`${getDataBasePath(setKey)}/entities/${type}/${encodeRouteSegment(key)}.json`)}`,
-      );
+      throw new CatalogBlockKeyMissingError(type, key);
     }
 
     return detail;
@@ -161,8 +244,8 @@ export async function fetchEntityDetail(type: EntityType, key: string, setKey?: 
     // therefore still has legacy entity files. Preserve that mixed-layout
     // compatibility while allowing ordinary entity errors to surface.
     if (
-      error instanceof TypeError ||
-      (error instanceof Error && /Unable to load/.test(error.message))
+      error instanceof CatalogResourceNotFoundError &&
+      error.url.endsWith(`/blocks/${type}/ranges.json`)
     ) {
       return fetchLegacyEntityDetail(type, key, setKey);
     }

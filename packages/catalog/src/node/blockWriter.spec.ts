@@ -56,7 +56,16 @@ describe("catalog message blocks", () => {
     const serialized = serializeBlock([{ key: "key", payload: "value" }]);
 
     expect(serialized).toBe(JSON.stringify(block));
-    expect(hashBlockContent(serialized)).toHaveLength(64);
+    expect(hashBlockContent(serialized)).toHaveLength(16);
+  });
+
+  it("keeps integer-like keys in deterministic lexical order", () => {
+    expect(
+      serializeBlock([
+        { key: "10", payload: "ten" },
+        { key: "2", payload: "two" },
+      ]),
+    ).toBe('{"10":"ten","2":"two"}');
   });
 
   it("keeps a single oversized entity addressable", () => {

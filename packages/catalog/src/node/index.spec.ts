@@ -19,6 +19,13 @@ import {
   type CatalogRuntime,
 } from "./index";
 import { decodeCatalogIndex } from "../indexFormat";
+import {
+  createCatalogIndexFromLayer,
+  decodeLayeredCatalogIndexLayer,
+  decodeLayeredCatalogIndexMeta,
+  isLayeredCatalogIndex,
+  mergeCatalogIndexLayer,
+} from "../layeredIndex";
 
 const catalogApi = createCatalogApi({
   loadProjectSnapshot,
@@ -55,7 +62,44 @@ async function writeFile(root: string, relativePath: string, content: string) {
 async function readJson<T>(root: string, relativePath: string): Promise<T> {
   const value = JSON.parse(await fs.promises.readFile(path.join(root, relativePath), "utf8"));
 
-  return relativePath.endsWith("/index.json") ? (decodeCatalogIndex(value) as T) : (value as T);
+  if (!relativePath.endsWith("/index.json")) {
+    return value as T;
+  }
+
+  if (!isLayeredCatalogIndex(value)) {
+    return decodeCatalogIndex(value) as T;
+  }
+
+  const meta = decodeLayeredCatalogIndexMeta(value);
+  let index = createCatalogIndexFromLayer(
+    meta,
+    decodeLayeredCatalogIndexLayer(
+      JSON.parse(
+        await fs.promises.readFile(
+          path.join(root, path.dirname(relativePath), meta.layers.core),
+          "utf8",
+        ),
+      ),
+      meta,
+    ),
+  );
+
+  for (const layer of ["descriptions", "display"] as const) {
+    index = mergeCatalogIndexLayer(
+      index,
+      decodeLayeredCatalogIndexLayer(
+        JSON.parse(
+          await fs.promises.readFile(
+            path.join(root, path.dirname(relativePath), meta.layers[layer]),
+            "utf8",
+          ),
+        ),
+        meta,
+      ),
+    );
+  }
+
+  return index as T;
 }
 
 async function pathExists(root: string, relativePath: string) {
@@ -498,11 +542,28 @@ describe("catalog", function () {
       blockSize: 16384,
       blockedTypes: ["message"],
     });
-    expect(index.formatVersion).toBe(2);
+    expect(index.formatVersion).toBe(3);
     expect(ranges.blocks.length).toBeGreaterThan(0);
     await expect(
       pathExists(root, "catalog-blocks/data/root/entities/message/common.welcome.json"),
     ).resolves.toBe(false);
+
+    const firstRanges = await fs.promises.readFile(
+      path.join(root, "catalog-blocks/data/root/blocks/message/ranges.json"),
+      "utf8",
+    );
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-blocks",
+      copyAssets: false,
+      layout: "blocks",
+      blockThreshold: 0,
+      blockSize: 16384,
+    });
+    const secondRanges = await fs.promises.readFile(
+      path.join(root, "catalog-blocks/data/root/blocks/message/ranges.json"),
+      "utf8",
+    );
+    expect(secondRanges).toBe(firstRanges);
 
     for (const [, hash] of ranges.blocks) {
       const block = await readJson<any>(

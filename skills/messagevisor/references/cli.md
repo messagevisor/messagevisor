@@ -236,7 +236,7 @@ Run `catalog export` before `catalog serve`. Serve requires existing output and 
 
 In sets projects, Catalog includes all sets by default. Use repeatable `--set=<name>` with `catalog` or `catalog export` to generate only selected sets. The Catalog set switcher remains visible for sets projects and orders `dev*` sets first, `prod*` sets last.
 
-For large projects, Catalog indexes are compact by default. Use `--layout=blocks` with `catalog` or `catalog export` to consolidate message detail files into deterministic content-addressed blocks. `--blockSize=<bytes>` overrides the default 256 KiB block size for one export. Block layout is used for sets with at least 500 messages by default; configure `catalogBlockThreshold` for a different threshold. `--prettyOutput` is available for local inspection, while compact JSON remains the default. `catalog serve` only serves existing output and does not accept layout options.
+For large projects, Catalog indexes use compact per-type layers by default. Keys and filter facets load before descriptions and display metadata. Use `--layout=blocks` with `catalog` or `catalog export` to consolidate message detail files into deterministic content-addressed blocks. `--blockSize=<bytes>` overrides the default 256 KiB block size for one export. Block layout is used for sets with at least 500 messages by default; configure `catalogBlockThreshold` for a different threshold. `--prettyOutput` is available for local inspection, while compact JSON remains the default. Older single-file indexes remain readable. `catalog serve` only serves existing output and does not accept layout options.
 
 ## Translation exchange and cleanup
 

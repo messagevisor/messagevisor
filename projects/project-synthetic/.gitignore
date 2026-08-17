@@ -7,3 +7,5 @@ catalog/
 .synthetic-catalog/
 .synthetic-compact/
 .synthetic-blocks/
+.synthetic-layered/
+.synthetic-layered-blocks/

@@ -49,7 +49,7 @@ Set switcher ordering is intentional: set names starting with `dev` appear first
 
 ## Large projects
 
-Catalog indexes use a compact format by default. The default `files` layout still writes one JSON file per entity, which is useful for simple static hosting and remains the compatibility default.
+Catalog indexes use compact per-type layers by default. The core layer contains keys and filter facets, while descriptions and display metadata are loaded separately by the Catalog UI. The default `files` layout still writes one JSON file per entity, which is useful for simple static hosting and remains the compatibility default. Older single-file indexes remain readable.
 
 For projects with many thousands of messages, use block layout to reduce the number of message detail files:
 
@@ -61,7 +61,7 @@ npx messagevisor catalog export --layout=blocks --blockSize=524288
 
 Block layout stores message details in deterministic, content-addressed JSON blocks and uses a range table to locate the block for a message. Other entity types continue to use individual files. The default block size is 256 KiB and the default threshold is 500 messages. Configure the defaults in `messagevisor.config.js` with `catalogLayout`, `catalogBlockSize`, and `catalogBlockThreshold` when the project should always use the same policy.
 
-`--prettyOutput` is for local inspection only. Compact JSON is the default. `catalog serve` serves an existing export and does not accept export layout options.
+`--prettyOutput` is for local inspection only. Compact JSON is the default. Detail block filenames use short content hashes and can be cached immutably. Index layers and range metadata must remain revalidatable. `catalog serve` serves an existing export and does not accept export layout options.
 
 ## Optional generated data
 

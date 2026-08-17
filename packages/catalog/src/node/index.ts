@@ -29,7 +29,8 @@ import {
   normalizeSelectedSets,
   sortCatalogSetKeys,
 } from "./setSelection";
-import { decodeCatalogIndex, encodeCatalogIndex } from "../indexFormat";
+import { decodeCatalogIndex } from "../indexFormat";
+import { encodeLayeredCatalogIndex, isLayeredCatalogIndex } from "../layeredIndex";
 import { toCatalogBlocks, toCatalogRangeTable, type BlockPlanEntry } from "./blockWriter";
 import { VBUCKET_BITS } from "../utils/hashEntityKey";
 
@@ -774,6 +775,12 @@ class CatalogJsonWriter {
   async write(filePath: string, content: unknown) {
     await this.ensureDirectory(path.dirname(filePath));
     const serialized = JSON.stringify(content, null, this.prettyOutput ? 2 : undefined);
+
+    await this.writeSerialized(filePath, serialized);
+  }
+
+  async writeSerialized(filePath: string, serialized: string) {
+    await this.ensureDirectory(path.dirname(filePath));
 
     try {
       if ((await fs.promises.readFile(filePath, "utf8")) === serialized) {
@@ -1905,9 +1912,9 @@ async function buildSetCatalog(
     const blockDirectoryPath = path.join(outputDirectoryPath, "blocks", "message");
 
     for (const block of blocks) {
-      await context.writer.write(
+      await context.writer.writeSerialized(
         path.join(blockDirectoryPath, `${block.contentHash}.json`),
-        block.content,
+        block.serialized,
       );
     }
 
@@ -2168,7 +2175,7 @@ async function buildSetCatalog(
     index.entities[type].sort((a, b) => a.key.localeCompare(b.key));
   }
 
-  await writeCatalogSetIndex(context.writer, path.join(outputDirectoryPath, "index.json"), index);
+  await writeCatalogSetIndex(context.writer, outputDirectoryPath, index);
   context.progress.done(indexStartedAt);
   context.progress.done(
     setStartedAt,
@@ -2229,15 +2236,27 @@ async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
 
 async function readCatalogSetIndex(filePath: string): Promise<CatalogSetIndex | undefined> {
   const index = await readJsonFile<unknown>(filePath);
-  return index ? (decodeCatalogIndex(index) as CatalogSetIndex) : undefined;
+  if (!index || isLayeredCatalogIndex(index)) {
+    return undefined;
+  }
+
+  return decodeCatalogIndex(index) as CatalogSetIndex;
 }
 
 async function writeCatalogSetIndex(
   writer: CatalogJsonWriter,
-  filePath: string,
+  outputDirectoryPath: string,
   index: CatalogSetIndex,
 ) {
-  await writer.write(filePath, encodeCatalogIndex(index));
+  const encoded = encodeLayeredCatalogIndex(index);
+
+  await writer.write(path.join(outputDirectoryPath, "index.json"), encoded.meta);
+  await writer.write(path.join(outputDirectoryPath, encoded.meta.layers.core), encoded.core);
+  await writer.write(
+    path.join(outputDirectoryPath, encoded.meta.layers.descriptions),
+    encoded.descriptions,
+  );
+  await writer.write(path.join(outputDirectoryPath, encoded.meta.layers.display), encoded.display);
 }
 
 function getOutputRelativeDirectory(projectConfig: any, set?: string) {
@@ -2598,7 +2617,7 @@ async function tryRebuildCatalogMessage(
 
   index.entities.message.sort((left, right) => left.key.localeCompare(right.key));
   index.counts.message = messageKeys.length;
-  await writeCatalogSetIndex(writer, indexPath, index);
+  await writeCatalogSetIndex(writer, dataDirectoryPath, index);
 
   return true;
 }

@@ -11,7 +11,6 @@ const command = requestedCommand ? requestedCommand.slice("--command=".length) :
 const commands = command === "all" ? ["build", "lint", "test", "export", "catalog"] : [command];
 const requestedRepeat = process.argv.find((value) => value.startsWith("--repeat="));
 const repeat = requestedRepeat ? Number(requestedRepeat.slice("--repeat=".length)) : 1;
-
 if (!Number.isInteger(repeat) || repeat < 1) {
   throw new Error("--repeat must be a positive integer.");
 }

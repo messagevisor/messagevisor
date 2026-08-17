@@ -226,6 +226,7 @@ npx messagevisor catalog --with-duplicates
 npx messagevisor catalog --set=staging --set=production
 npx messagevisor catalog export
 npx messagevisor catalog export --set=production
+npx messagevisor catalog export --blockSize=524288
 npx messagevisor catalog export --hashRouter
 npx messagevisor catalog serve
 ```
@@ -233,6 +234,8 @@ npx messagevisor catalog serve
 Run `catalog export` before `catalog serve`. Serve requires existing output and rejects export-only options.
 
 In sets projects, Catalog includes all sets by default. Use repeatable `--set=<name>` with `catalog` or `catalog export` to generate only selected sets. The Catalog set switcher remains visible for sets projects and orders `dev*` sets first, `prod*` sets last.
+
+For large projects, Catalog indexes use compact per-type layers by default. Keys and filter facets load before descriptions and display metadata. Message details are always consolidated into deterministic content-addressed blocks. `--blockSize=<bytes>` overrides the default 256 KiB block size for that export, while `catalogBlockSize` sets the project default. `--prettyOutput` is available for local inspection, while compact JSON remains the default. Older single-file indexes remain readable. `catalog serve` only serves existing output and does not accept export-only options.
 
 ## Translation exchange and cleanup
 

@@ -9,6 +9,8 @@ projects/*/imports
 projects/project-synthetic/sets
 projects/project-synthetic/datafiles
 projects/project-synthetic/.synthetic-catalog
+projects/project-synthetic/.synthetic-compact
+projects/project-synthetic/.synthetic-blocks
 projects/project-synthetic/exports
 
 tmp/*

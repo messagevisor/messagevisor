@@ -18,6 +18,16 @@ import {
   createCatalogPlugin,
   type CatalogRuntime,
 } from "./index";
+import { decodeCatalogIndex } from "../indexFormat";
+import {
+  createCatalogIndexFromLayer,
+  decodeLayeredCatalogIndexLayer,
+  decodeLayeredCatalogIndexMeta,
+  isLayeredCatalogIndex,
+  mergeCatalogIndexLayer,
+} from "../layeredIndex";
+import { findBlockHash } from "../blockReader";
+import { getVirtualBucket } from "../utils/hashEntityKey";
 
 const catalogApi = createCatalogApi({
   loadProjectSnapshot,
@@ -52,7 +62,57 @@ async function writeFile(root: string, relativePath: string, content: string) {
 }
 
 async function readJson<T>(root: string, relativePath: string): Promise<T> {
-  return JSON.parse(await fs.promises.readFile(path.join(root, relativePath), "utf8"));
+  const value = JSON.parse(await fs.promises.readFile(path.join(root, relativePath), "utf8"));
+
+  if (!relativePath.endsWith("/index.json")) {
+    return value as T;
+  }
+
+  if (!isLayeredCatalogIndex(value)) {
+    return decodeCatalogIndex(value) as T;
+  }
+
+  const meta = decodeLayeredCatalogIndexMeta(value);
+  let index = createCatalogIndexFromLayer(
+    meta,
+    decodeLayeredCatalogIndexLayer(
+      JSON.parse(
+        await fs.promises.readFile(
+          path.join(root, path.dirname(relativePath), meta.layers.core),
+          "utf8",
+        ),
+      ),
+      meta,
+    ),
+  );
+
+  for (const layer of ["descriptions", "display"] as const) {
+    index = mergeCatalogIndexLayer(
+      index,
+      decodeLayeredCatalogIndexLayer(
+        JSON.parse(
+          await fs.promises.readFile(
+            path.join(root, path.dirname(relativePath), meta.layers[layer]),
+            "utf8",
+          ),
+        ),
+        meta,
+      ),
+    );
+  }
+
+  return index as T;
+}
+
+async function readMessageDetail<T>(root: string, dataDirectory: string, key: string): Promise<T> {
+  const ranges = await readJson<any>(root, `${dataDirectory}/blocks/message/ranges.json`);
+  const hash = findBlockHash(ranges, getVirtualBucket(key));
+  const block = await readJson<Record<string, T>>(
+    root,
+    `${dataDirectory}/blocks/message/${hash}.json`,
+  );
+
+  return block[key];
 }
 
 async function pathExists(root: string, relativePath: string) {
@@ -283,10 +343,7 @@ describe("catalog", function () {
     const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
     const index = await readJson<any>(root, "catalog-out/data/root/index.json");
     const locale = await readJson<any>(root, "catalog-out/data/root/entities/locale/en-US.json");
-    const message = await readJson<any>(
-      root,
-      "catalog-out/data/root/entities/message/common.welcome.json",
-    );
+    const message = await readMessageDetail<any>(root, "catalog-out/data/root", "common.welcome");
     const attribute = await readJson<any>(
       root,
       "catalog-out/data/root/entities/attribute/plan.json",
@@ -454,20 +511,73 @@ describe("catalog", function () {
 
     await catalogApi.exportCatalog(root, projectConfig, datasource, options);
 
+    const ranges = await readJson<any>(root, "catalog-out/data/root/blocks/message/ranges.json");
     const messagePath = path.join(
       root,
-      "catalog-out/data/root/entities/message/common.welcome.json",
+      `catalog-out/data/root/blocks/message/${ranges.blocks[0][1]}.json`,
     );
     const firstStat = await fs.promises.stat(messagePath);
-    await writeFile(root, "catalog-out/data/root/entities/message/obsolete.json", "obsolete");
+    await writeFile(root, "catalog-out/data/root/blocks/message/obsolete.json", "obsolete");
 
     await catalogApi.exportCatalog(root, projectConfig, datasource, options);
 
     const secondStat = await fs.promises.stat(messagePath);
     expect(secondStat.mtimeMs).toBe(firstStat.mtimeMs);
     await expect(
-      pathExists(root, "catalog-out/data/root/entities/message/obsolete.json"),
+      pathExists(root, "catalog-out/data/root/blocks/message/obsolete.json"),
     ).resolves.toBe(false);
+  });
+
+  it("consolidates all message details into blocks", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-blocks",
+      copyAssets: false,
+      blockSize: 16384,
+    });
+
+    const manifest = await readJson<any>(root, "catalog-blocks/data/manifest.json");
+    const index = JSON.parse(
+      await fs.promises.readFile(path.join(root, "catalog-blocks/data/root/index.json"), "utf8"),
+    );
+    const ranges = await readJson<any>(root, "catalog-blocks/data/root/blocks/message/ranges.json");
+
+    expect(manifest.layout).toMatchObject({
+      blockSize: 16384,
+      blockedTypes: ["message"],
+    });
+    expect(index.formatVersion).toBe(3);
+    expect(ranges.blocks.length).toBeGreaterThan(0);
+    await expect(
+      pathExists(root, "catalog-blocks/data/root/entities/message/common.welcome.json"),
+    ).resolves.toBe(false);
+
+    const firstRanges = await fs.promises.readFile(
+      path.join(root, "catalog-blocks/data/root/blocks/message/ranges.json"),
+      "utf8",
+    );
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-blocks",
+      copyAssets: false,
+      blockSize: 16384,
+    });
+    const secondRanges = await fs.promises.readFile(
+      path.join(root, "catalog-blocks/data/root/blocks/message/ranges.json"),
+      "utf8",
+    );
+    expect(secondRanges).toBe(firstRanges);
+
+    for (const [, hash] of ranges.blocks) {
+      const block = await readJson<any>(
+        root,
+        `catalog-blocks/data/root/blocks/message/${hash}.json`,
+      );
+      expect(Object.keys(block).length).toBeGreaterThan(0);
+    }
   });
 
   it("resolves target message relationships from string includeMessages and excludeMessages", async function () {
@@ -826,14 +936,8 @@ describe("catalog", function () {
     });
 
     const index = await readJson<any>(root, "catalog-out/data/root/index.json");
-    const firstMessage = await readJson<any>(
-      root,
-      "catalog-out/data/root/entities/message/bulk.0000.json",
-    );
-    const lastMessage = await readJson<any>(
-      root,
-      "catalog-out/data/root/entities/message/bulk.1199.json",
-    );
+    const firstMessage = await readMessageDetail<any>(root, "catalog-out/data/root", "bulk.0000");
+    const lastMessage = await readMessageDetail<any>(root, "catalog-out/data/root", "bulk.1199");
 
     expect(index.counts.message).toBe(messageCount);
     expect(index.entities.message.slice(0, 3).map((entry: any) => entry.key)).toEqual([
@@ -901,10 +1005,7 @@ describe("catalog", function () {
       "catalog-out/data/root/history/message/common.with-space/page-1.json",
     );
     const index = await readJson<any>(root, "catalog-out/data/root/index.json");
-    const message = await readJson<any>(
-      root,
-      "catalog-out/data/root/entities/message/common.welcome.json",
-    );
+    const message = await readMessageDetail<any>(root, "catalog-out/data/root", "common.welcome");
 
     expect(projectHistory.entries).toHaveLength(2);
     expect(projectHistory.entries[0].entities).toEqual(
@@ -1100,10 +1201,7 @@ describe("catalog", function () {
     });
 
     const manifest = await readJson<any>(root, "catalog-out/data/manifest.json");
-    const message = await readJson<any>(
-      root,
-      "catalog-out/data/root/entities/message/common.welcome.json",
-    );
+    const message = await readMessageDetail<any>(root, "catalog-out/data/root", "common.welcome");
 
     expect(manifest.links).toBeUndefined();
     expect(manifest.dev).toEqual({
@@ -1147,9 +1245,10 @@ describe("catalog", function () {
       copyAssets: false,
     });
 
-    const message = await readJson<any>(
+    const message = await readMessageDetail<any>(
       projectRoot,
-      "catalog-out/data/root/entities/message/common.welcome.json",
+      "catalog-out/data/root",
+      "common.welcome",
     );
 
     expect(message.sourcePath).toBe("projects/shop/messages/common/welcome.yml");
@@ -1205,7 +1304,7 @@ describe("catalog", function () {
     expect(storefront.counts.message).toBe(2);
     expect(admin.counts.message).toBe(2);
     await expect(
-      readJson<any>(root, "catalog-out/data/sets/storefront/entities/message/common.welcome.json"),
+      readMessageDetail<any>(root, "catalog-out/data/sets/storefront", "common.welcome"),
     ).resolves.toMatchObject({
       key: "common.welcome",
       entity: { translations: { en: "storefront" } },
@@ -1546,7 +1645,7 @@ describe("catalog", function () {
     expect(watchPaths).not.toContain(path.join(root, "node_modules"));
   });
 
-  it("plans incremental message rebuilds only for safe dev changes", async function () {
+  it("plans full rebuilds for message changes in non-set projects", async function () {
     const root = await createProject();
     roots.push(root);
     const projectConfig = getProjectConfig(root);
@@ -1558,12 +1657,7 @@ describe("catalog", function () {
         withTranslationSearch: false,
         withDuplicates: false,
       }),
-    ).toEqual(
-      expect.objectContaining({
-        kind: "message",
-        messageKeys: ["common.welcome"],
-      }),
-    );
+    ).toEqual(expect.objectContaining({ kind: "full" }));
 
     expect(
       __catalogDevInternals.classifyCatalogDevChanges(root, projectConfig, [messagePath], {
@@ -1607,13 +1701,7 @@ describe("catalog", function () {
         withTranslationSearch: false,
         withDuplicates: false,
       }),
-    ).toEqual(
-      expect.objectContaining({
-        kind: "message",
-        set: "storefront",
-        messageKeys: ["common.welcome"],
-      }),
-    );
+    ).toEqual(expect.objectContaining({ kind: "set", set: "storefront" }));
     expect(
       __catalogDevInternals.classifyCatalogDevChanges(root, projectConfig, [localePath], {
         withTranslationSearch: false,
@@ -1698,6 +1786,27 @@ describe("catalog plugin", function () {
       expect.any(Object),
       expect.any(Object),
       expect.objectContaining({ withTranslationSearch: true, dev: true }),
+    );
+  });
+
+  it("forwards large-project block options to catalog export", async function () {
+    const { handler } = createPlugin();
+
+    await handler({
+      _: ["catalog", "export"],
+      subcommand: "export",
+      blockSize: 524288,
+      prettyOutput: true,
+    });
+
+    expect(exportMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({
+        blockSize: 524288,
+        prettyOutput: true,
+      }),
     );
   });
 
@@ -1866,6 +1975,29 @@ describe("catalog plugin", function () {
 });
 
 describe("catalog server request safety", function () {
+  it("marks immutable blocks and mutable catalog metadata with suitable cache headers", function () {
+    const outputDirectoryPath = "/tmp/messagevisor-catalog";
+
+    expect(
+      __catalogDevInternals.getCatalogCacheControl(
+        path.join(outputDirectoryPath, "data/root/blocks/message/hash.json"),
+        outputDirectoryPath,
+      ),
+    ).toBe("public, max-age=31536000, immutable");
+    expect(
+      __catalogDevInternals.getCatalogCacheControl(
+        path.join(outputDirectoryPath, "data/root/blocks/message/ranges.json"),
+        outputDirectoryPath,
+      ),
+    ).toBe("no-cache, no-transform");
+    expect(
+      __catalogDevInternals.getCatalogCacheControl(
+        path.join(outputDirectoryPath, "data/manifest.json"),
+        outputDirectoryPath,
+      ),
+    ).toBe("no-cache, no-transform");
+  });
+
   it("requires an existing export before serving", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-serve-"));
 

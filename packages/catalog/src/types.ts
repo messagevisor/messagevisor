@@ -98,6 +98,12 @@ export interface CatalogManifest {
     translationSearch?: boolean;
     duplicates?: boolean;
   };
+  layout?: {
+    version: number;
+    blockSize: number;
+    vbucketBits: number;
+    blockedTypes: EntityType[];
+  };
   paths: {
     projectHistory: string;
     root?: string;

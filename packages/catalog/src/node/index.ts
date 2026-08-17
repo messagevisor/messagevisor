@@ -29,6 +29,17 @@ import {
   normalizeSelectedSets,
   sortCatalogSetKeys,
 } from "./setSelection";
+import { decodeCatalogIndex } from "../indexFormat";
+import {
+  createCatalogIndexFromLayer,
+  decodeLayeredCatalogIndexLayer,
+  decodeLayeredCatalogIndexMeta,
+  encodeLayeredCatalogIndex,
+  isLayeredCatalogIndex,
+  mergeCatalogIndexLayer,
+} from "../layeredIndex";
+import { toCatalogBlocks, toCatalogRangeTable, type BlockPlanEntry } from "./blockWriter";
+import { VBUCKET_BITS } from "../utils/hashEntityKey";
 
 const CLI_FORMAT_GREEN = "\x1b[32m%s\x1b[0m";
 const CLI_FORMAT_DIM = "\x1b[2m%s\x1b[0m";
@@ -386,6 +397,8 @@ export interface CatalogExportOptions {
   sets?: string[];
   devSession?: CatalogDevSession;
   preserveAssets?: boolean;
+  blockSize?: number;
+  prettyOutput?: boolean;
 }
 
 export interface CatalogServeOptions {
@@ -415,6 +428,8 @@ interface CatalogBuildContext {
   withDuplicates: boolean;
   progress: CatalogProgressReporter;
   writer: CatalogJsonWriter;
+  blockSize: number;
+  prettyOutput: boolean;
 }
 
 interface CatalogDevSession {
@@ -427,10 +442,9 @@ interface CatalogDevSession {
 }
 
 interface CatalogDevRebuildRequest {
-  kind: "full" | "set" | "message";
+  kind: "full" | "set";
   reason: string;
   set?: string;
-  messageKeys?: string[];
 }
 
 interface SourceFileInfo {
@@ -747,6 +761,8 @@ class CatalogJsonWriter {
   private readonly directories = new Map<string, Promise<void>>();
   private readonly writtenFiles = new Set<string>();
 
+  constructor(private readonly prettyOutput = false) {}
+
   private ensureDirectory(directoryPath: string) {
     let promise = this.directories.get(directoryPath);
 
@@ -760,7 +776,13 @@ class CatalogJsonWriter {
 
   async write(filePath: string, content: unknown) {
     await this.ensureDirectory(path.dirname(filePath));
-    const serialized = JSON.stringify(content, null, 2);
+    const serialized = JSON.stringify(content, null, this.prettyOutput ? 2 : undefined);
+
+    await this.writeSerialized(filePath, serialized);
+  }
+
+  async writeSerialized(filePath: string, serialized: string) {
+    await this.ensureDirectory(path.dirname(filePath));
 
     try {
       if ((await fs.promises.readFile(filePath, "utf8")) === serialized) {
@@ -811,6 +833,30 @@ class CatalogJsonWriter {
 
     await prune(directoryPath);
   }
+}
+
+interface CatalogOutputOptions {
+  blockSize: number;
+  prettyOutput: boolean;
+}
+
+function resolveCatalogOutputOptions(
+  projectConfig: any,
+  options: Pick<CatalogExportOptions, "blockSize" | "prettyOutput"> = {},
+): CatalogOutputOptions {
+  const blockSize = options.blockSize ?? projectConfig.catalogBlockSize ?? 262144;
+
+  if (!Number.isInteger(blockSize) || blockSize < 16384 || blockSize > 8388608) {
+    throw createCatalogCLIError(
+      "Invalid Catalog block size. Use an integer from 16384 to 8388608.",
+      "invalid_catalog_block_size",
+    );
+  }
+
+  return {
+    blockSize,
+    prettyOutput: options.prettyOutput === true,
+  };
 }
 
 async function mapWithConcurrency<T>(
@@ -1751,6 +1797,7 @@ async function buildSetCatalog(
 
   const messagesStartedAt = context.progress.step("Writing messages");
   const messageDetailsStartedAt = context.progress.substep("Writing message details");
+  const messageBlockEntries: BlockPlanEntry[] = [];
   let skippedEmptyMessageHistoryCount = 0;
   await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
     const message = messages[messageKey];
@@ -1822,12 +1869,26 @@ async function buildSetCatalog(
         ...(overrideLocalesList.length > 0 ? { overrideLocales: overrideLocalesList } : {}),
       }),
     );
-    await context.writer.write(
-      path.join(outputDirectoryPath, "entities", "message", `${encodeKey(messageKey)}.json`),
-      detail,
-    );
+    messageBlockEntries.push({ key: messageKey, payload: detail });
   });
   context.progress.done(messageDetailsStartedAt, `(${pluralize(messageKeys.length, "message")})`);
+
+  const messageBlocksStartedAt = context.progress.substep("Writing message blocks");
+  const blocks = toCatalogBlocks(messageBlockEntries, context.blockSize);
+  const blockDirectoryPath = path.join(outputDirectoryPath, "blocks", "message");
+
+  for (const block of blocks) {
+    await context.writer.writeSerialized(
+      path.join(blockDirectoryPath, `${block.contentHash}.json`),
+      block.serialized,
+    );
+  }
+
+  await context.writer.write(
+    path.join(blockDirectoryPath, "ranges.json"),
+    toCatalogRangeTable(blocks, context.blockSize),
+  );
+  context.progress.done(messageBlocksStartedAt, `(${pluralize(blocks.length, "block")})`);
 
   const messageHistoryStartedAt = context.progress.substep("Writing message history pages");
   await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
@@ -2079,7 +2140,7 @@ async function buildSetCatalog(
     index.entities[type].sort((a, b) => a.key.localeCompare(b.key));
   }
 
-  await context.writer.write(path.join(outputDirectoryPath, "index.json"), index);
+  await writeCatalogSetIndex(context.writer, outputDirectoryPath, index);
   context.progress.done(indexStartedAt);
   context.progress.done(
     setStartedAt,
@@ -2138,16 +2199,56 @@ async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
   }
 }
 
-function getOutputRelativeDirectory(projectConfig: any, set?: string) {
-  return projectConfig.sets ? path.join("sets", set || "") : "root";
+async function readCatalogSetIndex(filePath: string): Promise<CatalogSetIndex | undefined> {
+  const index = await readJsonFile<unknown>(filePath);
+  if (!index) {
+    return undefined;
+  }
+
+  if (!isLayeredCatalogIndex(index)) {
+    return decodeCatalogIndex(index) as CatalogSetIndex;
+  }
+
+  const meta = decodeLayeredCatalogIndexMeta(index);
+  let decoded = createCatalogIndexFromLayer(
+    meta,
+    decodeLayeredCatalogIndexLayer(
+      await readJsonFile<unknown>(path.join(path.dirname(filePath), meta.layers.core)),
+      meta,
+    ),
+  );
+
+  for (const layer of ["descriptions", "display"] as const) {
+    decoded = mergeCatalogIndexLayer(
+      decoded,
+      decodeLayeredCatalogIndexLayer(
+        await readJsonFile<unknown>(path.join(path.dirname(filePath), meta.layers[layer])),
+        meta,
+      ),
+    );
+  }
+
+  return decoded as CatalogSetIndex;
 }
 
-function getDataOutputDirectoryPath(session: CatalogDevSession, projectConfig: any, set?: string) {
-  return path.join(
-    session.outputDirectoryPath,
-    "data",
-    getOutputRelativeDirectory(projectConfig, set),
+async function writeCatalogSetIndex(
+  writer: CatalogJsonWriter,
+  outputDirectoryPath: string,
+  index: CatalogSetIndex,
+) {
+  const encoded = encodeLayeredCatalogIndex(index);
+
+  await writer.write(path.join(outputDirectoryPath, "index.json"), encoded.meta);
+  await writer.write(path.join(outputDirectoryPath, encoded.meta.layers.core), encoded.core);
+  await writer.write(
+    path.join(outputDirectoryPath, encoded.meta.layers.descriptions),
+    encoded.descriptions,
   );
+  await writer.write(path.join(outputDirectoryPath, encoded.meta.layers.display), encoded.display);
+}
+
+function getOutputRelativeDirectory(projectConfig: any, set?: string) {
+  return projectConfig.sets ? path.join("sets", set || "") : "root";
 }
 
 function getEntityKeyFromChangedPath(
@@ -2196,20 +2297,6 @@ function classifyCatalogDevChanges(
   const set = Array.from(sets)[0] || undefined;
 
   if (
-    types.size === 1 &&
-    types.has("message") &&
-    !options.withTranslationSearch &&
-    !options.withDuplicates
-  ) {
-    return {
-      kind: "message",
-      reason,
-      set,
-      messageKeys: sortStrings(infos.map((info) => info?.key || "").filter(Boolean)),
-    };
-  }
-
-  if (
     projectConfig.sets &&
     set &&
     types.size > 0 &&
@@ -2232,6 +2319,7 @@ async function writeCatalogManifest(
     browserRouter: boolean;
     withTranslationSearch: boolean;
     withDuplicates: boolean;
+    outputOptions: CatalogOutputOptions;
     setIndexes: Record<string, CatalogSetIndex>;
     executions: Array<{ set: string; projectConfig: any; datasource: any }>;
   },
@@ -2249,6 +2337,12 @@ async function writeCatalogManifest(
     features: {
       translationSearch: options.withTranslationSearch,
       duplicates: options.withDuplicates,
+    },
+    layout: {
+      version: 1,
+      blockSize: options.outputOptions.blockSize,
+      vbucketBits: VBUCKET_BITS,
+      blockedTypes: ["message"],
     },
     links: session.links,
     paths: {
@@ -2269,227 +2363,6 @@ async function writeCatalogManifest(
   };
 
   await writer.write(path.join(session.outputDirectoryPath, "data", "manifest.json"), manifest);
-  return manifest;
-}
-
-function getMessageRelationshipFingerprint(message: Message) {
-  const attributes = new Set<string>();
-  const segments = new Set<string>();
-
-  for (const override of message.overrides || []) {
-    collectAttributeKeysFromConditions(override.conditions, attributes);
-    collectSegmentKeys(override.segments, segments);
-  }
-
-  return {
-    attributes: sortStrings(Array.from(attributes)),
-    segments: sortStrings(Array.from(segments)),
-  };
-}
-
-function sameStringList(left: string[] = [], right: string[] = []) {
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return left.every((value, index) => value === right[index]);
-}
-
-function summarizeMessage(
-  message: Message,
-  messageKey: string,
-  historyIndex: CatalogHistoryIndex,
-  set: string | undefined,
-  targets: string[],
-) {
-  const directLocales = Object.keys(message.translations || {});
-  const overrideLocalesSet = new Set<string>();
-
-  for (const override of message.overrides || []) {
-    for (const localeKey of Object.keys(override.translations || {})) {
-      overrideLocalesSet.add(localeKey);
-    }
-  }
-
-  const overrideLocales = sortStrings(Array.from(overrideLocalesSet));
-
-  return getEntitySummary(message, "message", messageKey, historyIndex, set, {
-    targets,
-    ...((message.overrides || []).length > 0
-      ? { overrideCount: (message.overrides || []).length }
-      : {}),
-    ...(directLocales.length > 0 ? { locales: sortStrings(directLocales) } : {}),
-    ...(overrideLocales.length > 0 ? { overrideLocales } : {}),
-  });
-}
-
-async function tryRebuildCatalogMessage(
-  runtime: CatalogRuntime,
-  rootDirectoryPath: string,
-  rootProjectConfig: any,
-  projectConfig: any,
-  datasource: any,
-  session: CatalogDevSession,
-  request: CatalogDevRebuildRequest,
-) {
-  if (request.kind !== "message" || !request.messageKeys || request.messageKeys.length === 0) {
-    return false;
-  }
-
-  const dataDirectoryPath = getDataOutputDirectoryPath(session, rootProjectConfig, request.set);
-  const indexPath = path.join(dataDirectoryPath, "index.json");
-  const index = await readJsonFile<CatalogSetIndex>(indexPath);
-
-  if (!index) {
-    return false;
-  }
-
-  const snapshot = await runtime.loadProjectSnapshot(datasource, {
-    entityTypes: ["locale", "message", "segment", "target"],
-  });
-  const localeKeys = snapshot.keys.locale;
-  const messageKeys = snapshot.keys.message;
-  const targetKeys = snapshot.keys.target;
-  const messageKeySet = new Set(messageKeys);
-
-  if (request.messageKeys.some((messageKey) => !messageKeySet.has(messageKey))) {
-    return false;
-  }
-
-  const { locales, targets } = snapshot;
-  const localeDirections = getLocaleDirections(locales);
-  const targetMessages = Object.fromEntries(
-    targetKeys.map((targetKey) => [
-      targetKey,
-      getTargetMessageKeys(runtime, targets[targetKey], messageKeys),
-    ]),
-  ) as Record<string, string[]>;
-  const targetMessageSets = Object.fromEntries(
-    targetKeys.map((targetKey) => [targetKey, new Set(targetMessages[targetKey])]),
-  ) as Record<string, Set<string>>;
-  const writer = new CatalogJsonWriter();
-
-  for (const messageKey of request.messageKeys) {
-    const oldDetailPath = path.join(
-      dataDirectoryPath,
-      "entities",
-      "message",
-      `${encodeKey(messageKey)}.json`,
-    );
-    const oldDetail = await readJsonFile<any>(oldDetailPath);
-
-    if (!oldDetail) {
-      return false;
-    }
-
-    const message = await datasource.readMessage(messageKey);
-    const messageTargets = sortStrings(
-      targetKeys.filter((targetKey) => targetMessageSets[targetKey].has(messageKey)),
-    );
-
-    if (!sameStringList(sortStrings(oldDetail.targets || []), messageTargets)) {
-      return false;
-    }
-
-    const oldRelationshipFingerprint = getMessageRelationshipFingerprint(oldDetail.entity || {});
-    const nextRelationshipFingerprint = getMessageRelationshipFingerprint(message);
-
-    if (
-      !sameStringList(
-        oldRelationshipFingerprint.attributes,
-        nextRelationshipFingerprint.attributes,
-      ) ||
-      !sameStringList(oldRelationshipFingerprint.segments, nextRelationshipFingerprint.segments)
-    ) {
-      return false;
-    }
-
-    const examples = await runtime.resolveExamples(projectConfig, datasource, {
-      set: request.set,
-      message: messageKey,
-      onlyMessages: true,
-      snapshot,
-    });
-    const overrides = (message.overrides || []).map((override: Override) => {
-      const attributes = new Set<string>();
-      const overrideSegments = new Set<string>();
-      collectAttributeKeysFromConditions(override.conditions, attributes);
-      collectSegmentKeys(override.segments, overrideSegments);
-
-      return {
-        ...override,
-        usedAttributes: sortStrings(Array.from(attributes)),
-        usedSegments: sortStrings(Array.from(overrideSegments)),
-      };
-    });
-    const sourceFileInfo = getSourceFileInfo(
-      session.repositorySourceRootDirectoryPath,
-      rootDirectoryPath,
-      projectConfig,
-      "message",
-      messageKey,
-      { resolveAbsolutePath: session.devEditors.length > 0 },
-    );
-    const detail = {
-      type: "message",
-      key: messageKey,
-      entity: { ...message, overrides },
-      sourcePath: sourceFileInfo.sourcePath,
-      editLinks: getEditorLinks(session.devEditors, sourceFileInfo),
-      targets: messageTargets,
-      localeKeys,
-      localeDirections,
-      translations: localeKeys.map((localeKey) =>
-        resolveTranslationRow(message.translations, localeKey, locales, {
-          states: message.translationStates,
-          sourceLocale: projectConfig.sourceLocale,
-        }),
-      ),
-      evaluatedExamples: examples.messages,
-      overrideTranslations: overrides.map((override: Override) => ({
-        key: override.key,
-        rows: localeKeys.map((localeKey) =>
-          resolveTranslationRow(override.translations, localeKey, locales, {
-            states: override.translationStates,
-            sourceLocale: projectConfig.sourceLocale,
-          }),
-        ),
-      })),
-      lastModified: getLastModified(session.historyIndex, "message", messageKey, request.set),
-    };
-
-    await writer.write(oldDetailPath, detail);
-
-    await writeHistoryPages(
-      writer,
-      path.join(dataDirectoryPath, "history", "message", encodeKey(messageKey)),
-      getHistoryForEntity(session.historyIndex, "message", messageKey, request.set),
-      { skipEmpty: true },
-    );
-
-    const nextSummary = summarizeMessage(
-      message,
-      messageKey,
-      session.historyIndex,
-      request.set,
-      messageTargets,
-    );
-    const existingSummaryIndex = index.entities.message.findIndex(
-      (entry) => entry.key === messageKey,
-    );
-
-    if (existingSummaryIndex === -1) {
-      index.entities.message.push(nextSummary);
-    } else {
-      index.entities.message[existingSummaryIndex] = nextSummary;
-    }
-  }
-
-  index.entities.message.sort((left, right) => left.key.localeCompare(right.key));
-  index.counts.message = messageKeys.length;
-  await writer.write(indexPath, index);
-
-  return true;
 }
 
 async function rebuildCatalogSetForDev(
@@ -2504,9 +2377,12 @@ async function rebuildCatalogSetForDev(
     browserRouter: boolean;
     withTranslationSearch: boolean;
     withDuplicates: boolean;
+    blockSize?: number;
+    prettyOutput?: boolean;
   },
 ) {
-  const writer = new CatalogJsonWriter();
+  const outputOptions = resolveCatalogOutputOptions(projectConfig, options);
+  const writer = new CatalogJsonWriter(outputOptions.prettyOutput);
   const progress = new CatalogProgressReporter(rootDirectoryPath, session.outputDirectoryPath);
   const executions = filterCatalogSetExecutions(
     await runtime.getProjectSetExecutions(projectConfig, datasource),
@@ -2521,7 +2397,7 @@ async function rebuildCatalogSetForDev(
         getOutputRelativeDirectory(projectConfig, execution.set),
         "index.json",
       );
-      return [execution.set || "root", await readJsonFile<CatalogSetIndex>(indexPath)] as const;
+      return [execution.set || "root", await readCatalogSetIndex(indexPath)] as const;
     }),
   );
 
@@ -2553,6 +2429,8 @@ async function rebuildCatalogSetForDev(
     withDuplicates: options.withDuplicates,
     progress,
     writer,
+    blockSize: outputOptions.blockSize,
+    prettyOutput: outputOptions.prettyOutput,
   };
 
   setIndexes[execution.set || "root"] = await buildSetCatalog(
@@ -2570,6 +2448,7 @@ async function rebuildCatalogSetForDev(
     browserRouter: options.browserRouter,
     withTranslationSearch: options.withTranslationSearch,
     withDuplicates: options.withDuplicates,
+    outputOptions,
     setIndexes,
     executions,
   });
@@ -2590,8 +2469,9 @@ export async function exportCatalog(
   const dataDirectoryPath = path.join(outputDirectoryPath, "data");
   const withTranslationSearch = options.withTranslationSearch === true;
   const withDuplicates = options.withDuplicates === true;
+  const outputOptions = resolveCatalogOutputOptions(projectConfig, options);
   const progress = new CatalogProgressReporter(rootDirectoryPath, outputDirectoryPath);
-  const writer = new CatalogJsonWriter();
+  const writer = new CatalogJsonWriter(outputOptions.prettyOutput);
 
   progress.start({
     browserRouter: options.browserRouter !== false,
@@ -2673,6 +2553,8 @@ export async function exportCatalog(
     withDuplicates,
     progress,
     writer,
+    blockSize: outputOptions.blockSize,
+    prettyOutput: outputOptions.prettyOutput,
   };
   stepStartedAt = progress.step("Discovering project sets");
   const executions = filterCatalogSetExecutions(
@@ -2721,6 +2603,12 @@ export async function exportCatalog(
       translationSearch: withTranslationSearch,
       duplicates: withDuplicates,
     },
+    layout: {
+      version: 1,
+      blockSize: outputOptions.blockSize,
+      vbucketBits: VBUCKET_BITS,
+      blockedTypes: ["message"],
+    },
     links,
     paths: {
       projectHistory: "data/project/history/page-1.json",
@@ -2768,6 +2656,20 @@ function getContentType(filePath: string) {
     default:
       return "text/html";
   }
+}
+
+function getCatalogCacheControl(filePath: string, outputDirectoryPath: string) {
+  const relativePath = path.relative(outputDirectoryPath, filePath).split(path.sep).join("/");
+
+  if (/(^|\/)blocks\/[^/]+\/(?!ranges\.json$)[^/]+\.json$/.test(relativePath)) {
+    return "public, max-age=31536000, immutable";
+  }
+
+  if (/(^|\/)(manifest|index|ranges)\.json$/.test(relativePath)) {
+    return "no-cache, no-transform";
+  }
+
+  return undefined;
 }
 
 function getCatalogLiveReloadClientScript() {
@@ -3119,7 +3021,14 @@ export async function serveCatalog(
           return;
         }
 
-        response.writeHead(200, { "Content-Type": getContentType(safeFilePath) });
+        const headers: Record<string, string> = {
+          "Content-Type": getContentType(safeFilePath),
+        };
+        const cacheControl = getCatalogCacheControl(safeFilePath, outputDirectoryPath);
+        if (cacheControl) {
+          headers["Cache-Control"] = cacheControl;
+        }
+        response.writeHead(200, headers);
         response.end(content);
         return;
       }
@@ -3235,11 +3144,15 @@ function assertCatalogOptionScope(parsed: CatalogPluginParsedOptions) {
       parsed["with-duplicates"],
       parsed.withTranslationSearch,
       parsed["with-translation-search"],
+      parsed.blockSize,
+      parsed["block-size"],
+      parsed.prettyOutput,
+      parsed["pretty-output"],
     ];
 
     if (exportOnlyOptions.some((value) => typeof value !== "undefined")) {
       throw createCatalogCLIError(
-        "Asset, translation-search, and duplicate-generation options can only be used with `catalog` or `catalog export`.",
+        "Catalog generation options can only be used with `catalog` or `catalog export`.",
         "invalid_catalog_option",
       );
     }
@@ -3249,6 +3162,7 @@ function assertCatalogOptionScope(parsed: CatalogPluginParsedOptions) {
 export const __catalogDevInternals = {
   classifyCatalogDevChanges,
   decodeCatalogRequestUrl,
+  getCatalogCacheControl,
   getCatalogInputWatchPaths,
   resolveCatalogRequestFilePath,
 };
@@ -3265,6 +3179,8 @@ export function createCatalogPlugin(
       const browserRouter = !(parsed.hashRouter || parsed["hash-router"]);
       const withTranslationSearch = isWithTranslationSearchEnabled(parsed);
       const withDuplicates = isWithDuplicatesEnabled(parsed);
+      const blockSize = parsed.blockSize ?? parsed["block-size"];
+      const prettyOutput = parsed.prettyOutput === true || parsed["pretty-output"] === true;
       const selectedSets = normalizeSelectedSets(parsed.set);
       if (!projectConfig.sets && selectedSets.length > 0) {
         throw createCatalogCLIError(
@@ -3288,6 +3204,8 @@ export function createCatalogPlugin(
           devSession,
           withTranslationSearch,
           withDuplicates,
+          blockSize,
+          prettyOutput,
           sets: selectedSets,
         });
         const server = await api.serveCatalog(rootDirectoryPath, projectConfig, datasource, {
@@ -3378,23 +3296,6 @@ export function createCatalogPlugin(
 
             let handled = false;
 
-            if (request.kind === "message") {
-              const [execution] = await runtime.getProjectSetExecutions(
-                activeProjectConfig,
-                activeDatasource,
-                request.set,
-              );
-              handled = await tryRebuildCatalogMessage(
-                runtime,
-                rootDirectoryPath,
-                activeProjectConfig,
-                execution.projectConfig,
-                execution.datasource,
-                devSession,
-                request,
-              );
-            }
-
             if (!handled && request.kind === "set" && request.set) {
               handled = await rebuildCatalogSetForDev(
                 runtime,
@@ -3408,6 +3309,8 @@ export function createCatalogPlugin(
                   browserRouter,
                   withTranslationSearch,
                   withDuplicates,
+                  blockSize,
+                  prettyOutput,
                 },
               );
             }
@@ -3422,6 +3325,8 @@ export function createCatalogPlugin(
                 devSession,
                 withTranslationSearch,
                 withDuplicates,
+                blockSize,
+                prettyOutput,
                 sets: selectedSets,
               });
             }
@@ -3466,6 +3371,8 @@ export function createCatalogPlugin(
           browserRouter,
           withTranslationSearch,
           withDuplicates,
+          blockSize,
+          prettyOutput,
           sets: selectedSets,
         });
       }

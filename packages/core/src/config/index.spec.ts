@@ -44,6 +44,52 @@ describe("getProjectConfig", function () {
     expect(projectConfig.lintIcu).toEqual(false);
   });
 
+  it("defaults Catalog block exports to the supported block size", async function () {
+    const projectConfig = getProjectConfig(await createProject("module.exports = {};\n"));
+
+    expect(projectConfig.catalogBlockSize).toBe(262144);
+  });
+
+  it("accepts valid Catalog block size configuration", async function () {
+    const projectConfig = getProjectConfig(
+      await createProject("module.exports = { catalogBlockSize: 65536 };\n"),
+    );
+
+    expect(projectConfig.catalogBlockSize).toBe(65536);
+  });
+
+  it("rejects invalid Catalog block export configuration", async function () {
+    const invalidConfigs = [
+      {
+        config: "module.exports = { catalogBlockSize: 1024 };\n",
+        message: "Invalid catalogBlockSize: 1024. It must be an integer from 16384 to 8388608.",
+      },
+    ];
+
+    for (const invalid of invalidConfigs) {
+      const root = await createProject(invalid.config);
+      expect(() => getProjectConfig(root)).toThrow(invalid.message);
+    }
+  });
+
+  it("rejects removed Catalog layout configuration options", async function () {
+    for (const option of ["catalogLayout", "catalogBlockThreshold"]) {
+      const root = await createProject(`module.exports = { ${option}: "files" };\n`);
+      const error = (() => {
+        try {
+          getProjectConfig(root);
+          return undefined;
+        } catch (caught) {
+          return caught as { code?: string; message?: string };
+        }
+      })();
+
+      expect(error?.code).toBe("unknown_config_option");
+      expect(error?.message).toContain(option);
+      expect(error?.message).toContain("Block storage is now the only Catalog layout");
+    }
+  });
+
   it("rejects unknown configuration options", async function () {
     const root = await createProject(
       "module.exports = { unknownOption: true, anotherUnknownOption: false };\n",

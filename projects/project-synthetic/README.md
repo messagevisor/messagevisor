@@ -29,6 +29,7 @@ node projects/project-synthetic/benchmark.mjs --command=test
 node projects/project-synthetic/benchmark.mjs --command=lint
 node projects/project-synthetic/benchmark.mjs --command=export
 node projects/project-synthetic/benchmark.mjs --command=catalog
+node projects/project-synthetic/benchmark.mjs --command=catalog --layout=blocks
 ```
 
 Repeat a phase when comparing changes:

@@ -44,6 +44,48 @@ describe("getProjectConfig", function () {
     expect(projectConfig.lintIcu).toEqual(false);
   });
 
+  it("defaults Catalog block exports to the file layout", async function () {
+    const projectConfig = getProjectConfig(await createProject("module.exports = {};\n"));
+
+    expect(projectConfig.catalogLayout).toBe("files");
+    expect(projectConfig.catalogBlockSize).toBe(262144);
+    expect(projectConfig.catalogBlockThreshold).toBe(500);
+  });
+
+  it("accepts valid Catalog block export configuration", async function () {
+    const projectConfig = getProjectConfig(
+      await createProject(
+        'module.exports = { catalogLayout: "blocks", catalogBlockSize: 65536, catalogBlockThreshold: 100 };\n',
+      ),
+    );
+
+    expect(projectConfig.catalogLayout).toBe("blocks");
+    expect(projectConfig.catalogBlockSize).toBe(65536);
+    expect(projectConfig.catalogBlockThreshold).toBe(100);
+  });
+
+  it("rejects invalid Catalog block export configuration", async function () {
+    const invalidConfigs = [
+      {
+        config: 'module.exports = { catalogLayout: "bundled" };\n',
+        message: 'Invalid catalogLayout: bundled. It must be either "files" or "blocks".',
+      },
+      {
+        config: "module.exports = { catalogBlockSize: 1024 };\n",
+        message: "Invalid catalogBlockSize: 1024. It must be an integer from 16384 to 8388608.",
+      },
+      {
+        config: "module.exports = { catalogBlockThreshold: -1 };\n",
+        message: "Invalid catalogBlockThreshold: -1. It must be a non-negative integer.",
+      },
+    ];
+
+    for (const invalid of invalidConfigs) {
+      const root = await createProject(invalid.config);
+      expect(() => getProjectConfig(root)).toThrow(invalid.message);
+    }
+  });
+
   it("rejects unknown configuration options", async function () {
     const root = await createProject(
       "module.exports = { unknownOption: true, anotherUnknownOption: false };\n",

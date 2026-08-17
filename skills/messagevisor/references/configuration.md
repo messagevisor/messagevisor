@@ -30,11 +30,16 @@ npx messagevisor --rootDirectoryPath=/absolute/path/to/project info
 | `sourceLocale`               | Locale used as the authoring source for translation contract and staleness checks.                                                                                       |
 | `lintIcu`                    | Enables ICU syntax and named format reference validation during linting. Default is `true`.                                                                              |
 | `icuSkeleton`                | Allows inline ICU skeleton styles during linting when `true`.                                                                                                            |
+| `catalogLayout`              | Catalog output layout: `files` by default, or `blocks` to consolidate large message detail output.                                                                       |
+| `catalogBlockSize`           | Target size in bytes for a Catalog message block. Defaults to `262144`; valid values are from 16384 to 8388608.                                                          |
+| `catalogBlockThreshold`      | Minimum messages in a set before block layout is used. Defaults to `500`.                                                                                                |
 | `plugins`                    | Extra project-specific CLI commands (`{command, options, handler}`) appended to the built-ins. Use a unique command name and declare every accepted option in `options`. |
 
 Parser types and the built-in parser registry come from `@messagevisor/parsers`. YAML editorial writes preserve comments and reuse unchanged YAML nodes so scalar styles, flow collections, anchors, aliases, tags, and directives remain intact where possible.
 
 Directory options: `localesDirectoryPath`, `messagesDirectoryPath`, `attributesDirectoryPath`, `segmentsDirectoryPath`, `targetsDirectoryPath`, `testsDirectoryPath`, `datafilesDirectoryPath`, `catalogDirectoryPath`, `exportsDirectoryPath`.
+
+For large Catalog exports, set `catalogLayout: "blocks"`. Message details are written to content-addressed blocks and loaded through a range table, reducing the number of files without changing the Catalog UI. `catalogBlockSize` and `catalogBlockThreshold` control the block policy. Leave the layout as `files` when individually addressable entity files are more useful for a host or workflow.
 
 ## Working rules
 

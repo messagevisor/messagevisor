@@ -29,6 +29,9 @@ import {
   normalizeSelectedSets,
   sortCatalogSetKeys,
 } from "./setSelection";
+import { decodeCatalogIndex, encodeCatalogIndex } from "../indexFormat";
+import { toCatalogBlocks, toCatalogRangeTable, type BlockPlanEntry } from "./blockWriter";
+import { VBUCKET_BITS } from "../utils/hashEntityKey";
 
 const CLI_FORMAT_GREEN = "\x1b[32m%s\x1b[0m";
 const CLI_FORMAT_DIM = "\x1b[2m%s\x1b[0m";
@@ -386,6 +389,10 @@ export interface CatalogExportOptions {
   sets?: string[];
   devSession?: CatalogDevSession;
   preserveAssets?: boolean;
+  layout?: "files" | "blocks";
+  blockSize?: number;
+  blockThreshold?: number;
+  prettyOutput?: boolean;
 }
 
 export interface CatalogServeOptions {
@@ -415,6 +422,10 @@ interface CatalogBuildContext {
   withDuplicates: boolean;
   progress: CatalogProgressReporter;
   writer: CatalogJsonWriter;
+  layout: "files" | "blocks";
+  blockSize: number;
+  blockThreshold: number;
+  prettyOutput: boolean;
 }
 
 interface CatalogDevSession {
@@ -747,6 +758,8 @@ class CatalogJsonWriter {
   private readonly directories = new Map<string, Promise<void>>();
   private readonly writtenFiles = new Set<string>();
 
+  constructor(private readonly prettyOutput = false) {}
+
   private ensureDirectory(directoryPath: string) {
     let promise = this.directories.get(directoryPath);
 
@@ -760,7 +773,7 @@ class CatalogJsonWriter {
 
   async write(filePath: string, content: unknown) {
     await this.ensureDirectory(path.dirname(filePath));
-    const serialized = JSON.stringify(content, null, 2);
+    const serialized = JSON.stringify(content, null, this.prettyOutput ? 2 : undefined);
 
     try {
       if ((await fs.promises.readFile(filePath, "utf8")) === serialized) {
@@ -811,6 +824,57 @@ class CatalogJsonWriter {
 
     await prune(directoryPath);
   }
+}
+
+interface CatalogLayoutOptions {
+  layout: "files" | "blocks";
+  blockSize: number;
+  blockThreshold: number;
+  prettyOutput: boolean;
+}
+
+function resolveCatalogLayoutOptions(
+  projectConfig: any,
+  options: Pick<
+    CatalogExportOptions,
+    "layout" | "blockSize" | "blockThreshold" | "prettyOutput"
+  > = {},
+): CatalogLayoutOptions {
+  const layout = options.layout ?? projectConfig.catalogLayout ?? "files";
+  const blockSize = options.blockSize ?? projectConfig.catalogBlockSize ?? 262144;
+  const blockThreshold = options.blockThreshold ?? projectConfig.catalogBlockThreshold ?? 500;
+
+  if (layout !== "files" && layout !== "blocks") {
+    throw createCatalogCLIError(
+      `Invalid Catalog layout "${String(layout)}". Use "files" or "blocks".`,
+      "invalid_catalog_layout",
+    );
+  }
+
+  if (!Number.isInteger(blockSize) || blockSize < 16384 || blockSize > 8388608) {
+    throw createCatalogCLIError(
+      "Invalid Catalog block size. Use an integer from 16384 to 8388608.",
+      "invalid_catalog_block_size",
+    );
+  }
+
+  if (!Number.isInteger(blockThreshold) || blockThreshold < 0) {
+    throw createCatalogCLIError(
+      "Invalid Catalog block threshold. Use a non-negative integer.",
+      "invalid_catalog_block_threshold",
+    );
+  }
+
+  return {
+    layout,
+    blockSize,
+    blockThreshold,
+    prettyOutput: options.prettyOutput === true,
+  };
+}
+
+function shouldBlockMessages(context: CatalogBuildContext, messageCount: number) {
+  return context.layout === "blocks" && messageCount >= context.blockThreshold;
 }
 
 async function mapWithConcurrency<T>(
@@ -1751,6 +1815,8 @@ async function buildSetCatalog(
 
   const messagesStartedAt = context.progress.step("Writing messages");
   const messageDetailsStartedAt = context.progress.substep("Writing message details");
+  const messageBlocksEnabled = shouldBlockMessages(context, messageKeys.length);
+  const messageBlockEntries: BlockPlanEntry[] = [];
   let skippedEmptyMessageHistoryCount = 0;
   await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
     const message = messages[messageKey];
@@ -1822,12 +1888,35 @@ async function buildSetCatalog(
         ...(overrideLocalesList.length > 0 ? { overrideLocales: overrideLocalesList } : {}),
       }),
     );
-    await context.writer.write(
-      path.join(outputDirectoryPath, "entities", "message", `${encodeKey(messageKey)}.json`),
-      detail,
-    );
+    if (messageBlocksEnabled) {
+      messageBlockEntries.push({ key: messageKey, payload: detail });
+    } else {
+      await context.writer.write(
+        path.join(outputDirectoryPath, "entities", "message", `${encodeKey(messageKey)}.json`),
+        detail,
+      );
+    }
   });
   context.progress.done(messageDetailsStartedAt, `(${pluralize(messageKeys.length, "message")})`);
+
+  if (messageBlocksEnabled) {
+    const messageBlocksStartedAt = context.progress.substep("Writing message blocks");
+    const blocks = toCatalogBlocks(messageBlockEntries, context.blockSize);
+    const blockDirectoryPath = path.join(outputDirectoryPath, "blocks", "message");
+
+    for (const block of blocks) {
+      await context.writer.write(
+        path.join(blockDirectoryPath, `${block.contentHash}.json`),
+        block.content,
+      );
+    }
+
+    await context.writer.write(
+      path.join(blockDirectoryPath, "ranges.json"),
+      toCatalogRangeTable(blocks, context.blockSize),
+    );
+    context.progress.done(messageBlocksStartedAt, `(${pluralize(blocks.length, "block")})`);
+  }
 
   const messageHistoryStartedAt = context.progress.substep("Writing message history pages");
   await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
@@ -2079,7 +2168,7 @@ async function buildSetCatalog(
     index.entities[type].sort((a, b) => a.key.localeCompare(b.key));
   }
 
-  await context.writer.write(path.join(outputDirectoryPath, "index.json"), index);
+  await writeCatalogSetIndex(context.writer, path.join(outputDirectoryPath, "index.json"), index);
   context.progress.done(indexStartedAt);
   context.progress.done(
     setStartedAt,
@@ -2136,6 +2225,19 @@ async function readJsonFile<T>(filePath: string): Promise<T | undefined> {
   } catch (_error) {
     return undefined;
   }
+}
+
+async function readCatalogSetIndex(filePath: string): Promise<CatalogSetIndex | undefined> {
+  const index = await readJsonFile<unknown>(filePath);
+  return index ? (decodeCatalogIndex(index) as CatalogSetIndex) : undefined;
+}
+
+async function writeCatalogSetIndex(
+  writer: CatalogJsonWriter,
+  filePath: string,
+  index: CatalogSetIndex,
+) {
+  await writer.write(filePath, encodeCatalogIndex(index));
 }
 
 function getOutputRelativeDirectory(projectConfig: any, set?: string) {
@@ -2232,6 +2334,7 @@ async function writeCatalogManifest(
     browserRouter: boolean;
     withTranslationSearch: boolean;
     withDuplicates: boolean;
+    layoutOptions: CatalogLayoutOptions;
     setIndexes: Record<string, CatalogSetIndex>;
     executions: Array<{ set: string; projectConfig: any; datasource: any }>;
   },
@@ -2249,6 +2352,13 @@ async function writeCatalogManifest(
     features: {
       translationSearch: options.withTranslationSearch,
       duplicates: options.withDuplicates,
+    },
+    layout: {
+      version: 1,
+      mode: options.layoutOptions.layout,
+      blockSize: options.layoutOptions.blockSize,
+      vbucketBits: VBUCKET_BITS,
+      blockedTypes: options.layoutOptions.layout === "blocks" ? ["message"] : [],
     },
     links: session.links,
     paths: {
@@ -2331,6 +2441,7 @@ async function tryRebuildCatalogMessage(
   datasource: any,
   session: CatalogDevSession,
   request: CatalogDevRebuildRequest,
+  prettyOutput = false,
 ) {
   if (request.kind !== "message" || !request.messageKeys || request.messageKeys.length === 0) {
     return false;
@@ -2338,7 +2449,7 @@ async function tryRebuildCatalogMessage(
 
   const dataDirectoryPath = getDataOutputDirectoryPath(session, rootProjectConfig, request.set);
   const indexPath = path.join(dataDirectoryPath, "index.json");
-  const index = await readJsonFile<CatalogSetIndex>(indexPath);
+  const index = await readCatalogSetIndex(indexPath);
 
   if (!index) {
     return false;
@@ -2367,7 +2478,7 @@ async function tryRebuildCatalogMessage(
   const targetMessageSets = Object.fromEntries(
     targetKeys.map((targetKey) => [targetKey, new Set(targetMessages[targetKey])]),
   ) as Record<string, Set<string>>;
-  const writer = new CatalogJsonWriter();
+  const writer = new CatalogJsonWriter(prettyOutput);
 
   for (const messageKey of request.messageKeys) {
     const oldDetailPath = path.join(
@@ -2487,7 +2598,7 @@ async function tryRebuildCatalogMessage(
 
   index.entities.message.sort((left, right) => left.key.localeCompare(right.key));
   index.counts.message = messageKeys.length;
-  await writer.write(indexPath, index);
+  await writeCatalogSetIndex(writer, indexPath, index);
 
   return true;
 }
@@ -2504,9 +2615,14 @@ async function rebuildCatalogSetForDev(
     browserRouter: boolean;
     withTranslationSearch: boolean;
     withDuplicates: boolean;
+    layout?: "files" | "blocks";
+    blockSize?: number;
+    blockThreshold?: number;
+    prettyOutput?: boolean;
   },
 ) {
-  const writer = new CatalogJsonWriter();
+  const layoutOptions = resolveCatalogLayoutOptions(projectConfig, options);
+  const writer = new CatalogJsonWriter(layoutOptions.prettyOutput);
   const progress = new CatalogProgressReporter(rootDirectoryPath, session.outputDirectoryPath);
   const executions = filterCatalogSetExecutions(
     await runtime.getProjectSetExecutions(projectConfig, datasource),
@@ -2521,7 +2637,7 @@ async function rebuildCatalogSetForDev(
         getOutputRelativeDirectory(projectConfig, execution.set),
         "index.json",
       );
-      return [execution.set || "root", await readJsonFile<CatalogSetIndex>(indexPath)] as const;
+      return [execution.set || "root", await readCatalogSetIndex(indexPath)] as const;
     }),
   );
 
@@ -2553,6 +2669,10 @@ async function rebuildCatalogSetForDev(
     withDuplicates: options.withDuplicates,
     progress,
     writer,
+    layout: layoutOptions.layout,
+    blockSize: layoutOptions.blockSize,
+    blockThreshold: layoutOptions.blockThreshold,
+    prettyOutput: layoutOptions.prettyOutput,
   };
 
   setIndexes[execution.set || "root"] = await buildSetCatalog(
@@ -2570,6 +2690,7 @@ async function rebuildCatalogSetForDev(
     browserRouter: options.browserRouter,
     withTranslationSearch: options.withTranslationSearch,
     withDuplicates: options.withDuplicates,
+    layoutOptions,
     setIndexes,
     executions,
   });
@@ -2590,8 +2711,9 @@ export async function exportCatalog(
   const dataDirectoryPath = path.join(outputDirectoryPath, "data");
   const withTranslationSearch = options.withTranslationSearch === true;
   const withDuplicates = options.withDuplicates === true;
+  const layoutOptions = resolveCatalogLayoutOptions(projectConfig, options);
   const progress = new CatalogProgressReporter(rootDirectoryPath, outputDirectoryPath);
-  const writer = new CatalogJsonWriter();
+  const writer = new CatalogJsonWriter(layoutOptions.prettyOutput);
 
   progress.start({
     browserRouter: options.browserRouter !== false,
@@ -2673,6 +2795,10 @@ export async function exportCatalog(
     withDuplicates,
     progress,
     writer,
+    layout: layoutOptions.layout,
+    blockSize: layoutOptions.blockSize,
+    blockThreshold: layoutOptions.blockThreshold,
+    prettyOutput: layoutOptions.prettyOutput,
   };
   stepStartedAt = progress.step("Discovering project sets");
   const executions = filterCatalogSetExecutions(
@@ -2721,6 +2847,13 @@ export async function exportCatalog(
       translationSearch: withTranslationSearch,
       duplicates: withDuplicates,
     },
+    layout: {
+      version: 1,
+      mode: layoutOptions.layout,
+      blockSize: layoutOptions.blockSize,
+      vbucketBits: VBUCKET_BITS,
+      blockedTypes: layoutOptions.layout === "blocks" ? ["message"] : [],
+    },
     links,
     paths: {
       projectHistory: "data/project/history/page-1.json",
@@ -2768,6 +2901,20 @@ function getContentType(filePath: string) {
     default:
       return "text/html";
   }
+}
+
+function getCatalogCacheControl(filePath: string, outputDirectoryPath: string) {
+  const relativePath = path.relative(outputDirectoryPath, filePath).split(path.sep).join("/");
+
+  if (/(^|\/)blocks\/[^/]+\/(?!ranges\.json$)[^/]+\.json$/.test(relativePath)) {
+    return "public, max-age=31536000, immutable";
+  }
+
+  if (/(^|\/)(manifest|index|ranges)\.json$/.test(relativePath)) {
+    return "no-cache, no-transform";
+  }
+
+  return undefined;
 }
 
 function getCatalogLiveReloadClientScript() {
@@ -3119,7 +3266,14 @@ export async function serveCatalog(
           return;
         }
 
-        response.writeHead(200, { "Content-Type": getContentType(safeFilePath) });
+        const headers: Record<string, string> = {
+          "Content-Type": getContentType(safeFilePath),
+        };
+        const cacheControl = getCatalogCacheControl(safeFilePath, outputDirectoryPath);
+        if (cacheControl) {
+          headers["Cache-Control"] = cacheControl;
+        }
+        response.writeHead(200, headers);
         response.end(content);
         return;
       }
@@ -3235,11 +3389,16 @@ function assertCatalogOptionScope(parsed: CatalogPluginParsedOptions) {
       parsed["with-duplicates"],
       parsed.withTranslationSearch,
       parsed["with-translation-search"],
+      parsed.layout,
+      parsed.blockSize,
+      parsed["block-size"],
+      parsed.prettyOutput,
+      parsed["pretty-output"],
     ];
 
     if (exportOnlyOptions.some((value) => typeof value !== "undefined")) {
       throw createCatalogCLIError(
-        "Asset, translation-search, and duplicate-generation options can only be used with `catalog` or `catalog export`.",
+        "Catalog generation options can only be used with `catalog` or `catalog export`.",
         "invalid_catalog_option",
       );
     }
@@ -3249,6 +3408,7 @@ function assertCatalogOptionScope(parsed: CatalogPluginParsedOptions) {
 export const __catalogDevInternals = {
   classifyCatalogDevChanges,
   decodeCatalogRequestUrl,
+  getCatalogCacheControl,
   getCatalogInputWatchPaths,
   resolveCatalogRequestFilePath,
 };
@@ -3265,6 +3425,9 @@ export function createCatalogPlugin(
       const browserRouter = !(parsed.hashRouter || parsed["hash-router"]);
       const withTranslationSearch = isWithTranslationSearchEnabled(parsed);
       const withDuplicates = isWithDuplicatesEnabled(parsed);
+      const layout = parsed.layout as "files" | "blocks" | undefined;
+      const blockSize = parsed.blockSize ?? parsed["block-size"];
+      const prettyOutput = parsed.prettyOutput === true || parsed["pretty-output"] === true;
       const selectedSets = normalizeSelectedSets(parsed.set);
       if (!projectConfig.sets && selectedSets.length > 0) {
         throw createCatalogCLIError(
@@ -3288,6 +3451,9 @@ export function createCatalogPlugin(
           devSession,
           withTranslationSearch,
           withDuplicates,
+          layout,
+          blockSize,
+          prettyOutput,
           sets: selectedSets,
         });
         const server = await api.serveCatalog(rootDirectoryPath, projectConfig, datasource, {
@@ -3378,7 +3544,13 @@ export function createCatalogPlugin(
 
             let handled = false;
 
-            if (request.kind === "message") {
+            const activeLayout = resolveCatalogLayoutOptions(activeProjectConfig, {
+              layout,
+              blockSize,
+              prettyOutput,
+            }).layout;
+
+            if (request.kind === "message" && activeLayout !== "blocks") {
               const [execution] = await runtime.getProjectSetExecutions(
                 activeProjectConfig,
                 activeDatasource,
@@ -3392,6 +3564,7 @@ export function createCatalogPlugin(
                 execution.datasource,
                 devSession,
                 request,
+                prettyOutput,
               );
             }
 
@@ -3408,6 +3581,9 @@ export function createCatalogPlugin(
                   browserRouter,
                   withTranslationSearch,
                   withDuplicates,
+                  layout,
+                  blockSize,
+                  prettyOutput,
                 },
               );
             }
@@ -3422,6 +3598,9 @@ export function createCatalogPlugin(
                 devSession,
                 withTranslationSearch,
                 withDuplicates,
+                layout,
+                blockSize,
+                prettyOutput,
                 sets: selectedSets,
               });
             }
@@ -3466,6 +3645,9 @@ export function createCatalogPlugin(
           browserRouter,
           withTranslationSearch,
           withDuplicates,
+          layout,
+          blockSize,
+          prettyOutput,
           sets: selectedSets,
         });
       }

@@ -18,6 +18,7 @@ import {
   createCatalogPlugin,
   type CatalogRuntime,
 } from "./index";
+import { decodeCatalogIndex } from "../indexFormat";
 
 const catalogApi = createCatalogApi({
   loadProjectSnapshot,
@@ -52,7 +53,9 @@ async function writeFile(root: string, relativePath: string, content: string) {
 }
 
 async function readJson<T>(root: string, relativePath: string): Promise<T> {
-  return JSON.parse(await fs.promises.readFile(path.join(root, relativePath), "utf8"));
+  const value = JSON.parse(await fs.promises.readFile(path.join(root, relativePath), "utf8"));
+
+  return relativePath.endsWith("/index.json") ? (decodeCatalogIndex(value) as T) : (value as T);
 }
 
 async function pathExists(root: string, relativePath: string) {
@@ -468,6 +471,46 @@ describe("catalog", function () {
     await expect(
       pathExists(root, "catalog-out/data/root/entities/message/obsolete.json"),
     ).resolves.toBe(false);
+  });
+
+  it("consolidates message details into blocks when block layout is enabled", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    await catalogApi.exportCatalog(root, projectConfig, datasource, {
+      outDir: "catalog-blocks",
+      copyAssets: false,
+      layout: "blocks",
+      blockThreshold: 0,
+      blockSize: 16384,
+    });
+
+    const manifest = await readJson<any>(root, "catalog-blocks/data/manifest.json");
+    const index = JSON.parse(
+      await fs.promises.readFile(path.join(root, "catalog-blocks/data/root/index.json"), "utf8"),
+    );
+    const ranges = await readJson<any>(root, "catalog-blocks/data/root/blocks/message/ranges.json");
+
+    expect(manifest.layout).toMatchObject({
+      mode: "blocks",
+      blockSize: 16384,
+      blockedTypes: ["message"],
+    });
+    expect(index.formatVersion).toBe(2);
+    expect(ranges.blocks.length).toBeGreaterThan(0);
+    await expect(
+      pathExists(root, "catalog-blocks/data/root/entities/message/common.welcome.json"),
+    ).resolves.toBe(false);
+
+    for (const [, hash] of ranges.blocks) {
+      const block = await readJson<any>(
+        root,
+        `catalog-blocks/data/root/blocks/message/${hash}.json`,
+      );
+      expect(Object.keys(block).length).toBeGreaterThan(0);
+    }
   });
 
   it("resolves target message relationships from string includeMessages and excludeMessages", async function () {
@@ -1701,6 +1744,29 @@ describe("catalog plugin", function () {
     );
   });
 
+  it("forwards large-project layout options to catalog export", async function () {
+    const { handler } = createPlugin();
+
+    await handler({
+      _: ["catalog", "export"],
+      subcommand: "export",
+      layout: "blocks",
+      blockSize: 524288,
+      prettyOutput: true,
+    });
+
+    expect(exportMock).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(Object),
+      expect.any(Object),
+      expect.objectContaining({
+        layout: "blocks",
+        blockSize: 524288,
+        prettyOutput: true,
+      }),
+    );
+  });
+
   it("forwards duplicates option for dev catalog mode", async function () {
     const { handler } = createPlugin();
 
@@ -1836,6 +1902,14 @@ describe("catalog plugin", function () {
       }),
     ).rejects.toThrow("can only be used with `catalog` or `catalog export`");
     expect(serveMock).not.toHaveBeenCalled();
+
+    await expect(
+      handler({
+        _: ["catalog", "serve"],
+        subcommand: "serve",
+        layout: "blocks",
+      }),
+    ).rejects.toThrow("can only be used with `catalog` or `catalog export`");
   });
 
   it("lets serveCatalog apply its default port when no port option is provided", async function () {
@@ -1866,6 +1940,29 @@ describe("catalog plugin", function () {
 });
 
 describe("catalog server request safety", function () {
+  it("marks immutable blocks and mutable catalog metadata with suitable cache headers", function () {
+    const outputDirectoryPath = "/tmp/messagevisor-catalog";
+
+    expect(
+      __catalogDevInternals.getCatalogCacheControl(
+        path.join(outputDirectoryPath, "data/root/blocks/message/hash.json"),
+        outputDirectoryPath,
+      ),
+    ).toBe("public, max-age=31536000, immutable");
+    expect(
+      __catalogDevInternals.getCatalogCacheControl(
+        path.join(outputDirectoryPath, "data/root/blocks/message/ranges.json"),
+        outputDirectoryPath,
+      ),
+    ).toBe("no-cache, no-transform");
+    expect(
+      __catalogDevInternals.getCatalogCacheControl(
+        path.join(outputDirectoryPath, "data/manifest.json"),
+        outputDirectoryPath,
+      ),
+    ).toBe("no-cache, no-transform");
+  });
+
   it("requires an existing export before serving", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-catalog-serve-"));
 

@@ -5,3 +5,5 @@ catalog/
 .messagevisor/
 .messagevisor/cache
 .synthetic-catalog/
+.synthetic-compact/
+.synthetic-blocks/

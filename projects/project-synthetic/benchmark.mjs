@@ -11,6 +11,10 @@ const command = requestedCommand ? requestedCommand.slice("--command=".length) :
 const commands = command === "all" ? ["build", "lint", "test", "export", "catalog"] : [command];
 const requestedRepeat = process.argv.find((value) => value.startsWith("--repeat="));
 const repeat = requestedRepeat ? Number(requestedRepeat.slice("--repeat=".length)) : 1;
+const requestedCatalogLayout = process.argv.find((value) => value.startsWith("--layout="));
+const catalogLayout = requestedCatalogLayout
+  ? requestedCatalogLayout.slice("--layout=".length)
+  : undefined;
 
 if (!Number.isInteger(repeat) || repeat < 1) {
   throw new Error("--repeat must be a positive integer.");
@@ -19,7 +23,13 @@ if (!Number.isInteger(repeat) || repeat < 1) {
 function run(commandName) {
   const args =
     commandName === "catalog"
-      ? ["catalog", "export", "--outDir=.synthetic-catalog", "--assets=false"]
+      ? [
+          "catalog",
+          "export",
+          "--outDir=.synthetic-catalog",
+          "--assets=false",
+          ...(catalogLayout ? [`--layout=${catalogLayout}`] : []),
+        ]
       : commandName === "export"
         ? [
             "export",

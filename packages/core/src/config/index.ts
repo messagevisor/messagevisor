@@ -30,6 +30,9 @@ export const DEFAULT_PARSER: Parser = "yml";
 export const DEFAULT_LINT_ICU = true;
 export const DEFAULT_ICU_SKELETON = false;
 export const DEFAULT_SETS = false;
+export const DEFAULT_CATALOG_LAYOUT = "files" as const;
+export const DEFAULT_CATALOG_BLOCK_SIZE = 262144;
+export const DEFAULT_CATALOG_BLOCK_THRESHOLD = 500;
 export const SCHEMA_VERSION = "1";
 
 export interface ProjectConfig {
@@ -55,6 +58,9 @@ export interface ProjectConfig {
   datafilesDirectoryPath: string;
   exportsDirectoryPath: string;
   catalogDirectoryPath: string;
+  catalogLayout: "files" | "blocks";
+  catalogBlockSize: number;
+  catalogBlockThreshold: number;
   datafileNamePattern: string;
   revisionFileName: string;
   adapter: AdapterConstructor;
@@ -86,6 +92,9 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
     datafilesDirectoryPath: path.join(rootDirectoryPath, DATAFILES_DIRECTORY_NAME),
     exportsDirectoryPath: path.join(rootDirectoryPath, EXPORTS_DIRECTORY_NAME),
     catalogDirectoryPath: path.join(rootDirectoryPath, CATALOG_DIRECTORY_NAME),
+    catalogLayout: DEFAULT_CATALOG_LAYOUT,
+    catalogBlockSize: DEFAULT_CATALOG_BLOCK_SIZE,
+    catalogBlockThreshold: DEFAULT_CATALOG_BLOCK_THRESHOLD,
     datafileNamePattern: DATAFILE_NAME_PATTERN,
     revisionFileName: REVISION_FILE_NAME,
   };
@@ -177,6 +186,45 @@ export function getProjectConfig(rootDirectoryPath: string): ProjectConfig {
       {
         code: "invalid_configuration",
         details: { option: "lintIcu" },
+      },
+    );
+  }
+
+  if (finalConfig.catalogLayout !== "files" && finalConfig.catalogLayout !== "blocks") {
+    throw new MessagevisorCLIError(
+      `Invalid catalogLayout: ${finalConfig.catalogLayout}. It must be either "files" or "blocks".`,
+      {
+        code: "invalid_configuration",
+        details: { option: "catalogLayout" },
+      },
+    );
+  }
+
+  if (
+    typeof finalConfig.catalogBlockSize !== "number" ||
+    !Number.isInteger(finalConfig.catalogBlockSize) ||
+    finalConfig.catalogBlockSize < 16384 ||
+    finalConfig.catalogBlockSize > 8388608
+  ) {
+    throw new MessagevisorCLIError(
+      `Invalid catalogBlockSize: ${finalConfig.catalogBlockSize}. It must be an integer from 16384 to 8388608.`,
+      {
+        code: "invalid_configuration",
+        details: { option: "catalogBlockSize" },
+      },
+    );
+  }
+
+  if (
+    typeof finalConfig.catalogBlockThreshold !== "number" ||
+    !Number.isInteger(finalConfig.catalogBlockThreshold) ||
+    finalConfig.catalogBlockThreshold < 0
+  ) {
+    throw new MessagevisorCLIError(
+      `Invalid catalogBlockThreshold: ${finalConfig.catalogBlockThreshold}. It must be a non-negative integer.`,
+      {
+        code: "invalid_configuration",
+        details: { option: "catalogBlockThreshold" },
       },
     );
   }

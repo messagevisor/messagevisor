@@ -12,10 +12,12 @@ npx messagevisor catalog --port=3100
 npx messagevisor catalog --with-translation-search
 npx messagevisor catalog --with-duplicates
 npx messagevisor catalog --set=staging --set=production
+npx messagevisor catalog --layout=blocks
 npx messagevisor catalog export
 npx messagevisor catalog export --with-translation-search
 npx messagevisor catalog export --with-duplicates
 npx messagevisor catalog export --set=production
+npx messagevisor catalog export --layout=blocks --blockSize=524288
 npx messagevisor catalog serve
 npx messagevisor catalog serve --port=3100
 ```
@@ -44,6 +46,22 @@ npx messagevisor catalog export --set=production
 The generated Catalog stays set-aware whenever the project uses sets. The top nav still shows the set switcher even if only one set is selected.
 
 Set switcher ordering is intentional: set names starting with `dev` appear first, set names starting with `prod` appear last, and other sets are sorted alphabetically in the middle.
+
+## Large projects
+
+Catalog indexes use a compact format by default. The default `files` layout still writes one JSON file per entity, which is useful for simple static hosting and remains the compatibility default.
+
+For projects with many thousands of messages, use block layout to reduce the number of message detail files:
+
+```bash
+npx messagevisor catalog --layout=blocks
+npx messagevisor catalog export --layout=blocks
+npx messagevisor catalog export --layout=blocks --blockSize=524288
+```
+
+Block layout stores message details in deterministic, content-addressed JSON blocks and uses a range table to locate the block for a message. Other entity types continue to use individual files. The default block size is 256 KiB and the default threshold is 500 messages. Configure the defaults in `messagevisor.config.js` with `catalogLayout`, `catalogBlockSize`, and `catalogBlockThreshold` when the project should always use the same policy.
+
+`--prettyOutput` is for local inspection only. Compact JSON is the default. `catalog serve` serves an existing export and does not accept export layout options.
 
 ## Optional generated data
 

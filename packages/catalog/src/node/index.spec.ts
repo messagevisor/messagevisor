@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import * as childProcess from "child_process";
+import * as zlib from "zlib";
 
 import { buildDatafile, mergeFormats, resolveFormats } from "../../../core/src/builder";
 import { getProjectConfig } from "../../../core/src/config";
@@ -904,6 +905,96 @@ describe("catalog", function () {
     expect(output).toContain("Scanning duplicate translations");
     expect(output).toContain("Writing duplicate reports");
     expect(output).toContain("Building translation search shards");
+  });
+
+  it("warns with singular wording when one message alone exceeds the block budget", async function () {
+    const root = await createProject();
+    roots.push(root);
+    await writeFile(
+      root,
+      "messages/large.yml",
+      `description: Large message\ntranslations:\n  en: ${JSON.stringify("x".repeat(20000))}\n`,
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const output = await captureConsoleLog(async () => {
+      await catalogApi.exportCatalog(root, projectConfig, datasource, {
+        outDir: "catalog-out",
+        copyAssets: false,
+        blockSize: 16384,
+      });
+    });
+
+    expect(output).toMatch(/! Block [a-f0-9]+ is \d+ kB, above the 16 kB budget/);
+    expect(output).toContain(
+      "It holds a single message larger than the budget, so it cannot be split.",
+    );
+    expect(output).not.toContain("share a virtual bucket");
+  });
+
+  it("warns with plural wording when multiple messages share an oversized virtual bucket", async function () {
+    // These two keys are a known fnv1a32 collision at the 16-bit virtual
+    // bucket width used by the block layout, so they are guaranteed to land
+    // in the same bucket and, with large payloads, in the same oversized
+    // block. Regenerate with utils/hashEntityKey.ts's getVirtualBucket if the
+    // hash or bucket width ever changes.
+    const root = await createProject();
+    roots.push(root);
+    await writeFile(
+      root,
+      "messages/collide2163.yml",
+      `description: Collision A\ntranslations:\n  en: ${JSON.stringify("x".repeat(20000))}\n`,
+    );
+    await writeFile(
+      root,
+      "messages/collide3160.yml",
+      `description: Collision B\ntranslations:\n  en: ${JSON.stringify("x".repeat(20000))}\n`,
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const output = await captureConsoleLog(async () => {
+      await catalogApi.exportCatalog(root, projectConfig, datasource, {
+        outDir: "catalog-out",
+        copyAssets: false,
+        blockSize: 16384,
+      });
+    });
+
+    expect(output).toMatch(/! Block [a-f0-9]+ is \d+ kB, above the 16 kB budget/);
+    expect(output).toContain(
+      "It holds 2 messages that share a virtual bucket and cannot be split further.",
+    );
+  });
+
+  it("caps individual oversized block warnings and reports the remainder in aggregate", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const oversizedMessageKeys = ["huge0", "huge1", "huge2", "huge3", "huge4", "huge5"];
+
+    for (const key of oversizedMessageKeys) {
+      await writeFile(
+        root,
+        `messages/${key}.yml`,
+        `description: ${key}\ntranslations:\n  en: ${JSON.stringify("x".repeat(20000))}\n`,
+      );
+    }
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const output = await captureConsoleLog(async () => {
+      await catalogApi.exportCatalog(root, projectConfig, datasource, {
+        outDir: "catalog-out",
+        copyAssets: false,
+        blockSize: 16384,
+      });
+    });
+
+    const individualWarnings =
+      output.match(/! Block [a-f0-9]+ is \d+ kB, above the 16 kB budget/g) || [];
+    expect(individualWarnings).toHaveLength(5);
+    expect(output).toContain("...and 1 more block exceeds the 16 kB budget.");
   });
 
   it("exports many messages deterministically without empty history files", async function () {
@@ -1975,27 +2066,109 @@ describe("catalog plugin", function () {
 });
 
 describe("catalog server request safety", function () {
-  it("marks immutable blocks and mutable catalog metadata with suitable cache headers", function () {
+  it.each([
+    ["data/manifest.json", "no-cache, no-transform"],
+    ["data/sets/dev/index.json", "no-cache, no-transform"],
+    ["data/sets/dev/index/core.json", "no-cache, no-transform"],
+    ["data/sets/dev/index/descriptions.json", "no-cache, no-transform"],
+    ["data/sets/dev/index/display.json", "no-cache, no-transform"],
+    ["data/sets/dev/entities/locale/en.json", "no-cache, no-transform"],
+    ["data/sets/dev/history/page-1.json", "no-cache, no-transform"],
+    ["data/sets/dev/blocks/message/ranges.json", "no-cache, no-transform"],
+    ["data/sets/dev/blocks/message/b30edb16e95d637f.json", "public, max-age=31536000, immutable"],
+  ])("marks %s with %s", function (relativePath, expected) {
     const outputDirectoryPath = "/tmp/messagevisor-catalog";
 
     expect(
       __catalogDevInternals.getCatalogCacheControl(
-        path.join(outputDirectoryPath, "data/root/blocks/message/hash.json"),
+        path.join(outputDirectoryPath, relativePath),
         outputDirectoryPath,
       ),
-    ).toBe("public, max-age=31536000, immutable");
+    ).toBe(expected);
+  });
+
+  it("does not leave generated JSON files without a cache directive", function () {
+    const outputDirectoryPath = "/tmp/messagevisor-catalog";
+    const generatedJsonPaths = [
+      "data/manifest.json",
+      "data/root/index.json",
+      "data/root/index/core.json",
+      "data/root/entities/locale/en.json",
+      "data/root/history/page-1.json",
+      "data/root/blocks/message/ranges.json",
+      "data/root/blocks/message/abcd1234.json",
+    ];
+
+    for (const relativePath of generatedJsonPaths) {
+      expect(
+        __catalogDevInternals.getCatalogCacheControl(
+          path.join(outputDirectoryPath, relativePath),
+          outputDirectoryPath,
+        ),
+      ).toBeDefined();
+    }
+  });
+
+  it("negotiates Brotli and gzip for compressible responses", function () {
     expect(
-      __catalogDevInternals.getCatalogCacheControl(
-        path.join(outputDirectoryPath, "data/root/blocks/message/ranges.json"),
-        outputDirectoryPath,
+      __catalogDevInternals.getCatalogCompressionEncoding(
+        { headers: { "accept-encoding": "gzip, br" } } as any,
+        "/tmp/messagevisor-catalog/data/root/index.json",
       ),
-    ).toBe("no-cache, no-transform");
+    ).toBe("br");
     expect(
-      __catalogDevInternals.getCatalogCacheControl(
-        path.join(outputDirectoryPath, "data/manifest.json"),
-        outputDirectoryPath,
+      __catalogDevInternals.getCatalogCompressionEncoding(
+        { headers: { "accept-encoding": "br;q=0, gzip;q=0.8" } } as any,
+        "/tmp/messagevisor-catalog/data/root/index.json",
       ),
-    ).toBe("no-cache, no-transform");
+    ).toBe("gzip");
+    expect(
+      __catalogDevInternals.getCatalogCompressionEncoding(
+        { headers: { "accept-encoding": "gzip" } } as any,
+        "/tmp/messagevisor-catalog/data/root/index.json",
+      ),
+    ).toBe("gzip");
+    expect(
+      __catalogDevInternals.getCatalogCompressionEncoding(
+        { headers: {} } as any,
+        "/tmp/messagevisor-catalog/data/root/index.json",
+      ),
+    ).toBeUndefined();
+    expect(
+      __catalogDevInternals.getCatalogCompressionEncoding(
+        { headers: { "accept-encoding": "gzip" } } as any,
+        "/tmp/messagevisor-catalog/favicon.ico",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("compresses the response body while preserving its original content", async function () {
+    const writeHead = jest.fn();
+    const completed = new Promise<Buffer>((resolve) => {
+      const response = {
+        writeHead,
+        end: resolve,
+      } as any;
+
+      __catalogDevInternals.sendCatalogResponse(
+        { headers: { "accept-encoding": "gzip" } } as any,
+        response,
+        "/tmp/messagevisor-catalog/data/root/index.json",
+        Buffer.from('{"message":"hello"}'),
+        { "Content-Type": "application/json" },
+      );
+    });
+
+    const compressedContent = await completed;
+
+    expect(writeHead).toHaveBeenCalledWith(
+      200,
+      expect.objectContaining({
+        "Content-Encoding": "gzip",
+        Vary: "Accept-Encoding",
+      }),
+    );
+    expect(zlib.gunzipSync(compressedContent).toString()).toBe('{"message":"hello"}');
   });
 
   it("requires an existing export before serving", async function () {

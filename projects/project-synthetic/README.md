@@ -15,6 +15,16 @@ message examples, and hundreds of repeated target assertions. The
 `used-formats` target also verifies that unused named formats are omitted from
 its generated datafile.
 
+Message payloads use a seeded variable-length distribution modelled on the
+spread seen in `project-1`. Generation is deterministic for a given number of
+messages, locales, and sets, so benchmark comparisons remain reproducible.
+Use `--variance=off` to restore the small, flat payloads used by older
+measurements:
+
+```bash
+node projects/project-synthetic/generate.mjs --sets=1 --messages=1000 --locales=3 --variance=off
+```
+
 Use smaller values while iterating:
 
 ```bash
@@ -44,6 +54,10 @@ the default libuv worker pool.
 
 Set `MESSAGEVISOR_NO_CACHE=1` when a cold parse is required. The normal parsed
 entity cache is sharded under `.messagevisor/cache/` and is ignored by Git.
+
+For a manual `catalog export` verification run, use `--outDir=.catalog-<name>`.
+That prefix is ignored by both Git and Prettier, unlike an arbitrary directory
+name, which would otherwise dirty the working tree and fail formatting checks.
 
 Generated data is not part of the repository. Run the generator again after
 `make clean` if the fixture is needed locally.

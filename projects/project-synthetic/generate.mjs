@@ -24,6 +24,7 @@ const allLocales = [
 ];
 const locales = allLocales.slice(0, Math.max(1, Math.min(localeCount, allLocales.length)));
 const concurrency = getNumberOption("concurrency", 32);
+const varianceEnabled = getVarianceOption();
 
 function getNumberOption(name, fallback) {
   const argument = process.argv.find((value) => value.startsWith(`--${name}=`));
@@ -34,6 +35,54 @@ function getNumberOption(name, fallback) {
   }
 
   return value;
+}
+
+function getVarianceOption() {
+  const argument = process.argv.find((value) => value.startsWith("--variance="));
+  const value = argument ? argument.slice("--variance=".length) : "on";
+
+  if (value === "on") {
+    return true;
+  }
+
+  if (value === "off") {
+    return false;
+  }
+
+  throw new Error("--variance must be either on or off.");
+}
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let value = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function translationLength(rng) {
+  const u1 = rng() || 1e-9;
+  const u2 = rng();
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+
+  return Math.min(900, Math.max(20, Math.round(Math.exp(Math.log(60) + 0.62 * z))));
+}
+
+function variedTranslation(messageKey, locale, length) {
+  const prefix = `Message ${messageKey} in ${locale}: `;
+  const filler =
+    "This synthetic translation contains realistic variable length content for catalog performance measurements. ";
+
+  if (length <= prefix.length) {
+    return prefix.slice(0, length);
+  }
+
+  return `${prefix}${filler.repeat(Math.ceil((length - prefix.length) / filler.length))}`.slice(
+    0,
+    length,
+  );
 }
 
 function yamlString(value) {
@@ -62,12 +111,17 @@ function localeDocument(locale) {
 function messageDocument(messageIndex) {
   const key = String(messageIndex).padStart(6, "0");
   const lines = [`description: Synthetic message ${key}`, "translations:"];
+  const rng = mulberry32(messageIndex);
+  const baseTranslationLength =
+    varianceEnabled && messageIndex !== 1 ? translationLength(rng) : undefined;
 
   for (const locale of locales) {
     const translation =
       messageIndex === 1
         ? `There are {count, number, decimal} items on {when, date, short} in ${locale}`
-        : `Message ${key} in ${locale}`;
+        : baseTranslationLength
+          ? variedTranslation(key, locale, baseTranslationLength)
+          : `Message ${key} in ${locale}`;
     lines.push(`  ${locale}: ${yamlString(translation)}`);
   }
 
@@ -82,7 +136,22 @@ function messageDocument(messageIndex) {
     );
   }
 
-  if (messageIndex % 1000 === 0) {
+  if (varianceEnabled && messageIndex !== 1 && rng() < 0.15) {
+    lines.push("overrides:");
+
+    const overrideCount = 1 + Math.floor(rng() * 3);
+    for (let index = 0; index < overrideCount; index += 1) {
+      const overrideKey = `beta-audience-${index + 1}`;
+      const overrideLength = translationLength(rng);
+      lines.push(
+        `  - key: ${overrideKey}`,
+        "    segments:",
+        "      - synthetic-beta-users",
+        "    translations:",
+        `      en-US: ${yamlString(variedTranslation(`override ${key}`, "en-US", overrideLength))}`,
+      );
+    }
+  } else if (!varianceEnabled && messageIndex % 1000 === 0) {
     lines.push(
       "overrides:",
       "  - key: beta-audience",
@@ -90,6 +159,15 @@ function messageDocument(messageIndex) {
       "      - synthetic-beta-users",
       "    translations:",
       `      en-US: ${yamlString(`Beta message ${key}`)}`,
+    );
+  }
+
+  if (varianceEnabled && messageIndex !== 1 && rng() < 0.02) {
+    lines.push(
+      "examples:",
+      "  - description: Variable length synthetic example",
+      "    locale: en-US",
+      `    rawMessage: ${yamlString(`Example ${key}`)}`,
     );
   }
 

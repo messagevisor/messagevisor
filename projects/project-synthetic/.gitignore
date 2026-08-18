@@ -3,8 +3,7 @@ datafiles/
 exports/
 catalog/
 .messagevisor/
+# benchmark.mjs's fixed catalog export output, plus any ad hoc
+# --outDir=.catalog-<name> export used for manual verification
 .synthetic-catalog/
-.synthetic-compact/
-.synthetic-blocks/
-.synthetic-layered/
-.synthetic-layered-blocks/
+.catalog-*/

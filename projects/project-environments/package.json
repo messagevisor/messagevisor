@@ -1,7 +1,7 @@
 {
   "name": "@messagevisor/project-environments",
   "private": true,
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Sets-based Messagevisor starter project copied from project-yml",
   "scripts": {
     "lint": "messagevisor lint",
@@ -9,7 +9,7 @@
     "test": "messagevisor test"
   },
   "dependencies": {
-    "@messagevisor/cli": "1.5.0",
+    "@messagevisor/cli": "1.6.0",
     "@messagevisor/module-icu": "1.2.0"
   }
 }

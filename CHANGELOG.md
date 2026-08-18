@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.6.0](https://github.com/messagevisor/messagevisor/compare/v1.5.1...v1.6.0) (2026-08-18)
+
+
+### Features
+
+* catalog export optimizations ([#43](https://github.com/messagevisor/messagevisor/issues/43)) ([35d448d](https://github.com/messagevisor/messagevisor/commit/35d448d7dc94f1481260bfb5eb3279e90cb77f60))
+
+
+
+
+
 ## [1.5.1](https://github.com/messagevisor/messagevisor/compare/v1.5.0...v1.5.1) (2026-08-17)
 
 **Note:** Version bump only for package messagevisor

@@ -1899,11 +1899,27 @@ async function buildSetCatalog(
   );
   context.progress.done(messageBlocksStartedAt, `(${pluralize(blocks.length, "block")})`);
 
-  for (const { block, bytes } of oversizedBlocks) {
+  const oversizedBlocksToReport = oversizedBlocks.slice(0, 5);
+
+  for (const { block, bytes } of oversizedBlocksToReport) {
+    const messageCount = Object.keys(block.content).length;
+    const reason =
+      messageCount === 1
+        ? "It holds a single message larger than the budget, so it cannot be split."
+        : `It holds ${pluralize(messageCount, "message")} that share a virtual bucket and cannot be split further.`;
+
     context.progress.warn(
       `Block ${block.contentHash} is ${Math.round(bytes / 1024)} kB, above the ${Math.round(
         context.blockSize / 1024,
-      )} kB budget. It holds ${pluralize(Object.keys(block.content).length, "message")} that share a virtual bucket and cannot be split further.`,
+      )} kB budget. ${reason}`,
+    );
+  }
+
+  const remainingOversizedBlocks = oversizedBlocks.length - oversizedBlocksToReport.length;
+
+  if (remainingOversizedBlocks > 0) {
+    context.progress.warn(
+      `...and ${pluralize(remainingOversizedBlocks, "more block")} ${remainingOversizedBlocks === 1 ? "exceeds" : "exceed"} the ${Math.round(context.blockSize / 1024)} kB budget.`,
     );
   }
 
@@ -2704,6 +2720,10 @@ function getAcceptedEncodingQuality(header: string | undefined, encoding: string
   return wildcardQuality ?? 0;
 }
 
+// The no-cache, no-transform directive on mutable data files binds
+// intermediaries: it stops a proxy or CDN from altering a response in transit.
+// It does not restrict this origin from serving a negotiated representation,
+// so compressing here alongside that directive is correct, not a conflict.
 function getCatalogCompressionEncoding(request: http.IncomingMessage, filePath: string) {
   if (![".css", ".html", ".js", ".json"].includes(path.extname(filePath))) {
     return undefined;

@@ -55,5 +55,9 @@ the default libuv worker pool.
 Set `MESSAGEVISOR_NO_CACHE=1` when a cold parse is required. The normal parsed
 entity cache is sharded under `.messagevisor/cache/` and is ignored by Git.
 
+For a manual `catalog export` verification run, use `--outDir=.catalog-<name>`.
+That prefix is ignored by both Git and Prettier, unlike an arbitrary directory
+name, which would otherwise dirty the working tree and fail formatting checks.
+
 Generated data is not part of the repository. Run the generator again after
 `make clean` if the fixture is needed locally.

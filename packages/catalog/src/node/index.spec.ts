@@ -907,7 +907,7 @@ describe("catalog", function () {
     expect(output).toContain("Building translation search shards");
   });
 
-  it("warns when a virtual bucket cannot fit within the block budget", async function () {
+  it("warns with singular wording when one message alone exceeds the block budget", async function () {
     const root = await createProject();
     roots.push(root);
     await writeFile(
@@ -927,7 +927,74 @@ describe("catalog", function () {
     });
 
     expect(output).toMatch(/! Block [a-f0-9]+ is \d+ kB, above the 16 kB budget/);
-    expect(output).toContain("share a virtual bucket and cannot be split further");
+    expect(output).toContain(
+      "It holds a single message larger than the budget, so it cannot be split.",
+    );
+    expect(output).not.toContain("share a virtual bucket");
+  });
+
+  it("warns with plural wording when multiple messages share an oversized virtual bucket", async function () {
+    // These two keys are a known fnv1a32 collision at the 16-bit virtual
+    // bucket width used by the block layout, so they are guaranteed to land
+    // in the same bucket and, with large payloads, in the same oversized
+    // block. Regenerate with utils/hashEntityKey.ts's getVirtualBucket if the
+    // hash or bucket width ever changes.
+    const root = await createProject();
+    roots.push(root);
+    await writeFile(
+      root,
+      "messages/collide2163.yml",
+      `description: Collision A\ntranslations:\n  en: ${JSON.stringify("x".repeat(20000))}\n`,
+    );
+    await writeFile(
+      root,
+      "messages/collide3160.yml",
+      `description: Collision B\ntranslations:\n  en: ${JSON.stringify("x".repeat(20000))}\n`,
+    );
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const output = await captureConsoleLog(async () => {
+      await catalogApi.exportCatalog(root, projectConfig, datasource, {
+        outDir: "catalog-out",
+        copyAssets: false,
+        blockSize: 16384,
+      });
+    });
+
+    expect(output).toMatch(/! Block [a-f0-9]+ is \d+ kB, above the 16 kB budget/);
+    expect(output).toContain(
+      "It holds 2 messages that share a virtual bucket and cannot be split further.",
+    );
+  });
+
+  it("caps individual oversized block warnings and reports the remainder in aggregate", async function () {
+    const root = await createProject();
+    roots.push(root);
+    const oversizedMessageKeys = ["huge0", "huge1", "huge2", "huge3", "huge4", "huge5"];
+
+    for (const key of oversizedMessageKeys) {
+      await writeFile(
+        root,
+        `messages/${key}.yml`,
+        `description: ${key}\ntranslations:\n  en: ${JSON.stringify("x".repeat(20000))}\n`,
+      );
+    }
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+
+    const output = await captureConsoleLog(async () => {
+      await catalogApi.exportCatalog(root, projectConfig, datasource, {
+        outDir: "catalog-out",
+        copyAssets: false,
+        blockSize: 16384,
+      });
+    });
+
+    const individualWarnings =
+      output.match(/! Block [a-f0-9]+ is \d+ kB, above the 16 kB budget/g) || [];
+    expect(individualWarnings).toHaveLength(5);
+    expect(output).toContain("...and 1 more block exceeds the 16 kB budget.");
   });
 
   it("exports many messages deterministically without empty history files", async function () {

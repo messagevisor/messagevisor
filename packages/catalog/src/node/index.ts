@@ -3,6 +3,7 @@ import * as childProcess from "child_process";
 import * as fs from "fs";
 import * as http from "http";
 import * as path from "path";
+import * as zlib from "zlib";
 
 import type {
   Attribute,
@@ -136,6 +137,10 @@ class CatalogProgressReporter {
   done(startedAt: number, detail?: string) {
     const suffix = detail ? ` ${detail}` : "";
     console.log(CLI_FORMAT_DIM, `    done in ${prettyDuration(Date.now() - startedAt)}${suffix}`);
+  }
+
+  warn(message: string) {
+    console.log(`    ${colorize("!", 33)} ${message}`);
   }
 
   setStart(set: string | undefined) {
@@ -1877,6 +1882,10 @@ async function buildSetCatalog(
   const blocks = toCatalogBlocks(messageBlockEntries, context.blockSize);
   const blockDirectoryPath = path.join(outputDirectoryPath, "blocks", "message");
 
+  const oversizedBlocks = blocks
+    .map((block) => ({ block, bytes: Buffer.byteLength(block.serialized, "utf8") }))
+    .filter((entry) => entry.bytes > context.blockSize);
+
   for (const block of blocks) {
     await context.writer.writeSerialized(
       path.join(blockDirectoryPath, `${block.contentHash}.json`),
@@ -1889,6 +1898,14 @@ async function buildSetCatalog(
     toCatalogRangeTable(blocks, context.blockSize),
   );
   context.progress.done(messageBlocksStartedAt, `(${pluralize(blocks.length, "block")})`);
+
+  for (const { block, bytes } of oversizedBlocks) {
+    context.progress.warn(
+      `Block ${block.contentHash} is ${Math.round(bytes / 1024)} kB, above the ${Math.round(
+        context.blockSize / 1024,
+      )} kB budget. It holds ${pluralize(Object.keys(block.content).length, "message")} that share a virtual bucket and cannot be split further.`,
+    );
+  }
 
   const messageHistoryStartedAt = context.progress.substep("Writing message history pages");
   await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
@@ -2658,6 +2675,97 @@ function getContentType(filePath: string) {
   }
 }
 
+function getAcceptedEncodingQuality(header: string | undefined, encoding: string) {
+  if (!header) {
+    return 0;
+  }
+
+  let wildcardQuality: number | undefined;
+
+  for (const value of header.toLowerCase().split(",")) {
+    const parts = value.trim().split(";");
+    const name = parts.shift()?.trim();
+    const qualityPart = parts.find((part) => part.trim().startsWith("q="));
+    const quality = qualityPart ? Number(qualityPart.trim().slice(2)) : 1;
+
+    if (!Number.isFinite(quality) || quality < 0) {
+      continue;
+    }
+
+    if (name === encoding) {
+      return quality;
+    }
+
+    if (name === "*") {
+      wildcardQuality = quality;
+    }
+  }
+
+  return wildcardQuality ?? 0;
+}
+
+function getCatalogCompressionEncoding(request: http.IncomingMessage, filePath: string) {
+  if (![".css", ".html", ".js", ".json"].includes(path.extname(filePath))) {
+    return undefined;
+  }
+
+  const acceptEncoding = request.headers["accept-encoding"];
+  const header = Array.isArray(acceptEncoding) ? acceptEncoding.join(",") : acceptEncoding;
+  const brotliQuality = getAcceptedEncodingQuality(header, "br");
+  const gzipQuality = getAcceptedEncodingQuality(header, "gzip");
+
+  if (
+    brotliQuality > 0 &&
+    typeof zlib.brotliCompress === "function" &&
+    brotliQuality >= gzipQuality
+  ) {
+    return "br" as const;
+  }
+
+  if (gzipQuality > 0) {
+    return "gzip" as const;
+  }
+
+  return undefined;
+}
+
+function sendCatalogResponse(
+  request: http.IncomingMessage,
+  response: http.ServerResponse,
+  filePath: string,
+  content: Buffer,
+  headers: Record<string, string>,
+) {
+  const compressionEncoding = getCatalogCompressionEncoding(request, filePath);
+  const responseHeaders = {
+    ...headers,
+    Vary: "Accept-Encoding",
+  };
+
+  if (!compressionEncoding) {
+    response.writeHead(200, responseHeaders);
+    response.end(content);
+    return;
+  }
+
+  const compressedHeaders = {
+    ...responseHeaders,
+    "Content-Encoding": compressionEncoding,
+  };
+  const compress = compressionEncoding === "br" ? zlib.brotliCompress : zlib.gzip;
+
+  compress(content, (error, compressedContent) => {
+    if (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end("Unable to compress Catalog response.");
+      return;
+    }
+
+    response.writeHead(200, compressedHeaders);
+    response.end(compressedContent);
+  });
+}
+
 function getCatalogCacheControl(filePath: string, outputDirectoryPath: string) {
   const relativePath = path.relative(outputDirectoryPath, filePath).split(path.sep).join("/");
 
@@ -2665,7 +2773,11 @@ function getCatalogCacheControl(filePath: string, outputDirectoryPath: string) {
     return "public, max-age=31536000, immutable";
   }
 
-  if (/(^|\/)(manifest|index|ranges)\.json$/.test(relativePath)) {
+  // All generated data metadata is mutable and must be revalidated. This
+  // includes layered index files and entity/history files whose names are not
+  // known here. Without an explicit directive, browsers may heuristically
+  // cache an old index and pair it with blocks from a newer export.
+  if (relativePath.startsWith("data/") && relativePath.endsWith(".json")) {
     return "no-cache, no-transform";
   }
 
@@ -3016,8 +3128,9 @@ export async function serveCatalog(
       if (!error) {
         if (options.liveReload && path.basename(safeFilePath) === "index.html") {
           const html = injectCatalogLiveReloadClient(content.toString("utf8"));
-          response.writeHead(200, { "Content-Type": "text/html" });
-          response.end(html);
+          sendCatalogResponse(request, response, safeFilePath, Buffer.from(html), {
+            "Content-Type": "text/html",
+          });
           return;
         }
 
@@ -3028,8 +3141,7 @@ export async function serveCatalog(
         if (cacheControl) {
           headers["Cache-Control"] = cacheControl;
         }
-        response.writeHead(200, headers);
-        response.end(content);
+        sendCatalogResponse(request, response, safeFilePath, content, headers);
         return;
       }
 
@@ -3051,13 +3163,25 @@ export async function serveCatalog(
         }
 
         if (options.liveReload) {
-          response.writeHead(200, { "Content-Type": "text/html" });
-          response.end(injectCatalogLiveReloadClient(indexContent.toString("utf8")));
+          sendCatalogResponse(
+            request,
+            response,
+            path.join(outputDirectoryPath, "index.html"),
+            Buffer.from(injectCatalogLiveReloadClient(indexContent.toString("utf8"))),
+            { "Content-Type": "text/html" },
+          );
           return;
         }
 
-        response.writeHead(200, { "Content-Type": "text/html" });
-        response.end(indexContent);
+        sendCatalogResponse(
+          request,
+          response,
+          path.join(outputDirectoryPath, "index.html"),
+          indexContent,
+          {
+            "Content-Type": "text/html",
+          },
+        );
       });
     });
   });
@@ -3162,9 +3286,11 @@ function assertCatalogOptionScope(parsed: CatalogPluginParsedOptions) {
 export const __catalogDevInternals = {
   classifyCatalogDevChanges,
   decodeCatalogRequestUrl,
+  getCatalogCompressionEncoding,
   getCatalogCacheControl,
   getCatalogInputWatchPaths,
   resolveCatalogRequestFilePath,
+  sendCatalogResponse,
 };
 
 export function createCatalogPlugin(

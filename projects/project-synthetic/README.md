@@ -15,6 +15,16 @@ message examples, and hundreds of repeated target assertions. The
 `used-formats` target also verifies that unused named formats are omitted from
 its generated datafile.
 
+Message payloads use a seeded variable-length distribution modelled on the
+spread seen in `project-1`. Generation is deterministic for a given number of
+messages, locales, and sets, so benchmark comparisons remain reproducible.
+Use `--variance=off` to restore the small, flat payloads used by older
+measurements:
+
+```bash
+node projects/project-synthetic/generate.mjs --sets=1 --messages=1000 --locales=3 --variance=off
+```
+
 Use smaller values while iterating:
 
 ```bash

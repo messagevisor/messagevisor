@@ -1,4 +1,5 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -24,6 +25,7 @@ const allLocales = [
 ];
 const locales = allLocales.slice(0, Math.max(1, Math.min(localeCount, allLocales.length)));
 const concurrency = getNumberOption("concurrency", 32);
+const historyCount = getNonNegativeNumberOption("history", 10);
 const varianceEnabled = getVarianceOption();
 
 function getNumberOption(name, fallback) {
@@ -32,6 +34,17 @@ function getNumberOption(name, fallback) {
 
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(`--${name} must be a positive integer.`);
+  }
+
+  return value;
+}
+
+function getNonNegativeNumberOption(name, fallback) {
+  const argument = process.argv.find((value) => value.startsWith(`--${name}=`));
+  const value = argument ? Number(argument.slice(name.length + 3)) : fallback;
+
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`--${name} must be a non-negative integer.`);
   }
 
   return value;
@@ -108,9 +121,10 @@ function localeDocument(locale) {
   ].join("\n");
 }
 
-function messageDocument(messageIndex) {
+function messageDocument(messageIndex, revision = 0) {
   const key = String(messageIndex).padStart(6, "0");
-  const lines = [`description: Synthetic message ${key}`, "translations:"];
+  const description = revision > 0 ? ` (history revision ${revision})` : "";
+  const lines = [`description: Synthetic message ${key}${description}`, "translations:"];
   const rng = mulberry32(messageIndex);
   const baseTranslationLength =
     varianceEnabled && messageIndex !== 1 ? translationLength(rng) : undefined;
@@ -340,6 +354,60 @@ async function generateSet(setName) {
   console.log(`Generated ${setName}: ${messages} messages, ${locales.length} locales.`);
 }
 
+function runGit(args) {
+  execFileSync("git", args, {
+    cwd: projectDirectoryPath,
+    stdio: "ignore",
+  });
+}
+
+async function generateSyntheticHistory() {
+  await rm(path.join(projectDirectoryPath, ".git"), { recursive: true, force: true });
+
+  if (historyCount === 0) {
+    return;
+  }
+
+  runGit(["init", "--quiet"]);
+  runGit(["config", "user.name", "Messagevisor Synthetic Fixture"]);
+  runGit(["config", "user.email", "synthetic@messagevisor.local"]);
+  runGit(["add", "--all", "--force", "--", "sets"]);
+  runGit(["commit", "--quiet", "-m", "Initial synthetic catalogue"]);
+
+  const fractions = [0.58, 0.45, 0.36, 0.28, 0.2, 0.15, 0.1, 0.08, 0.05];
+
+  for (let revision = 1; revision < historyCount; revision += 1) {
+    const setName = setNames[(revision - 1) % setNames.length];
+    const fraction = fractions[(revision - 1) % fractions.length];
+    const updateCount = Math.max(1, Math.round(messages * fraction));
+    const start = (revision * 7919) % messages;
+    const files = [];
+
+    for (let offset = 0; offset < updateCount; offset += 1) {
+      const messageIndex = ((start + offset) % messages) + 1;
+      const messageKey = String(messageIndex).padStart(6, "0");
+      files.push([
+        path.join(
+          projectDirectoryPath,
+          "sets",
+          setName,
+          "messages",
+          "synthetic",
+          "message",
+          `${messageKey}.yml`,
+        ),
+        messageDocument(messageIndex, revision),
+      ]);
+    }
+
+    await writeBatch(files);
+    runGit(["add", "--all", "--force", "--", "sets"]);
+    runGit(["commit", "--quiet", "-m", `Synthetic catalogue revision ${revision}`]);
+  }
+
+  console.log(`Generated ${historyCount} synthetic Git commits.`);
+}
+
 async function main() {
   // Generation is intentionally reproducible. A smaller follow-up run must
   // not leave files from a previous larger run behind.
@@ -348,9 +416,10 @@ async function main() {
   for (const setName of setNames) {
     await generateSet(setName);
   }
+  await generateSyntheticHistory();
 
   console.log(
-    `Generated ${setNames.length} set(s) under ${path.relative(process.cwd(), projectDirectoryPath)}.`,
+    `Generated ${setNames.length} set(s) and ${historyCount} Git commit(s) under ${path.relative(process.cwd(), projectDirectoryPath)}.`,
   );
 }
 

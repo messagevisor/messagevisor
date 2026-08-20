@@ -253,7 +253,9 @@ export interface CatalogRuntime {
 }
 
 export const CATALOG_SCHEMA_VERSION = "1";
+export const CATALOG_LAYOUT_VERSION = 2;
 export const CATALOG_HISTORY_PAGE_SIZE = 50;
+export const CATALOG_HISTORY_AGGREGATE_PAGE_SIZE = 500;
 
 type CatalogEntityType = "locale" | "message" | "attribute" | "segment" | "target";
 export type CatalogGitProvider = "github" | "gitlab" | "bitbucket";
@@ -276,6 +278,26 @@ interface CatalogHistoryEntry {
   author: string;
   timestamp: string;
   entities: CatalogHistoryEntity[];
+}
+
+interface CatalogHistoryCommit {
+  commit: string;
+  author: string;
+  timestamp: string;
+}
+
+interface CatalogHistoryDictionary {
+  commits: CatalogHistoryCommit[];
+  indexes: Map<string, number>;
+}
+
+interface EncodedHistoryEntry {
+  commit: number;
+  entities?: CatalogHistoryEntity[];
+}
+
+interface EncodedHistoryEntityEntry {
+  commit: number;
 }
 
 interface CatalogLastModified {
@@ -1054,10 +1076,16 @@ function buildCatalogHistoryIndex(entries: CatalogHistoryEntry[]): CatalogHistor
         index.lastModifiedByEntity[entityKey] = toLastModified(entry);
       }
 
-      if (entity.set && !seenSets.has(entity.set)) {
+      if (entity.set) {
         seenSets.add(entity.set);
-        addHistoryIndexEntry(index.bySet, entity.set, entry);
       }
+    }
+
+    for (const set of seenSets) {
+      addHistoryIndexEntry(index.bySet, set, {
+        ...entry,
+        entities: entry.entities.filter((entity) => entity.set === set),
+      });
     }
   }
 
@@ -1388,28 +1416,173 @@ function chunkHistory(history: CatalogHistoryEntry[], pageSize = CATALOG_HISTORY
   return pages.length > 0 ? pages : [[]];
 }
 
+function chunkHistoryByEntityReferences(
+  history: CatalogHistoryEntry[],
+  pageSize = CATALOG_HISTORY_AGGREGATE_PAGE_SIZE,
+) {
+  const pages: CatalogHistoryEntry[][] = [];
+  let currentPage: CatalogHistoryEntry[] = [];
+  let currentSize = 0;
+
+  function flushPage() {
+    if (currentPage.length > 0) {
+      pages.push(currentPage);
+      currentPage = [];
+      currentSize = 0;
+    }
+  }
+
+  for (const entry of history) {
+    if (entry.entities.length === 0) {
+      continue;
+    }
+
+    let offset = 0;
+    while (offset < entry.entities.length) {
+      if (currentSize === pageSize) {
+        flushPage();
+      }
+
+      const available = pageSize - currentSize;
+      const entities = entry.entities.slice(offset, offset + available);
+      currentPage.push({ ...entry, entities });
+      currentSize += entities.length;
+      offset += entities.length;
+    }
+  }
+
+  flushPage();
+  return pages.length > 0 ? pages : [[]];
+}
+
+function createHistoryDictionary(history: CatalogHistoryEntry[]): CatalogHistoryDictionary {
+  const commits: CatalogHistoryCommit[] = [];
+  const indexes = new Map<string, number>();
+
+  for (const entry of history) {
+    if (indexes.has(entry.commit)) {
+      continue;
+    }
+
+    indexes.set(entry.commit, commits.length);
+    commits.push({
+      commit: entry.commit,
+      author: entry.author,
+      timestamp: entry.timestamp,
+    });
+  }
+
+  return { commits, indexes };
+}
+
+function encodeHistoryEntry(
+  entry: CatalogHistoryEntry,
+  dictionary: CatalogHistoryDictionary,
+  includeEntities: boolean,
+): EncodedHistoryEntry {
+  const commit = dictionary.indexes.get(entry.commit);
+  if (commit === undefined) {
+    throw new Error(`History commit "${entry.commit}" is missing from its dictionary.`);
+  }
+
+  return includeEntities ? { commit, entities: entry.entities } : { commit };
+}
+
+async function writeHistoryDictionary(
+  writer: CatalogJsonWriter,
+  directoryPath: string,
+  dictionary: CatalogHistoryDictionary,
+) {
+  await writer.write(path.join(directoryPath, "commits.json"), {
+    commits: dictionary.commits,
+  });
+}
+
 async function writeHistoryPages(
   writer: CatalogJsonWriter,
   directoryPath: string,
   history: CatalogHistoryEntry[],
-  options: { skipEmpty?: boolean } = {},
+  options: {
+    skipEmpty?: boolean;
+    dictionary?: CatalogHistoryDictionary;
+    aggregate?: boolean;
+  } = {},
 ) {
   if (options.skipEmpty && history.length === 0) {
     return 1;
   }
 
-  const pages = chunkHistory(history);
+  const pageSize = options.aggregate
+    ? CATALOG_HISTORY_AGGREGATE_PAGE_SIZE
+    : CATALOG_HISTORY_PAGE_SIZE;
+  const pages = options.aggregate
+    ? chunkHistoryByEntityReferences(history, pageSize)
+    : chunkHistory(history, pageSize);
 
   for (let index = 0; index < pages.length; index++) {
     await writer.write(path.join(directoryPath, `page-${index + 1}.json`), {
       page: index + 1,
-      pageSize: CATALOG_HISTORY_PAGE_SIZE,
+      pageSize,
       totalPages: pages.length,
-      entries: pages[index],
+      entries: options.dictionary
+        ? pages[index].map((entry) => encodeHistoryEntry(entry, options.dictionary!, true))
+        : pages[index],
     });
   }
 
   return 0;
+}
+
+async function writeHistoryBlocks(
+  writer: CatalogJsonWriter,
+  outputDirectoryPath: string,
+  historyIndex: CatalogHistoryIndex,
+  dictionary: CatalogHistoryDictionary,
+  entityKeysByType: Record<CatalogEntityType, string[]>,
+  set: string | undefined,
+  blockSize: number,
+) {
+  let entityCount = 0;
+  let blockCount = 0;
+
+  for (const type of Object.keys(entityKeysByType) as CatalogEntityType[]) {
+    const entries: BlockPlanEntry<EncodedHistoryEntityEntry[]>[] = [];
+
+    for (const key of entityKeysByType[type]) {
+      const history = getHistoryForEntity(historyIndex, type, key, set);
+      if (history.length === 0) {
+        continue;
+      }
+
+      entityCount += 1;
+      entries.push({
+        key,
+        payload: history.map((entry) => encodeHistoryEntry(entry, dictionary, false)),
+      });
+    }
+
+    if (entries.length === 0) {
+      continue;
+    }
+
+    const blocks = toCatalogBlocks(entries, blockSize);
+    const blockDirectoryPath = path.join(outputDirectoryPath, "blocks", "history", type);
+
+    for (const block of blocks) {
+      await writer.writeSerialized(
+        path.join(blockDirectoryPath, `${block.contentHash}.json`),
+        block.serialized,
+      );
+    }
+
+    await writer.write(
+      path.join(blockDirectoryPath, "ranges.json"),
+      toCatalogRangeTable(blocks, blockSize, CATALOG_LAYOUT_VERSION),
+    );
+    blockCount += blocks.length;
+  }
+
+  return { entityCount, blockCount };
 }
 
 function getHistoryForEntity(
@@ -1664,8 +1837,38 @@ async function buildSetCatalog(
   };
 
   const historyStartedAt = context.progress.step("Writing history pages");
-  await writeHistoryPages(context.writer, path.join(outputDirectoryPath, "history"), history);
+  const historyDictionary = createHistoryDictionary(history);
+  const historyDirectoryPath = path.join(outputDirectoryPath, "history");
+  await writeHistoryDictionary(context.writer, historyDirectoryPath, historyDictionary);
+  await writeHistoryPages(context.writer, historyDirectoryPath, history, {
+    dictionary: historyDictionary,
+    aggregate: true,
+  });
   context.progress.done(historyStartedAt, `(${pluralize(history.length, "entry", "entries")})`);
+
+  const historyBlocksStartedAt = context.progress.step("Writing history blocks");
+  const historyBlockStats = await writeHistoryBlocks(
+    context.writer,
+    outputDirectoryPath,
+    context.historyIndex,
+    historyDictionary,
+    {
+      locale: localeKeys,
+      message: messageKeys,
+      attribute: attributeKeys,
+      segment: segmentKeys,
+      target: targetKeys,
+    },
+    set,
+    context.blockSize,
+  );
+  context.progress.done(
+    historyBlocksStartedAt,
+    `(${pluralize(historyBlockStats.entityCount, "history entity", "history entities")}, ${pluralize(
+      historyBlockStats.blockCount,
+      "block",
+    )})`,
+  );
 
   const examplesStartedAt = context.progress.step("Evaluating examples");
   const evaluatedMessageExamplesByKey = (
@@ -1718,7 +1921,6 @@ async function buildSetCatalog(
   );
 
   const localesStartedAt = context.progress.step("Writing locales");
-  let skippedEmptyHistoryCount = 0;
   await mapWithConcurrency(localeKeys, 32, async (localeKey) => {
     const locale = locales[localeKey];
     const sourceFileInfo = getSourceFileInfo(
@@ -1759,13 +1961,6 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "locale", `${encodeKey(localeKey)}.json`),
       detail,
     );
-    const skippedHistory = await writeHistoryPages(
-      context.writer,
-      path.join(outputDirectoryPath, "history", "locale", encodeKey(localeKey)),
-      getHistoryForEntity(context.historyIndex, "locale", localeKey, set || undefined),
-      { skipEmpty: true },
-    );
-    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(localesStartedAt, `(${pluralize(localeKeys.length, "locale")})`);
 
@@ -1803,7 +1998,6 @@ async function buildSetCatalog(
   const messagesStartedAt = context.progress.step("Writing messages");
   const messageDetailsStartedAt = context.progress.substep("Writing message details");
   const messageBlockEntries: BlockPlanEntry[] = [];
-  let skippedEmptyMessageHistoryCount = 0;
   await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
     const message = messages[messageKey];
     const overrides = (message.overrides || []).map((override: Override) => {
@@ -1895,7 +2089,7 @@ async function buildSetCatalog(
 
   await context.writer.write(
     path.join(blockDirectoryPath, "ranges.json"),
-    toCatalogRangeTable(blocks, context.blockSize),
+    toCatalogRangeTable(blocks, context.blockSize, CATALOG_LAYOUT_VERSION),
   );
   context.progress.done(messageBlocksStartedAt, `(${pluralize(blocks.length, "block")})`);
 
@@ -1923,33 +2117,7 @@ async function buildSetCatalog(
     );
   }
 
-  const messageHistoryStartedAt = context.progress.substep("Writing message history pages");
-  await mapWithConcurrency(messageKeys, 32, async (messageKey) => {
-    const skippedHistory = await writeHistoryPages(
-      context.writer,
-      path.join(outputDirectoryPath, "history", "message", encodeKey(messageKey)),
-      getHistoryForEntity(context.historyIndex, "message", messageKey, set || undefined),
-      { skipEmpty: true },
-    );
-    skippedEmptyMessageHistoryCount += skippedHistory;
-    skippedEmptyHistoryCount += skippedHistory;
-  });
-  context.progress.done(
-    messageHistoryStartedAt,
-    `(${pluralize(messageKeys.length, "message")}, ${pluralize(
-      skippedEmptyMessageHistoryCount,
-      "empty history",
-      "empty histories",
-    )} skipped)`,
-  );
-  context.progress.done(
-    messagesStartedAt,
-    `(${pluralize(messageKeys.length, "message")}, ${pluralize(
-      skippedEmptyMessageHistoryCount,
-      "empty history",
-      "empty histories",
-    )} skipped)`,
-  );
+  context.progress.done(messagesStartedAt, `(${pluralize(messageKeys.length, "message")})`);
 
   if (context.withTranslationSearch) {
     const translationSearchStartedAt = context.progress.step("Building translation search shards");
@@ -2036,13 +2204,6 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "attribute", `${encodeKey(attributeKey)}.json`),
       detail,
     );
-    const skippedHistory = await writeHistoryPages(
-      context.writer,
-      path.join(outputDirectoryPath, "history", "attribute", encodeKey(attributeKey)),
-      getHistoryForEntity(context.historyIndex, "attribute", attributeKey, set || undefined),
-      { skipEmpty: true },
-    );
-    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(attributesStartedAt, `(${pluralize(attributeKeys.length, "attribute")})`);
 
@@ -2084,13 +2245,6 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "segment", `${encodeKey(segmentKey)}.json`),
       detail,
     );
-    const skippedHistory = await writeHistoryPages(
-      context.writer,
-      path.join(outputDirectoryPath, "history", "segment", encodeKey(segmentKey)),
-      getHistoryForEntity(context.historyIndex, "segment", segmentKey, set || undefined),
-      { skipEmpty: true },
-    );
-    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(segmentsStartedAt, `(${pluralize(segmentKeys.length, "segment")})`);
 
@@ -2158,13 +2312,6 @@ async function buildSetCatalog(
       path.join(outputDirectoryPath, "entities", "target", `${encodeKey(targetKey)}.json`),
       detail,
     );
-    const skippedHistory = await writeHistoryPages(
-      context.writer,
-      path.join(outputDirectoryPath, "history", "target", encodeKey(targetKey)),
-      getHistoryForEntity(context.historyIndex, "target", targetKey, set || undefined),
-      { skipEmpty: true },
-    );
-    skippedEmptyHistoryCount += skippedHistory;
   });
   context.progress.done(targetsStartedAt, `(${pluralize(targetKeys.length, "target")})`);
 
@@ -2177,7 +2324,7 @@ async function buildSetCatalog(
   context.progress.done(indexStartedAt);
   context.progress.done(
     setStartedAt,
-    `total (${pluralize(skippedEmptyHistoryCount, "empty history", "empty histories")} skipped)`,
+    `total (${pluralize(historyBlockStats.entityCount, "history entity", "history entities")})`,
   );
 
   return index;
@@ -2372,10 +2519,11 @@ async function writeCatalogManifest(
       duplicates: options.withDuplicates,
     },
     layout: {
-      version: 1,
+      version: CATALOG_LAYOUT_VERSION,
       blockSize: options.outputOptions.blockSize,
       vbucketBits: VBUCKET_BITS,
       blockedTypes: ["message"],
+      blockedHistoryTypes: ["locale", "message", "attribute", "segment", "target"],
     },
     links: session.links,
     paths: {
@@ -2603,11 +2751,13 @@ export async function exportCatalog(
   const setIndexes: Record<string, CatalogSetIndex> = {};
 
   stepStartedAt = progress.step("Writing project history");
-  await writeHistoryPages(
-    writer,
-    path.join(dataDirectoryPath, "project", "history"),
-    historyIndex.entries,
-  );
+  const projectHistoryDirectoryPath = path.join(dataDirectoryPath, "project", "history");
+  const projectHistoryDictionary = createHistoryDictionary(historyIndex.entries);
+  await writeHistoryDictionary(writer, projectHistoryDirectoryPath, projectHistoryDictionary);
+  await writeHistoryPages(writer, projectHistoryDirectoryPath, historyIndex.entries, {
+    dictionary: projectHistoryDictionary,
+    aggregate: true,
+  });
   progress.done(stepStartedAt, `(${pluralize(historyIndex.entries.length, "entry", "entries")})`);
 
   for (const execution of executions) {
@@ -2637,10 +2787,11 @@ export async function exportCatalog(
       duplicates: withDuplicates,
     },
     layout: {
-      version: 1,
+      version: CATALOG_LAYOUT_VERSION,
       blockSize: outputOptions.blockSize,
       vbucketBits: VBUCKET_BITS,
       blockedTypes: ["message"],
+      blockedHistoryTypes: ["locale", "message", "attribute", "segment", "target"],
     },
     links,
     paths: {

@@ -103,6 +103,7 @@ export interface CatalogManifest {
     blockSize: number;
     vbucketBits: number;
     blockedTypes: EntityType[];
+    blockedHistoryTypes?: EntityType[];
   };
   paths: {
     projectHistory: string;

@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -42,13 +43,73 @@ function run(commandName) {
     child.on("exit", (code, signal) => {
       const duration = (performance.now() - startedAt) / 1000;
       if (code === 0) {
-        console.log(`\n${commandName}: ${duration.toFixed(2)}s\n`);
-        resolve(duration);
+        if (commandName === "catalog") {
+          countCatalogFiles().then(async ({ catalogFiles, messageFiles }) => {
+            const historyFiles = await countHistoryFiles(
+              path.join(projectDirectoryPath, ".synthetic-catalog"),
+            );
+            const historyFileBudget = Math.floor(messageFiles / 50) + 250;
+            if (catalogFiles >= messageFiles || historyFiles > historyFileBudget) {
+              reject(
+                new Error(
+                  `Catalog wrote ${catalogFiles} files and ${historyFiles} history files for ${messageFiles} messages; expected fewer total files than messages and no more than ${historyFileBudget} history files.`,
+                ),
+              );
+              return;
+            }
+
+            console.log(
+              `\n${commandName}: ${duration.toFixed(2)}s (${catalogFiles} files, ${historyFiles} history files, ${messageFiles} message files)\n`,
+            );
+            resolve(duration);
+          }, reject);
+        } else {
+          console.log(`\n${commandName}: ${duration.toFixed(2)}s\n`);
+          resolve(duration);
+        }
       } else {
         reject(new Error(`${commandName} failed with ${signal || `exit code ${code}`}.`));
       }
     });
   });
+}
+
+async function countFiles(directoryPath, predicate = () => true) {
+  let total = 0;
+  const entries = await readdir(directoryPath, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const entryPath = path.join(directoryPath, entry.name);
+    total += entry.isDirectory()
+      ? await countFiles(entryPath, predicate)
+      : predicate(entryPath)
+        ? 1
+        : 0;
+  }
+
+  return total;
+}
+
+function countHistoryFiles(directoryPath) {
+  return countFiles(directoryPath, (filePath) => filePath.split(path.sep).includes("history"));
+}
+
+async function countCatalogFiles() {
+  const catalogFiles = await countFiles(path.join(projectDirectoryPath, ".synthetic-catalog"));
+  const setEntries = await readdir(path.join(projectDirectoryPath, "sets"), {
+    withFileTypes: true,
+  });
+  let messageFiles = 0;
+
+  for (const entry of setEntries) {
+    if (entry.isDirectory()) {
+      messageFiles += await countFiles(
+        path.join(projectDirectoryPath, "sets", entry.name, "messages"),
+      );
+    }
+  }
+
+  return { catalogFiles, messageFiles };
 }
 
 async function main() {

@@ -48,7 +48,7 @@ Set switcher ordering is intentional: set names starting with `dev` appear first
 
 ## Large projects
 
-Catalog indexes use compact per-type layers. The core layer contains keys and filter facets, while descriptions and display metadata are loaded separately by the Catalog UI. Message details are always stored in deterministic, content-addressed JSON blocks. Other entity types remain individual files, and older single-file indexes remain readable.
+Catalog indexes use compact per-type layers. The core layer contains keys and filter facets, while descriptions and display metadata are loaded separately by the Catalog UI. Message details and per-entity history are stored in deterministic, content-addressed JSON blocks, and the UI resolves them lazily. Aggregate project and set history remains paginated by entity references, with a commit dictionary shared by each history scope. Other entity types remain individual files, and older single-file indexes remain readable.
 
 For projects with many thousands of messages, tune the message block size when needed:
 
@@ -59,6 +59,8 @@ npx messagevisor catalog export --blockSize=524288
 ```
 
 Message details are always stored in deterministic, content-addressed JSON blocks and a range table locates the block for a message. Other entity types continue to use individual files. The default block size is 256 KiB; configure `catalogBlockSize` in `messagevisor.config.js` or override it for one export with `--blockSize=<bytes>`.
+
+History detail blocks use the same virtual bucket and content hash strategy. A history block stores only commit indexes for each entity, while `history/commits.json` stores the shared author and timestamp metadata. The Catalog API expands this compact representation back into the normal history shape and still reads older page based history exports.
 
 `--prettyOutput` is for local inspection only. Compact JSON is the default. Detail block filenames use short content hashes and can be cached immutably. Index layers and range metadata must remain revalidatable. `catalog serve` serves an existing export and does not generate or change Catalog data.
 

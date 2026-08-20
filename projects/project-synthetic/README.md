@@ -11,7 +11,8 @@ npm run generate --workspace @messagevisor/project-synthetic
 
 The default fixture contains three sets, 50,000 messages per set, twelve
 locales per set, four targets, segments, attributes, named ICU format presets,
-message examples, and hundreds of repeated target assertions. The
+message examples, hundreds of repeated target assertions, and ten synthetic Git
+commits that touch large batches of messages. The
 `used-formats` target also verifies that unused named formats are omitted from
 its generated datafile.
 
@@ -30,6 +31,10 @@ Use smaller values while iterating:
 ```bash
 node projects/project-synthetic/generate.mjs --sets=1 --messages=1000 --locales=3
 ```
+
+The default generator creates local Git history so Catalog benchmarks include
+realistic history data. Use `--history=0` when history is not part of a run.
+The nested repository and all generated YAML remain ignored by the monorepo.
 
 Run a selected CLI benchmark after building the monorepo:
 

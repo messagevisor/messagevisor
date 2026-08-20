@@ -116,6 +116,49 @@ async function readMessageDetail<T>(root: string, dataDirectory: string, key: st
   return block[key];
 }
 
+async function readHistoryPage<T = any>(root: string, relativePath: string): Promise<T> {
+  const page = await readJson<any>(root, relativePath);
+  if (typeof page.entries?.[0]?.commit !== "number") {
+    return page as T;
+  }
+
+  const dictionary = await readJson<{
+    commits: Array<{ commit: string; author: string; timestamp: string }>;
+  }>(root, `${path.dirname(relativePath)}/commits.json`);
+
+  return {
+    ...page,
+    entries: page.entries.map((entry: any) => ({
+      ...dictionary.commits[entry.commit],
+      entities: entry.entities,
+    })),
+  } as T;
+}
+
+async function readEntityHistory<T = any>(
+  root: string,
+  dataDirectory: string,
+  type: string,
+  key: string,
+  set?: string,
+): Promise<T> {
+  const ranges = await readJson<any>(root, `${dataDirectory}/blocks/history/${type}/ranges.json`);
+  const hash = findBlockHash(ranges, getVirtualBucket(key));
+  const block = await readJson<Record<string, Array<{ commit: number }>>>(
+    root,
+    `${dataDirectory}/blocks/history/${type}/${hash}.json`,
+  );
+  const dictionary = await readJson<{
+    commits: Array<{ commit: string; author: string; timestamp: string }>;
+  }>(root, `${dataDirectory}/history/commits.json`);
+  const entries = (block[key] || []).map((entry) => ({
+    ...dictionary.commits[entry.commit],
+    entities: [{ type, key, ...(set ? { set } : {}) }],
+  }));
+
+  return { page: 1, pageSize: entries.length, totalPages: 1, entries } as T;
+}
+
 async function pathExists(root: string, relativePath: string) {
   try {
     await fs.promises.access(path.join(root, relativePath));
@@ -878,7 +921,7 @@ describe("catalog", function () {
     expect(output).toContain("Processing entities");
     expect(output).toContain("Writing messages");
     expect(output).toContain("Writing message details");
-    expect(output).toContain("Writing message history pages");
+    expect(output).toContain("Writing history blocks");
     expect(output).toContain("Writing manifest");
     expect(output).toContain("Catalog exported to catalog-out");
     expect(output).toContain("Time:");
@@ -1044,7 +1087,7 @@ describe("catalog", function () {
       pathExists(root, "catalog-out/data/root/history/message/bulk.0000/page-1.json"),
     ).resolves.toBe(false);
     expect(output).toContain("1200 messages");
-    expect(output).toContain("1200 empty histories skipped");
+    expect(output).toContain("0 history entities");
   }, 30_000);
 
   it("streams Git history into project, entity, and last-modified catalog data", async function () {
@@ -1083,17 +1126,25 @@ describe("catalog", function () {
       copyAssets: false,
     });
 
-    const projectHistory = await readJson<any>(
+    const projectHistory = await readHistoryPage<any>(
       root,
       "catalog-out/data/project/history/page-1.json",
     );
-    const messageHistory = await readJson<any>(
+    const messageHistory = await readEntityHistory<any>(
       root,
-      "catalog-out/data/root/history/message/common.welcome/page-1.json",
+      "catalog-out/data/root",
+      "message",
+      "common.welcome",
     );
-    const spacedMessageHistory = await readJson<any>(
+    const spacedMessageHistory = await readEntityHistory<any>(
       root,
-      "catalog-out/data/root/history/message/common.with-space/page-1.json",
+      "catalog-out/data/root",
+      "message",
+      "common.with-space",
+    );
+    const historyDictionary = await readJson<any>(
+      root,
+      "catalog-out/data/root/history/commits.json",
     );
     const index = await readJson<any>(root, "catalog-out/data/root/index.json");
     const message = await readMessageDetail<any>(root, "catalog-out/data/root", "common.welcome");
@@ -1119,6 +1170,7 @@ describe("catalog", function () {
     expect(spacedMessageHistory.entries[0].entities).toEqual([
       { type: "message", key: "common.with-space" },
     ]);
+    expect(historyDictionary.commits).toHaveLength(2);
     expect(message.lastModified).toMatchObject({
       author: "Catalog Tester",
       commit: projectHistory.entries[0].commit,
@@ -1161,21 +1213,38 @@ describe("catalog", function () {
       copyAssets: false,
     });
 
-    const projectHistory = await readJson<any>(
+    const projectHistory = await readHistoryPage<any>(
       root,
       "catalog-out/data/project/history/page-1.json",
     );
-    const firstMessageHistory = await readJson<any>(
+    const projectHistoryAllEntities = [] as any[];
+    for (let page = 1; page <= projectHistory.totalPages; page++) {
+      const historyPage = await readHistoryPage<any>(
+        root,
+        `catalog-out/data/project/history/page-${page}.json`,
+      );
+      projectHistoryAllEntities.push(
+        ...historyPage.entries.flatMap((entry: any) => entry.entities),
+      );
+    }
+    const firstMessageHistory = await readEntityHistory<any>(
       root,
-      "catalog-out/data/root/history/message/bulk.0000/page-1.json",
+      "catalog-out/data/root",
+      "message",
+      "bulk.0000",
     );
-    const lastMessageHistory = await readJson<any>(
+    const lastMessageHistory = await readEntityHistory<any>(
       root,
-      "catalog-out/data/root/history/message/bulk.1199/page-1.json",
+      "catalog-out/data/root",
+      "message",
+      "bulk.1199",
     );
 
-    expect(projectHistory.entries[0].entities).toHaveLength(messageCount + 1);
-    expect(projectHistory.entries[0].entities).toEqual(
+    expect(projectHistory.pageSize).toBe(500);
+    expect(projectHistory.totalPages).toBe(3);
+    expect(projectHistory.entries[0].entities).toHaveLength(500);
+    expect(projectHistoryAllEntities).toHaveLength(messageCount + 1);
+    expect(projectHistoryAllEntities).toEqual(
       expect.arrayContaining([
         { type: "locale", key: "en" },
         { type: "message", key: "bulk.0000" },
@@ -1621,26 +1690,37 @@ describe("catalog", function () {
       copyAssets: false,
     });
 
-    const projectHistory = await readJson<any>(
+    const projectHistory = await readHistoryPage<any>(
       root,
       "catalog-out/data/project/history/page-1.json",
     );
-    const storefrontHistory = await readJson<any>(
+    const storefrontHistory = await readHistoryPage<any>(
       root,
       "catalog-out/data/sets/storefront/history/page-1.json",
     );
-    const adminHistory = await readJson<any>(
+    const adminHistory = await readHistoryPage<any>(
       root,
       "catalog-out/data/sets/admin/history/page-1.json",
     );
-    const adminMessageHistory = await readJson<any>(
+    const adminMessageHistory = await readEntityHistory<any>(
       root,
-      "catalog-out/data/sets/admin/history/message/common.welcome/page-1.json",
+      "catalog-out/data/sets/admin",
+      "message",
+      "common.welcome",
+      "admin",
     );
 
     expect(projectHistory.entries).toHaveLength(1);
     expect(storefrontHistory.entries).toHaveLength(1);
     expect(adminHistory.entries).toHaveLength(1);
+    expect(storefrontHistory.entries[0].entities).toEqual([
+      { type: "locale", key: "en", set: "storefront" },
+      { type: "message", key: "common.welcome", set: "storefront" },
+    ]);
+    expect(adminHistory.entries[0].entities).toEqual([
+      { type: "locale", key: "en", set: "admin" },
+      { type: "message", key: "common.welcome", set: "admin" },
+    ]);
     expect(adminMessageHistory.entries[0].entities).toEqual(
       expect.arrayContaining([{ type: "message", key: "common.welcome", set: "admin" }]),
     );
@@ -1687,22 +1767,24 @@ describe("catalog", function () {
       copyAssets: false,
     });
 
-    const projectHistory = await readJson<any>(
+    const projectHistory = await readHistoryPage<any>(
       root,
       "catalog-out/data/project/history/page-1.json",
     );
-    const messageHistory = await readJson<any>(
+    const messageHistory = await readEntityHistory<any>(
       root,
-      "catalog-out/data/root/history/message/common.welcome/page-1.json",
+      "catalog-out/data/root",
+      "message",
+      "common.welcome",
     );
 
-    expect(projectHistory.totalPages).toBe(2);
-    expect(projectHistory.entries).toHaveLength(50);
+    expect(projectHistory.totalPages).toBe(1);
+    expect(projectHistory.entries).toHaveLength(61);
     expect(projectHistory.entries[0].entities).toEqual([
       { type: "message", key: "common.welcome" },
     ]);
-    expect(messageHistory.totalPages).toBe(2);
-    expect(messageHistory.entries).toHaveLength(50);
+    expect(messageHistory.totalPages).toBe(1);
+    expect(messageHistory.entries).toHaveLength(61);
   }, 30_000);
 
   it("uses root-relative asset paths for browser-router refresh safety", async function () {

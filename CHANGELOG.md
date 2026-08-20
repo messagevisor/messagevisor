@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.7.0](https://github.com/messagevisor/messagevisor/compare/v1.6.0...v1.7.0) (2026-08-20)
+
+
+### Features
+
+* block based catalog export for history entries ([#44](https://github.com/messagevisor/messagevisor/issues/44)) ([9e53871](https://github.com/messagevisor/messagevisor/commit/9e5387108afa8ab501791ae0570b0c80d136470c))
+
+
+
+
+
 # [1.6.0](https://github.com/messagevisor/messagevisor/compare/v1.5.1...v1.6.0) (2026-08-18)
 
 

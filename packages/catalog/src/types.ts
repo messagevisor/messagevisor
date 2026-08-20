@@ -130,6 +130,7 @@ export interface HistoryPage {
   page: number;
   pageSize: number;
   totalPages: number;
+  totalEntityReferences?: number;
   entries: HistoryEntry[];
 }
 

@@ -10,7 +10,9 @@ export function HistoryPage() {
   const { setKey } = useParams();
   const path = setKey
     ? `/data/sets/${encodeRouteSegment(setKey)}/history`
-    : "/data/project/history";
+    : manifest.sets
+      ? "/data/project/history"
+      : "/data/root/history";
 
   return (
     <div>

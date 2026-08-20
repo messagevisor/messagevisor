@@ -125,12 +125,25 @@ async function readHistoryPage<T = any>(root: string, relativePath: string): Pro
   const dictionary = await readJson<{
     commits: Array<{ commit: string; author: string; timestamp: string }>;
   }>(root, `${path.dirname(relativePath)}/commits.json`);
+  const keyDictionary = page.entries[0].entities.some((entity: any) => typeof entity === "number")
+    ? await readJson<{
+        keys: Array<[string, string]>;
+      }>(root, `${path.dirname(relativePath)}/keys.json`)
+    : undefined;
+  const setMatch = relativePath.match(/data\/sets\/([^/]+)\/history/);
+  const set = setMatch ? decodeURIComponent(setMatch[1]) : undefined;
 
   return {
     ...page,
     entries: page.entries.map((entry: any) => ({
       ...dictionary.commits[entry.commit],
-      entities: entry.entities,
+      entities: keyDictionary
+        ? entry.entities.map((index: number) => ({
+            type: keyDictionary.keys[index][0],
+            key: keyDictionary.keys[index][1],
+            ...(set ? { set } : {}),
+          }))
+        : entry.entities,
     })),
   } as T;
 }
@@ -394,13 +407,16 @@ describe("catalog", function () {
     );
     const segment = await readJson<any>(root, "catalog-out/data/root/entities/segment/pro.json");
     const target = await readJson<any>(root, "catalog-out/data/root/entities/target/web.json");
-    const history = await readJson<any>(root, "catalog-out/data/project/history/page-1.json");
+    const history = await readJson<any>(root, "catalog-out/data/root/history/page-1.json");
 
     expect(manifest.sets).toBe(false);
     expect(manifest.router).toBe("browser");
     expect(manifest.dev).toBeUndefined();
     expect(manifest.features).toEqual({ translationSearch: false, duplicates: false });
     expect(manifest.paths.root).toBe("data/root/index.json");
+    expect(manifest.paths.projectHistory).toBe("data/root/history/page-1.json");
+    expect(manifest.layout.version).toBe(3);
+    expect(history.totalEntityReferences).toBe(0);
     await expect(pathExists(root, "catalog-out/data/root/translations/77656c.json")).resolves.toBe(
       false,
     );
@@ -916,7 +932,7 @@ describe("catalog", function () {
     expect(output).toContain("Preparing output directory");
     expect(output).toContain("Reading Git history");
     expect(output).toContain("Discovering project sets");
-    expect(output).toContain("Writing project history");
+    expect(output).toContain("Writing history pages");
     expect(output).toContain("Root catalog");
     expect(output).toContain("Processing entities");
     expect(output).toContain("Writing messages");
@@ -1128,7 +1144,7 @@ describe("catalog", function () {
 
     const projectHistory = await readHistoryPage<any>(
       root,
-      "catalog-out/data/project/history/page-1.json",
+      "catalog-out/data/root/history/page-1.json",
     );
     const messageHistory = await readEntityHistory<any>(
       root,
@@ -1145,6 +1161,10 @@ describe("catalog", function () {
     const historyDictionary = await readJson<any>(
       root,
       "catalog-out/data/root/history/commits.json",
+    );
+    const historyKeyDictionary = await readJson<any>(
+      root,
+      "catalog-out/data/root/history/keys.json",
     );
     const index = await readJson<any>(root, "catalog-out/data/root/index.json");
     const message = await readMessageDetail<any>(root, "catalog-out/data/root", "common.welcome");
@@ -1171,6 +1191,12 @@ describe("catalog", function () {
       { type: "message", key: "common.with-space" },
     ]);
     expect(historyDictionary.commits).toHaveLength(2);
+    expect(historyKeyDictionary.keys).toEqual(
+      expect.arrayContaining([
+        ["message", "common.welcome"],
+        ["message", "common.with-space"],
+      ]),
+    );
     expect(message.lastModified).toMatchObject({
       author: "Catalog Tester",
       commit: projectHistory.entries[0].commit,
@@ -1215,13 +1241,13 @@ describe("catalog", function () {
 
     const projectHistory = await readHistoryPage<any>(
       root,
-      "catalog-out/data/project/history/page-1.json",
+      "catalog-out/data/root/history/page-1.json",
     );
     const projectHistoryAllEntities = [] as any[];
     for (let page = 1; page <= projectHistory.totalPages; page++) {
       const historyPage = await readHistoryPage<any>(
         root,
-        `catalog-out/data/project/history/page-${page}.json`,
+        `catalog-out/data/root/history/page-${page}.json`,
       );
       projectHistoryAllEntities.push(
         ...historyPage.entries.flatMap((entry: any) => entry.entities),
@@ -1690,10 +1716,6 @@ describe("catalog", function () {
       copyAssets: false,
     });
 
-    const projectHistory = await readHistoryPage<any>(
-      root,
-      "catalog-out/data/project/history/page-1.json",
-    );
     const storefrontHistory = await readHistoryPage<any>(
       root,
       "catalog-out/data/sets/storefront/history/page-1.json",
@@ -1710,7 +1732,7 @@ describe("catalog", function () {
       "admin",
     );
 
-    expect(projectHistory.entries).toHaveLength(1);
+    expect(await pathExists(root, "catalog-out/data/project/history/page-1.json")).toBe(false);
     expect(storefrontHistory.entries).toHaveLength(1);
     expect(adminHistory.entries).toHaveLength(1);
     expect(storefrontHistory.entries[0].entities).toEqual([
@@ -1769,7 +1791,7 @@ describe("catalog", function () {
 
     const projectHistory = await readHistoryPage<any>(
       root,
-      "catalog-out/data/project/history/page-1.json",
+      "catalog-out/data/root/history/page-1.json",
     );
     const messageHistory = await readEntityHistory<any>(
       root,

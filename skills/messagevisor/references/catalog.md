@@ -60,7 +60,9 @@ npx messagevisor catalog export --blockSize=524288
 
 Message details are always stored in deterministic, content-addressed JSON blocks and a range table locates the block for a message. Other entity types continue to use individual files. The default block size is 256 KiB; configure `catalogBlockSize` in `messagevisor.config.js` or override it for one export with `--blockSize=<bytes>`.
 
-History detail blocks use the same virtual bucket and content hash strategy. A history block stores only commit indexes for each entity, while `history/commits.json` stores the shared author and timestamp metadata. The Catalog API expands this compact representation back into the normal history shape and still reads older page based history exports.
+History detail blocks use the same virtual bucket and content hash strategy. A history block stores only commit indexes for each entity, while `history/commits.json` stores the shared author and timestamp metadata. Aggregate history pages also use `history/keys.json` to intern repeated type and key pairs. The Catalog API expands this compact representation back into the normal history shape and still reads older page based history exports.
+
+For set based projects, set history is the canonical on disk timeline. The project History page is merged lazily in the browser from the set timelines, so the export does not materialize the same history references twice. For projects without sets, `data/root/history` serves the project timeline directly.
 
 `--prettyOutput` is for local inspection only. Compact JSON is the default. Detail block filenames use short content hashes and can be cached immutably. Index layers and range metadata must remain revalidatable. `catalog serve` serves an existing export and does not generate or change Catalog data.
 

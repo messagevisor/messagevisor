@@ -253,7 +253,7 @@ export interface CatalogRuntime {
 }
 
 export const CATALOG_SCHEMA_VERSION = "1";
-export const CATALOG_LAYOUT_VERSION = 2;
+export const CATALOG_LAYOUT_VERSION = 3;
 export const CATALOG_HISTORY_PAGE_SIZE = 50;
 export const CATALOG_HISTORY_AGGREGATE_PAGE_SIZE = 500;
 
@@ -291,9 +291,14 @@ interface CatalogHistoryDictionary {
   indexes: Map<string, number>;
 }
 
+interface CatalogHistoryKeyDictionary {
+  keys: Array<[CatalogHistoryEntity["type"], string]>;
+  indexes: Map<string, number>;
+}
+
 interface EncodedHistoryEntry {
   commit: number;
-  entities?: CatalogHistoryEntity[];
+  entities?: number[] | CatalogHistoryEntity[];
 }
 
 interface EncodedHistoryEntityEntry {
@@ -1475,17 +1480,71 @@ function createHistoryDictionary(history: CatalogHistoryEntry[]): CatalogHistory
   return { commits, indexes };
 }
 
+function getHistoryKeyDictionaryKey(type: CatalogHistoryEntity["type"], key: string) {
+  return `${type}\u0000${key}`;
+}
+
+function createHistoryKeyDictionary(history: CatalogHistoryEntry[]): CatalogHistoryKeyDictionary {
+  const keys: Array<[CatalogHistoryEntity["type"], string]> = [];
+  const indexes = new Map<string, number>();
+
+  for (const entry of history) {
+    for (const entity of entry.entities) {
+      const dictionaryKey = getHistoryKeyDictionaryKey(entity.type, entity.key);
+      if (indexes.has(dictionaryKey)) {
+        continue;
+      }
+
+      indexes.set(dictionaryKey, keys.length);
+      keys.push([entity.type, entity.key]);
+    }
+  }
+
+  return { keys, indexes };
+}
+
+async function writeHistoryKeyDictionary(
+  writer: CatalogJsonWriter,
+  directoryPath: string,
+  dictionary: CatalogHistoryKeyDictionary,
+) {
+  await writer.write(path.join(directoryPath, "keys.json"), {
+    keys: dictionary.keys,
+  });
+}
+
 function encodeHistoryEntry(
   entry: CatalogHistoryEntry,
   dictionary: CatalogHistoryDictionary,
   includeEntities: boolean,
+  keyDictionary?: CatalogHistoryKeyDictionary,
 ): EncodedHistoryEntry {
   const commit = dictionary.indexes.get(entry.commit);
   if (commit === undefined) {
     throw new Error(`History commit "${entry.commit}" is missing from its dictionary.`);
   }
 
-  return includeEntities ? { commit, entities: entry.entities } : { commit };
+  if (!includeEntities) {
+    return { commit };
+  }
+
+  return {
+    commit,
+    entities: keyDictionary
+      ? entry.entities.map((entity) => {
+          const key = keyDictionary.indexes.get(
+            getHistoryKeyDictionaryKey(entity.type, entity.key),
+          );
+          if (key === undefined) {
+            throw new Error(
+              `History entity "${entity.type}:${entity.key}" is missing from its dictionary.`,
+            );
+          }
+
+          return key;
+        })
+      : entry.entities,
+  };
 }
 
 async function writeHistoryDictionary(
@@ -1505,6 +1564,7 @@ async function writeHistoryPages(
   options: {
     skipEmpty?: boolean;
     dictionary?: CatalogHistoryDictionary;
+    keyDictionary?: CatalogHistoryKeyDictionary;
     aggregate?: boolean;
   } = {},
 ) {
@@ -1518,14 +1578,20 @@ async function writeHistoryPages(
   const pages = options.aggregate
     ? chunkHistoryByEntityReferences(history, pageSize)
     : chunkHistory(history, pageSize);
+  const totalEntityReferences = options.aggregate
+    ? history.reduce((total, entry) => total + entry.entities.length, 0)
+    : undefined;
 
   for (let index = 0; index < pages.length; index++) {
     await writer.write(path.join(directoryPath, `page-${index + 1}.json`), {
       page: index + 1,
       pageSize,
       totalPages: pages.length,
+      ...(totalEntityReferences === undefined ? {} : { totalEntityReferences }),
       entries: options.dictionary
-        ? pages[index].map((entry) => encodeHistoryEntry(entry, options.dictionary!, true))
+        ? pages[index].map((entry) =>
+            encodeHistoryEntry(entry, options.dictionary!, true, options.keyDictionary),
+          )
         : pages[index],
     });
   }
@@ -1838,10 +1904,13 @@ async function buildSetCatalog(
 
   const historyStartedAt = context.progress.step("Writing history pages");
   const historyDictionary = createHistoryDictionary(history);
+  const historyKeyDictionary = createHistoryKeyDictionary(history);
   const historyDirectoryPath = path.join(outputDirectoryPath, "history");
   await writeHistoryDictionary(context.writer, historyDirectoryPath, historyDictionary);
+  await writeHistoryKeyDictionary(context.writer, historyDirectoryPath, historyKeyDictionary);
   await writeHistoryPages(context.writer, historyDirectoryPath, history, {
     dictionary: historyDictionary,
+    keyDictionary: historyKeyDictionary,
     aggregate: true,
   });
   context.progress.done(historyStartedAt, `(${pluralize(history.length, "entry", "entries")})`);
@@ -2527,7 +2596,7 @@ async function writeCatalogManifest(
     },
     links: session.links,
     paths: {
-      projectHistory: "data/project/history/page-1.json",
+      projectHistory: projectConfig.sets ? "data/project/history" : "data/root/history/page-1.json",
       root: projectConfig.sets ? undefined : "data/root/index.json",
       sets: projectConfig.sets
         ? Object.fromEntries(
@@ -2750,16 +2819,6 @@ export async function exportCatalog(
   );
   const setIndexes: Record<string, CatalogSetIndex> = {};
 
-  stepStartedAt = progress.step("Writing project history");
-  const projectHistoryDirectoryPath = path.join(dataDirectoryPath, "project", "history");
-  const projectHistoryDictionary = createHistoryDictionary(historyIndex.entries);
-  await writeHistoryDictionary(writer, projectHistoryDirectoryPath, projectHistoryDictionary);
-  await writeHistoryPages(writer, projectHistoryDirectoryPath, historyIndex.entries, {
-    dictionary: projectHistoryDictionary,
-    aggregate: true,
-  });
-  progress.done(stepStartedAt, `(${pluralize(historyIndex.entries.length, "entry", "entries")})`);
-
   for (const execution of executions) {
     const outputRelativeDirectory = projectConfig.sets ? path.join("sets", execution.set) : "root";
     setIndexes[execution.set || "root"] = await buildSetCatalog(
@@ -2795,7 +2854,7 @@ export async function exportCatalog(
     },
     links,
     paths: {
-      projectHistory: "data/project/history/page-1.json",
+      projectHistory: projectConfig.sets ? "data/project/history" : "data/root/history/page-1.json",
       root: projectConfig.sets ? undefined : "data/root/index.json",
       sets: projectConfig.sets
         ? Object.fromEntries(

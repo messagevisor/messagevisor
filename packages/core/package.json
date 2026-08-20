@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/core",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Core package of Messagevisor for Node.js usage",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@formatjs/icu-messageformat-parser": "2.11.4",
-    "@messagevisor/catalog": "1.7.0",
+    "@messagevisor/catalog": "1.8.0",
     "@messagevisor/parsers": "1.0.0",
     "@messagevisor/sdk": "1.2.0",
     "@messagevisor/types": "1.2.0",

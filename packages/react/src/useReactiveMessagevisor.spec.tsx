@@ -95,6 +95,7 @@ describe("reactive Messagevisor hooks", function () {
   });
 
   it("reactively translates when context, datafile, and locale change", function () {
+    const instance = createTestInstance();
     function TestComponent() {
       const sdk = useSdk();
       const locale = useLocale();
@@ -111,7 +112,7 @@ describe("reactive Messagevisor hooks", function () {
           <button onClick={() => sdk.setContext({ platform: "web" })}>context</button>
           <button
             onClick={() => {
-              sdk.setDatafile(nlDatafile);
+              instance.setDatafile(nlDatafile);
               sdk.setLocale("nl-NL");
             }}
           >
@@ -122,7 +123,7 @@ describe("reactive Messagevisor hooks", function () {
     }
 
     render(
-      <MessagevisorProvider instance={createTestInstance()}>
+      <MessagevisorProvider instance={instance}>
         <TestComponent />
       </MessagevisorProvider>,
     );
@@ -145,6 +146,7 @@ describe("reactive Messagevisor hooks", function () {
   });
 
   it("reactively exposes locale and direction together via useLocaleInfo", function () {
+    const instance = createTestInstance();
     function TestComponent() {
       const sdk = useSdk();
       const localeInfo = useLocaleInfo();
@@ -156,7 +158,7 @@ describe("reactive Messagevisor hooks", function () {
           </p>
           <button
             onClick={() => {
-              sdk.setDatafile(arDatafile);
+              instance.setDatafile(arDatafile);
               sdk.setLocale("ar-SA");
             }}
           >
@@ -167,7 +169,7 @@ describe("reactive Messagevisor hooks", function () {
     }
 
     render(
-      <MessagevisorProvider instance={createTestInstance()}>
+      <MessagevisorProvider instance={instance}>
         <TestComponent />
       </MessagevisorProvider>,
     );
@@ -180,8 +182,8 @@ describe("reactive Messagevisor hooks", function () {
   });
 
   it("updates useDirection when the active locale datafile is replaced", function () {
+    const instance = createTestInstance();
     function TestComponent() {
-      const sdk = useSdk();
       const direction = useDirection() || "unknown";
 
       return (
@@ -189,7 +191,7 @@ describe("reactive Messagevisor hooks", function () {
           <p>{direction}</p>
           <button
             onClick={() =>
-              sdk.setDatafile({
+              instance.setDatafile({
                 ...datafile,
                 locale: "en-US",
                 direction: "rtl",
@@ -204,7 +206,7 @@ describe("reactive Messagevisor hooks", function () {
     }
 
     render(
-      <MessagevisorProvider instance={createTestInstance()}>
+      <MessagevisorProvider instance={instance}>
         <TestComponent />
       </MessagevisorProvider>,
     );

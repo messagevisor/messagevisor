@@ -3,6 +3,8 @@ import { ymlParser } from "./yml";
 
 export interface CustomParser {
   extension: string;
+  /** Stable parser identity and version. Omit to disable persistent parsed entity caching. */
+  cacheVersion?: string;
   parse: <T>(content: string, filePath?: string) => T;
   stringify: (content: unknown, filePath?: string) => string;
 }

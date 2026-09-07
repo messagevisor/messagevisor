@@ -4,9 +4,10 @@ Use this when an agent is doing translation work inside a Messagevisor project. 
 
 ## First principles
 
-- Preserve placeholders, ICU syntax, rich tags, and branded terms exactly unless the user asks otherwise.
+- Preserve argument names, compatible value types, required rich tags, named formats, application select keys, and branded terms. Adapt word order and plural categories to the target locale without changing deliberate exact selector meaning.
 - Translate only the intended locale columns or JSON fields.
 - Preview imports before `--apply`.
+- Import permission is not translation approval. For reviewed state, follow the saved [review workflow](authoring.md#translation-workflow-state): output a private preview, obtain human approval of its exact copy, then apply with `--input`. Never refresh hashes or change a preview to bypass a conflict.
 - Do not use `--create-missing` or `--createMissing` unless the user explicitly wants the file to create new Messagevisor entries.
 - Leave regulated, legal, financial, or sensitive copy for human review when in doubt.
 
@@ -59,7 +60,7 @@ When editing CSV or JSON export files:
 
 - Keep row identity columns unchanged.
 - Keep source locale columns unchanged.
-- Preserve ICU placeholders such as `{name}`, `{count, plural, ...}`, `{gender, select, ...}`.
+- Preserve ICU argument contracts while allowing locale appropriate grammar. See [icu.md](icu.md) for plural categories and selectors.
 - Preserve tag names and nesting if ICU rich text is used.
 - Preserve interpolation placeholders such as `{name}` when the interpolation module is used.
 - Keep enum values, segment keys, target keys, locale keys, and message keys untranslated.
@@ -104,6 +105,6 @@ Preview first. Pruning changes source files.
 - Lint passes.
 - Tests pass.
 - Catalog renders examples for changed messages.
-- ICU plural and select branches still contain the same placeholders.
+- ICU arguments retain compatible value types and required names and tags; plural branches suit the target locale.
 - Target locale tone matches neighboring messages.
 - Any skipped or low-confidence rows are reported clearly.

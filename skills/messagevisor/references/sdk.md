@@ -56,7 +56,11 @@ m.setLocale("nl-NL"); // switch active locale
 m.translate("checkout.title", undefined, { locale: "nl-NL" }); // per-call, needs that datafile loaded
 ```
 
-Per-call `locale` is evaluation state only — it emits no events and does not change `m.getLocale()`. Split datafiles (per-locale files from the same target) merge naturally into one instance.
+Per call `locale` is evaluation state only: it emits no events and does not change `m.getLocale()`. Datafiles for different locales coexist in one instance.
+
+For the same locale, segments, messages, and translations merge by key. Formats merge by type and preset name; an incoming preset replaces the whole matching object while unrelated presets survive. Omitted keys are not deleted. The latest input supplies the stored `target` and `revision`, which do not describe every contributing target. `setDatafile(datafile, true)` replaces the whole locale, not one target. Avoid overlapping targets with differently specialised versions of the same message. Reconstruct the complete locale snapshot to refresh with deletions, or use independent instances.
+
+Server loaders must check `response.ok`, bound network waits, share concurrent loads, and clear rejected pending promises so initial failures can retry. Refresh must actually fetch again, validate every required locale in a candidate instance, and publish only when the full snapshot succeeds. Keep the last known good instance on refresh failure and report failures. Do not close a retired snapshot while requests still use it.
 
 Other instance state, settable at init or later: `setContext(context, replace?)`, `setCurrency("EUR")`, `setTimeZone("Europe/Amsterdam")`. Reads: `getLocale()`, `getContext()`, `getSnapshot()`, `getRevision(locale?)`, and `getDirection(locale?)` for RTL layout decisions (the app applies direction itself).
 
@@ -73,6 +77,8 @@ m.formatPlural(3); // plural rule category
 ```
 
 `*ToParts` variants exist for custom rendering. Named presets come from locale `formats` in the datafile.
+
+Direct JavaScript date and time helpers and ICU arguments resolve time zone in this order: explicit call option, preset, explicit instance setting, host time zone, then UTC if the host zone cannot be determined. Set an explicit zone for reproducible server output and tests.
 
 ## Events
 
@@ -149,7 +155,7 @@ function MyComponent() {
 }
 ```
 
-`useMessagevisor` returns `t`, `formatMessage`, and the format helpers bound to the active instance; components re-render on SDK `change` events. Rich text values render as React nodes. Keep the SDK instance lifecycle stable and update datafiles intentionally when locale or target changes.
+`useMessagevisor` returns stable bound methods without subscribing the component to state changes. Use `useTranslation` or another reactive hook when output must update. Rich text values render as React nodes. Keep the SDK instance lifecycle stable and update datafiles intentionally when locale or target changes.
 
 Focused reactive hooks are also exported: `useTranslation(key, values?)`, `useFormatMessage`, `useLocale()`, `useDirection()` (RTL-aware layout that re-mirrors on locale switch), `useLocaleInfo()` (`{ locale, direction }`), `useCurrency()`, `useTimeZone()`, and `useSdk()` for the raw instance.
 

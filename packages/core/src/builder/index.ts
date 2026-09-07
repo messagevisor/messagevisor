@@ -25,7 +25,7 @@ import { loadProjectSnapshot, type ProjectSnapshot } from "../snapshot";
 import { MessagevisorCLIError } from "../error";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
-import { compileTargetMessageMatcher, matchesPattern } from "../targeting";
+import { compileTargetMessageMatcher, matchesPattern, resolveTargetLocaleKeys } from "../targeting";
 import { createTargetContextSpecializer } from "./applyContextToTarget";
 
 interface TargetDatafileOptions {
@@ -182,7 +182,19 @@ export function resolveFormats(
 }
 
 function addUsedIcuFormatPatterns(result: UsedFormatPatterns, translation: string) {
-  for (const reference of extractIcuStyleReferences(translation)) {
+  let references: ReturnType<typeof extractIcuStyleReferences>;
+  try {
+    references = extractIcuStyleReferences(translation);
+  } catch (error) {
+    throw new MessagevisorCLIError(
+      "Cannot determine used formats from invalid ICU syntax. Fix the translation or disable includeOnlyUsedFormats.",
+      {
+        code: "invalid_icu_syntax",
+        details: { reason: error instanceof Error ? error.message : String(error) },
+      },
+    );
+  }
+  for (const reference of references) {
     if (reference.isSkeleton) {
       continue;
     }
@@ -305,12 +317,18 @@ function buildDatafileFromMessageKeys(
   targetSimplifier: ReturnType<typeof createTargetContextSpecializer>,
 ): DatafileContent {
   const localeKeys = snapshot.keys.locale;
+  if (!localeKeys.includes(localeKey)) {
+    throw new MessagevisorCLIError(`Unknown locale "${localeKey}".`, {
+      code: "unknown_locale",
+      details: { locale: localeKey },
+    });
+  }
   const locales = snapshot.locales;
   const messages = snapshot.messages;
   const target = targetKey ? snapshot.targets[targetKey] : undefined;
   const datafileOptions = resolveTargetDatafileOptions(target);
-  const datafileMessages: DatafileContent["messages"] = {};
-  const translations: DatafileContent["translations"] = {};
+  const datafileMessages: DatafileContent["messages"] = Object.create(null);
+  const translations: DatafileContent["translations"] = Object.create(null);
   const usedSegmentKeys = new Set<SegmentKey>();
   const usedFormatPatterns: UsedFormatPatterns = {};
   const segments = snapshot.segments;
@@ -407,7 +425,7 @@ function buildDatafileFromMessageKeys(
     }
   }
 
-  const datafileSegments: Record<string, Segment> = {};
+  const datafileSegments: Record<string, Segment> = Object.create(null);
   const datafileSegmentKeys = Array.from(usedSegmentKeys).sort();
 
   for (const key of datafileSegmentKeys) {
@@ -544,6 +562,12 @@ export async function buildProject(
   });
   const targetKeys = snapshot.keys.target;
   const localeKeys = snapshot.keys.locale;
+  if (options.locale && !localeKeys.includes(options.locale)) {
+    throw new MessagevisorCLIError(`Unknown locale "${options.locale}".`, {
+      code: "unknown_locale",
+      details: { locale: options.locale },
+    });
+  }
   const selectedTargetKeys = options.target ? [options.target] : targetKeys;
   const builtDatafiles: DatafileContent[] = [];
   const collectDatafiles = options.collectDatafiles !== false;
@@ -574,11 +598,7 @@ export async function buildProject(
     const targetMatcher = compileTargetMessageMatcher(target);
     const selectedMessageKeys = snapshot.keys.message.filter(targetMatcher);
     const targetSimplifier = createTargetContextSpecializer(snapshot.segments, target?.context);
-    const selectedLocaleKeys = options.locale
-      ? [options.locale]
-      : target.locales?.length
-        ? target.locales
-        : localeKeys;
+    const selectedLocaleKeys = resolveTargetLocaleKeys(target, localeKeys, options.locale);
 
     options.onProgress?.({
       type: "targetStart",

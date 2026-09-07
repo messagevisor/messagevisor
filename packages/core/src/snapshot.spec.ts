@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { parsers, type CustomParser } from "@messagevisor/parsers";
 
 import { getProjectConfig } from "./config";
 import { Datasource } from "./datasource";
@@ -13,6 +14,38 @@ async function writeFile(root: string, relativePath: string, content: string) {
 }
 
 describe("loadProjectSnapshot", function () {
+  it.each([
+    null,
+    [],
+    42,
+    { version: 3, entries: 1 },
+    { version: 3, entries: [] },
+    { version: 3, entries: { message: [] } },
+    { version: 3, entries: { message: { welcome: null } } },
+    { version: 3, entries: { message: { welcome: { fingerprint: 1, entity: {} } } } },
+    { version: 3, entries: { message: { welcome: { fingerprint: "value" } } } },
+  ])("rebuilds a structurally corrupt cache: %j", async (corrupt) => {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-corrupt-cache-"));
+    try {
+      await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+      await writeFile(root, "messages/welcome.yml", "translations: {en: Welcome}\n");
+      const datasource = new Datasource(getProjectConfig(root), root);
+      await loadProjectSnapshot(datasource, { entityTypes: ["message"] });
+      await fs.promises.writeFile(
+        path.join(datasource.getSnapshotCachePath()!, "message.json"),
+        JSON.stringify(corrupt),
+      );
+      const read = jest.spyOn(datasource, "readEntity");
+      const result = await loadProjectSnapshot(datasource, { entityTypes: ["message"] });
+      expect(result.messages.welcome.translations.en).toBe("Welcome");
+      expect(read).toHaveBeenCalledTimes(1);
+      read.mockClear();
+      await loadProjectSnapshot(datasource, { entityTypes: ["message"] });
+      expect(read).not.toHaveBeenCalled();
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
   it("loads requested entities once and provides fast key membership lookups", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-snapshot-"));
 
@@ -60,8 +93,10 @@ describe("loadProjectSnapshot", function () {
 
       expect(datasource.getSnapshotCachePath()).toContain(path.join(".messagevisor", "cache"));
       readEntity.mockClear();
+      const fingerprint = jest.spyOn(datasource, "getEntityFingerprint");
       await loadProjectSnapshot(datasource, { entityTypes: ["locale", "message"], cache: false });
       expect(readEntity).toHaveBeenCalledTimes(2);
+      expect(fingerprint).not.toHaveBeenCalled();
 
       const previousNoCache = process.env.MESSAGEVISOR_NO_CACHE;
       process.env.MESSAGEVISOR_NO_CACHE = "1";
@@ -69,6 +104,7 @@ describe("loadProjectSnapshot", function () {
         readEntity.mockClear();
         await loadProjectSnapshot(datasource, { entityTypes: ["locale", "message"] });
         expect(readEntity).toHaveBeenCalledTimes(2);
+        expect(fingerprint).not.toHaveBeenCalled();
       } finally {
         if (previousNoCache === undefined) {
           delete process.env.MESSAGEVISOR_NO_CACHE;
@@ -81,6 +117,55 @@ describe("loadProjectSnapshot", function () {
       await writeFile(root, "messages/welcome.yml", "translations:\n  en: Hello\n");
       await loadProjectSnapshot(datasource, { entityTypes: ["locale", "message"] });
       expect(readEntity).toHaveBeenCalledTimes(1);
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("requires a stable custom parser version and scopes caches by identity and extension", async () => {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-parser-cache-"));
+    try {
+      await writeFile(root, "messagevisor.config.js", "module.exports = {}\n");
+      await writeFile(root, "messages/welcome.yml", "translations:\n  en: Welcome\n");
+      const config = getProjectConfig(root);
+      let parsedValue = "first";
+      const parser: CustomParser = {
+        extension: "yml",
+        parse: <T>() => ({ translations: { en: parsedValue } }) as T,
+        stringify: parsers.yml.stringify,
+      };
+      const datasource = new Datasource({ ...config, parser }, root);
+      const fingerprints = jest.spyOn(datasource, "getEntityFingerprint");
+      const read = () => loadProjectSnapshot(datasource, { entityTypes: ["message"] });
+      expect((await read()).messages.welcome.translations.en).toBe("first");
+      parsedValue = "second";
+      expect((await read()).messages.welcome.translations.en).toBe("second");
+      expect(datasource.getSnapshotCachePath()).toBeUndefined();
+      expect(fingerprints).not.toHaveBeenCalled();
+      expect(fs.existsSync(path.join(root, ".messagevisor"))).toBe(false);
+
+      parser.cacheVersion = "custom:first:1";
+      const firstPath = datasource.getSnapshotCachePath();
+      const reads = jest.spyOn(datasource, "readEntity");
+      await read();
+      reads.mockClear();
+      await read();
+      expect(reads).not.toHaveBeenCalled();
+
+      parser.cacheVersion = "custom:second:1";
+      parsedValue = "third";
+      expect(datasource.getSnapshotCachePath()).not.toBe(firstPath);
+      expect((await read()).messages.welcome.translations.en).toBe("third");
+      const secondPath = datasource.getSnapshotCachePath();
+      parser.cacheVersion = "custom:second:2";
+      parsedValue = "fourth";
+      expect((await read()).messages.welcome.translations.en).toBe("fourth");
+      expect(datasource.getSnapshotCachePath()).not.toBe(secondPath);
+      const versionedPath = datasource.getSnapshotCachePath();
+      parser.extension = "json";
+      expect(datasource.getSnapshotCachePath()).not.toBe(versionedPath);
+      parser.cacheVersion = " ";
+      expect(datasource.getSnapshotCachePath()).toBeUndefined();
     } finally {
       await fs.promises.rm(root, { recursive: true, force: true });
     }

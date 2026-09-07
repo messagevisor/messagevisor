@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import type { Locale, Message, Translation } from "@messagevisor/types";
+import type { Locale, Message, Override, Translation } from "@messagevisor/types";
 
 import type { ProjectConfig } from "../config";
 import type { Datasource } from "../datasource";
@@ -9,7 +9,8 @@ import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import { resolveLocaleValue } from "../localeResolution";
 import { getProjectSetExecutions } from "../sets";
 import { loadProjectSnapshot } from "../snapshot";
-import { compileTargetMessageMatcher, matchesPattern } from "../targeting";
+import { compileTargetMessageMatcher, matchesPattern, resolveTargetLocaleKeys } from "../targeting";
+import { createXliff } from "../xliff";
 
 export interface ExportProjectOptions {
   set?: string | string[];
@@ -30,14 +31,20 @@ export interface ExportProjectOptions {
   lineEnding?: "lf" | "crlf";
   now?: Date;
   allowMissingLocales?: boolean;
+  format?: "csv" | "xliff";
+  sourceLocale?: string;
+  explicitIdentities?: boolean;
 }
 
 type TranslationStatus = "direct" | "inherited" | "missing";
 
-interface ExportRow {
+export interface ExportRow {
   set?: string;
   messageKey: string;
   isOverride: boolean;
+  identity: { messageKey: string; overrideKey?: string };
+  group: Message | Override;
+  sourceLocales: Record<string, Locale>;
   messageDescription?: string;
   translations: Record<string, string>;
   statuses: Record<string, TranslationStatus>;
@@ -45,6 +52,7 @@ interface ExportRow {
 
 export interface ExportProjectResult {
   csv: string;
+  xliff?: string;
   filePath?: string;
   rows: ExportRow[];
   locales: string[];
@@ -146,6 +154,7 @@ async function getExportFilePath(
     now?: Date;
     output?: string;
     force?: boolean;
+    format?: "csv" | "xliff";
   },
 ) {
   if (options.output) {
@@ -175,7 +184,7 @@ async function getExportFilePath(
     const suffix = index === 0 ? "" : `-${index}`;
     const filePath = path.join(
       projectConfig.exportsDirectoryPath,
-      `messagevisor-export-${timestamp}${suffix}.csv`,
+      `messagevisor-export-${timestamp}${suffix}.${options.format === "xliff" ? "xlf" : "csv"}`,
     );
 
     if (!fs.existsSync(filePath)) {
@@ -222,7 +231,7 @@ function shouldIncludeForUntranslatedFilter(
   });
 }
 
-async function collectRows(
+export async function collectRows(
   projectConfig: ProjectConfig,
   datasource: Datasource,
   options: ExportProjectOptions,
@@ -258,7 +267,11 @@ async function collectRows(
     for (const targetKey of requestedTargets) {
       const target = targets[targetKey];
       const targetMatcher = compileTargetMessageMatcher(target);
-      const targetLocales = target.locales?.length ? target.locales : localeKeys;
+      const targetLocales = resolveTargetLocaleKeys(
+        target,
+        localeKeys,
+        requestedLocales.length ? datasourceLocales : undefined,
+      );
 
       for (const locale of targetLocales) {
         if (datasourceLocales.length === 0 || datasourceLocales.includes(locale)) {
@@ -303,7 +316,10 @@ async function collectRows(
     description: string | undefined,
     translations: Record<string, Translation> | undefined,
     isOverride: boolean,
+    group: Message | Override,
+    identity: ExportRow["identity"],
   ) {
+    if (options.format === "xliff" && !selectedLocales.includes(toArray(options.locale)[0])) return;
     if (!shouldIncludeForUntranslatedFilter(translations, locales, selectedLocales, options)) {
       return;
     }
@@ -315,10 +331,11 @@ async function collectRows(
       ]),
     ) as Record<string, { value: string; status: TranslationStatus }>;
 
-    rows.push({
+    const row = {
       set,
       messageKey,
       isOverride,
+      identity,
       messageDescription: options.withoutDescription ? undefined : description || "",
       translations: Object.fromEntries(
         selectedLocales.map((locale) => [locale, resolvedTranslations[locale].value]),
@@ -326,7 +343,13 @@ async function collectRows(
       statuses: Object.fromEntries(
         selectedLocales.map((locale) => [locale, resolvedTranslations[locale].status]),
       ) as Record<string, TranslationStatus>,
+    } as ExportRow;
+    // Internal interchange context must not expose unselected copy in JSON output.
+    Object.defineProperties(row, {
+      group: { value: group },
+      sourceLocales: { value: locales },
     });
+    rows.push(row);
   }
 
   for (const messageKey of Array.from(selectedMessageKeys).sort()) {
@@ -338,7 +361,7 @@ async function collectRows(
 
     const messageDescription = message.summary ?? message.description;
 
-    createRow(messageKey, messageDescription, message.translations, false);
+    createRow(messageKey, messageDescription, message.translations, false, message, { messageKey });
 
     if (options.excludeOverrides) {
       continue;
@@ -352,6 +375,8 @@ async function collectRows(
         overrideDescription,
         override.translations,
         true,
+        override,
+        { messageKey, overrideKey: override.key },
       );
     }
   }
@@ -367,22 +392,45 @@ function createCsv(
   locales: string[],
   options: ExportProjectOptions,
   withSets: boolean,
+  separator: string,
 ) {
+  if (!options.explicitIdentities) {
+    const identities = new Set<string>();
+    for (const row of rows) {
+      const identity = JSON.stringify([row.set, row.messageKey]);
+      if (
+        identities.has(identity) ||
+        row.identity.messageKey.includes(separator) ||
+        row.identity.overrideKey?.includes(separator)
+      )
+        throw new MessagevisorCLIError("Ambiguous CSV identity. Export with explicitIdentities.", {
+          code: "ambiguous_export_identity",
+        });
+      identities.add(identity);
+    }
+  }
   const localeHeaders = locales.flatMap((locale) =>
     options.withoutStatus ? [locale] : [locale, `${locale}Status`],
   );
   const headers = [
     ...(withSets ? ["set"] : []),
     "messageKey",
+    ...(options.explicitIdentities ? ["overrideKey"] : []),
     ...(options.withoutDescription ? [] : ["messageDescription"]),
     ...localeHeaders,
   ];
+  if (new Set(headers).size !== headers.length || headers.some((header) => header.trim() === "")) {
+    throw new MessagevisorCLIError("CSV export would contain empty or duplicate headers.", {
+      code: "ambiguous_export_headers",
+    });
+  }
 
   return toCsv(
     headers,
     rows.map((row) => [
       ...(withSets ? [row.set || ""] : []),
-      row.messageKey,
+      options.explicitIdentities ? row.identity.messageKey : row.messageKey,
+      ...(options.explicitIdentities ? [row.identity.overrideKey || ""] : []),
       ...(options.withoutDescription ? [] : [row.messageDescription || ""]),
       ...locales.flatMap((locale) =>
         options.withoutStatus
@@ -417,12 +465,22 @@ async function finishExport(
   options: ExportProjectOptions,
   withSets: boolean,
 ): Promise<ExportProjectResult> {
-  const csv = createCsv(rows, locales, options, withSets);
+  const xliff =
+    options.format === "xliff"
+      ? createXliff(
+          rows,
+          options.sourceLocale ?? projectConfig.sourceLocale ?? "",
+          toArray(options.locale)[0],
+        )
+      : undefined;
+  const csv =
+    xliff ?? createCsv(rows, locales, options, withSets, projectConfig.exportOverrideKeySeparator);
   const summary = createExportSummary(rows, locales);
 
   if (options.print) {
     return {
-      csv,
+      csv: xliff === undefined ? csv : "",
+      ...(xliff !== undefined ? { xliff } : {}),
       rows,
       locales,
       summary,
@@ -433,7 +491,8 @@ async function finishExport(
   await fs.promises.writeFile(filePath, csv);
 
   return {
-    csv,
+    csv: xliff === undefined ? csv : "",
+    ...(xliff !== undefined ? { xliff } : {}),
     filePath,
     rows,
     locales,
@@ -442,6 +501,26 @@ async function finishExport(
 }
 
 function assertExportOptions(options: ExportProjectOptions) {
+  if (options.format !== undefined && !["csv", "xliff"].includes(options.format)) {
+    throw new MessagevisorCLIError("Export format must be csv or xliff.", {
+      code: "invalid_option",
+    });
+  }
+  if (
+    options.format === "xliff" &&
+    (toArray(options.locale).length !== 1 ||
+      options.delimiter !== undefined ||
+      options.bom !== undefined ||
+      options.lineEnding !== undefined ||
+      options.withoutDescription ||
+      options.withoutStatus ||
+      options.explicitIdentities)
+  ) {
+    throw new MessagevisorCLIError(
+      "XLIFF requires exactly one target locale and does not support CSV formatting options.",
+      { code: "invalid_option" },
+    );
+  }
   if (options.onlyUntranslated && options.onlyDirectlyUntranslated) {
     throw new MessagevisorCLIError(
       "Use either --onlyUntranslated or --onlyDirectlyUntranslated, not both.",
@@ -452,7 +531,10 @@ function assertExportOptions(options: ExportProjectOptions) {
     );
   }
 
-  if (typeof options.delimiter !== "undefined" && options.delimiter.length !== 1) {
+  if (
+    typeof options.delimiter !== "undefined" &&
+    (options.delimiter.length !== 1 || /["\r\n]/.test(options.delimiter))
+  ) {
     throw new MessagevisorCLIError("--delimiter must be a single character.", {
       code: "invalid_option",
       details: { option: "delimiter" },
@@ -556,11 +638,13 @@ export async function exportProjectSets(
 
 function printExportResult(result: ExportProjectResult, print: boolean | undefined) {
   if (print) {
-    console.log(result.csv);
+    console.log(result.xliff ?? result.csv);
     return;
   }
 
-  console.log(`CSV file generated successfully at ${result.filePath}`);
+  console.log(
+    `${result.xliff !== undefined ? "XLIFF" : "CSV"} file generated successfully at ${result.filePath}`,
+  );
   console.log(`Rows: ${result.summary.totalRows} total`);
   console.log(`Messages: ${result.summary.messageRows}`);
   console.log(`Overrides: ${result.summary.overrideRows}`);
@@ -575,6 +659,12 @@ export const exportPlugin = {
   command: "export",
   handler: async ({ projectConfig, datasource, parsed }: any) => {
     try {
+      if (parsed.print && parsed.json) {
+        throw new MessagevisorCLIError("Use either --print or --json, not both.", {
+          code: "conflicting_options",
+          details: { options: ["print", "json"] },
+        });
+      }
       const result = await exportProjectSets(projectConfig, datasource, {
         set: parsed.set,
         locale: parsed.locale,
@@ -592,9 +682,20 @@ export const exportPlugin = {
         delimiter: parsed.delimiter,
         bom: parsed.bom,
         lineEnding: parsed.lineEnding,
+        format: parsed.format,
+        sourceLocale: parsed.sourceLocale,
+        explicitIdentities: parsed.explicitIdentities,
       });
 
-      printExportResult(result, parsed.print);
+      if (parsed.json)
+        console.log(
+          JSON.stringify(
+            { filePath: result.filePath, summary: result.summary },
+            null,
+            parsed.pretty ? 2 : undefined,
+          ),
+        );
+      else printExportResult(result, parsed.print);
     } catch (error) {
       if (printMessagevisorCLIError(error, parsed)) {
         return false;

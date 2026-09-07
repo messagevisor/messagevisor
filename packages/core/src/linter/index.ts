@@ -29,6 +29,7 @@ import { prettyDuration } from "../tester/prettyDuration";
 import { matchesPattern, normalizePatterns } from "../targeting";
 import { parseRegexOption } from "../cli/validation";
 import { loadProjectSnapshot } from "../snapshot";
+import { createEffectiveFormatValidator, resolveLintFormats } from "./effectiveFormats";
 
 function collectGroupSegmentKeys(
   value: GroupSegment | GroupSegment[] | "*" | undefined,
@@ -252,6 +253,27 @@ export async function lintProject(
   const entityTypesToLoad = getLintEntityTypes(options.entityType);
   const entityTypesToRead = getLintEntityTypesToRead(options.entityType);
   const shouldRead = (entityType: LintableEntityType) => entityTypesToRead.has(entityType);
+  // Cache validation outcomes, not parsed clones of potentially large entities.
+  const validation = new Map<string, { valid: boolean; error?: ZodError; exception?: unknown }>();
+  function validate(type: string, key: string, schema: ZodTypeAny, value: unknown) {
+    const id = `${type}:${key}`;
+    let outcome = validation.get(id);
+    if (!outcome) {
+      try {
+        const result = schema.safeParse(value);
+        outcome = result.success ? { valid: true } : { valid: false, error: result.error };
+      } catch (exception) {
+        outcome = { valid: false, exception };
+      }
+      validation.set(id, outcome);
+    }
+    return outcome;
+  }
+  function validEntities<T>(type: string, schema: ZodTypeAny, entities: Record<string, T>) {
+    return Object.fromEntries(
+      Object.entries(entities).filter(([key, value]) => validate(type, key, schema, value).valid),
+    );
+  }
 
   function recordError(error: Omit<LintError, "level">) {
     errors.push({ level: "error", ...error });
@@ -298,11 +320,12 @@ export async function lintProject(
 
     try {
       const parsed = typeof loadedValue === "undefined" ? await read(key) : loadedValue;
-      const result = schema.safeParse(parsed);
+      const result = validate(entityType, key, schema, parsed);
 
-      if (!result.success) {
+      if (result.error) {
         reportZodError(entityType, key, fullPath, result.error);
       }
+      if (result.exception) throw result.exception;
     } catch (error) {
       recordError({
         filePath: formatProjectPath(projectConfig, fullPath),
@@ -339,8 +362,18 @@ export async function lintProject(
     });
   }
 
-  const localesByKey = shouldRead("locale") ? snapshot.locales : {};
-  const attributesByKey = shouldRead("attribute") ? snapshot.attributes : {};
+  const localeZodSchema = getLocaleZodSchema(localeKeys, messageKeys);
+  const attributeZodSchema = getAttributeZodSchema();
+  const localesByKey = validEntities(
+    "locale",
+    localeZodSchema,
+    shouldRead("locale") ? snapshot.locales : {},
+  );
+  const attributesByKey = validEntities(
+    "attribute",
+    attributeZodSchema,
+    shouldRead("attribute") ? snapshot.attributes : {},
+  );
   const messagesByKey = shouldRead("message") ? snapshot.messages : {};
   const segmentsByKey = shouldRead("segment") ? snapshot.segments : {};
   const targetsByKey = shouldRead("target") ? snapshot.targets : {};
@@ -357,8 +390,6 @@ export async function lintProject(
     });
   }
 
-  const localeZodSchema = getLocaleZodSchema(localeKeys, messageKeys);
-  const attributeZodSchema = getAttributeZodSchema();
   const conditionsZodSchema = getConditionsZodSchema(attributesByKey);
   const segmentZodSchema = getSegmentZodSchema(conditionsZodSchema);
   const messageZodSchema = getMessageZodSchema(localeKeys, segmentKeys, attributesByKey, {
@@ -367,6 +398,26 @@ export async function lintProject(
   });
   const targetZodSchema = getTargetZodSchema(localeKeys);
   const testZodSchema = getTestZodSchema(messageKeys, segmentKeys, localeKeys, targetKeys);
+  const validateFormats = createEffectiveFormatValidator();
+
+  function lintEffectiveFormats(
+    type: "locale" | "target",
+    key: string,
+    locale: string,
+    target?: Target,
+  ) {
+    const formats = resolveLintFormats(locale, localesByKey, target?.formats?.[locale]);
+    for (const issue of validateFormats(locale, formats)) {
+      recordError({
+        entityType: type,
+        entityKey: key,
+        filePath: formatProjectPath(projectConfig, getFullPathFromKey(projectConfig, type, key)),
+        path: type === "locale" ? ["formats", ...issue.path] : ["formats", locale, ...issue.path],
+        code: "invalid_format_options",
+        message: `Invalid ${issue.path.join(".")} format for locale "${locale}": ${issue.message}`,
+      });
+    }
+  }
 
   if (!options.entityType || options.entityType === "locale") {
     for (const key of localeKeys.filter(shouldLintKey)) {
@@ -375,12 +426,14 @@ export async function lintProject(
         key,
         localeZodSchema,
         (entityKey) => datasource.readLocale(entityKey),
-        localesByKey[key],
+        snapshot.locales[key],
       );
     }
   }
 
   if (!options.entityType || options.entityType === "locale" || options.entityType === "project") {
+    for (const key of Object.keys(localesByKey).filter(shouldLintKey))
+      lintEffectiveFormats("locale", key, key);
     for (const field of [
       "inheritFormatsFrom",
       "inheritTranslationsFrom",
@@ -409,7 +462,7 @@ export async function lintProject(
         key,
         attributeZodSchema,
         (entityKey) => datasource.readAttribute(entityKey),
-        attributesByKey[key],
+        snapshot.attributes[key],
       );
     }
   }
@@ -438,7 +491,12 @@ export async function lintProject(
     }
 
     for (const [messageKey, message] of Object.entries(messagesByKey)) {
-      if (!shouldLintKey(messageKey) || message.archived) continue;
+      if (
+        !shouldLintKey(messageKey) ||
+        !validate("message", messageKey, messageZodSchema, message).valid ||
+        message.archived
+      )
+        continue;
       (message.overrides || []).forEach((override, overrideIndex) => {
         for (const segmentKey of Array.from(collectGroupSegmentKeys(override.segments))) {
           if (!segmentsByKey[segmentKey]?.archived) continue;
@@ -460,7 +518,12 @@ export async function lintProject(
     if (projectConfig.lintIcu !== false) {
       errors.push(
         ...lintMessageIcuFormatStyles(
-          Object.fromEntries(Object.entries(messagesByKey).filter(([key]) => shouldLintKey(key))),
+          Object.fromEntries(
+            Object.entries(messagesByKey).filter(
+              ([key, value]) =>
+                shouldLintKey(key) && validate("message", key, messageZodSchema, value).valid,
+            ),
+          ),
           localesByKey,
           (key) =>
             formatProjectPath(projectConfig, getFullPathFromKey(projectConfig, "message", key)),
@@ -472,11 +535,16 @@ export async function lintProject(
     if (projectConfig.sourceLocale && localeKeys.includes(projectConfig.sourceLocale)) {
       errors.push(
         ...lintTranslationContracts(
-          Object.fromEntries(Object.entries(messagesByKey).filter(([key]) => shouldLintKey(key))),
+          Object.fromEntries(
+            Object.entries(messagesByKey).filter(
+              ([key, value]) =>
+                shouldLintKey(key) && validate("message", key, messageZodSchema, value).valid,
+            ),
+          ),
           projectConfig.sourceLocale,
           (key) =>
             formatProjectPath(projectConfig, getFullPathFromKey(projectConfig, "message", key)),
-          { checkMessageContract: projectConfig.lintIcu !== false },
+          { checkMessageContract: projectConfig.lintIcu !== false, locales: localesByKey },
         ),
       );
     }
@@ -494,11 +562,18 @@ export async function lintProject(
     }
 
     for (const [targetKey, target] of Object.entries(targetsByKey)) {
-      if (!shouldLintKey(targetKey)) continue;
+      if (
+        !shouldLintKey(targetKey) ||
+        !validate("target", targetKey, targetZodSchema, target).valid
+      )
+        continue;
       const targetPath = formatProjectPath(
         projectConfig,
         getFullPathFromKey(projectConfig, "target", targetKey),
       );
+      for (const locale of target.locales ?? Object.keys(localesByKey)) {
+        if (localesByKey[locale]) lintEffectiveFormats("target", targetKey, locale, target);
+      }
 
       for (const [field, patterns] of [
         ["includeMessages", target.includeMessages],
@@ -589,7 +664,8 @@ export async function lintProject(
     }
 
     for (const [testKey, test] of Object.entries(testsByKey)) {
-      if (!shouldLintKey(testKey)) continue;
+      if (!shouldLintKey(testKey) || !validate("test", testKey, testZodSchema, test).valid)
+        continue;
       const testPath = formatProjectPath(
         projectConfig,
         getFullPathFromKey(projectConfig, "test", testKey),

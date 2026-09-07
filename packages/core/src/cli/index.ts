@@ -15,9 +15,16 @@ import { evaluatePlugin } from "../evaluate/cli";
 import { exportPlugin } from "../exporter";
 import { findDuplicateTranslations, findDuplicatesPlugin } from "../find-duplicates";
 import { findUsagePlugin } from "../find-usage";
-import { compileTargetMessageMatcher, targetIncludesMessage } from "../targeting";
+import {
+  compileTargetMessageMatcher,
+  targetIncludesMessage,
+  resolveTargetLocaleKeys,
+} from "../targeting";
 import { generateCodePlugin } from "../generate-code";
 import { importPlugin } from "../importer";
+import { readinessPlugin } from "../readiness";
+import { qualityPlugin } from "../quality";
+import { reviewPlugin } from "../translationWorkflow/review";
 import { infoPlugin } from "../info";
 import { initPlugin } from "../init";
 import { lintPlugin } from "../linter";
@@ -109,6 +116,7 @@ const projectBasedPlugins = [
     resolveExamples,
     findDuplicateTranslations,
     compileTargetMessageMatcher,
+    resolveTargetLocaleKeys,
     targetIncludesMessage,
     expandTestAssertions,
   }),
@@ -123,6 +131,9 @@ const projectBasedPlugins = [
   evaluatePlugin,
   exportPlugin,
   importPlugin,
+  readinessPlugin,
+  qualityPlugin,
+  reviewPlugin,
   generateCodePlugin,
   promotePlugin,
 ];

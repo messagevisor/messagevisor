@@ -1,11 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import * as fs from "fs";
 import * as path from "path";
+import { visit } from "jsonc-parser";
 
-import type { Locale, Message, Override, Translation } from "@messagevisor/types";
+import type {
+  Locale,
+  Message,
+  Override,
+  Translation,
+  TranslationStatus,
+} from "@messagevisor/types";
 
 import type { ProjectConfig } from "../config";
-import type { Datasource } from "../datasource";
+import type { Datasource, EntityDocument, EntityMutation } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import {
   getLocaleInheritanceDepth,
@@ -21,6 +28,8 @@ import {
   colorize,
 } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
+import { applyTranslationMutations, reconcileTranslationGroup } from "../translationWorkflow";
+import { importXliff } from "../xliff";
 
 export interface ImportProjectOptions {
   input?: string;
@@ -33,6 +42,10 @@ export interface ImportProjectOptions {
   jsonPath?: string;
   delimiter?: string;
   bom?: boolean;
+  emptyValues?: "skip" | "empty" | "delete";
+  format?: "csv" | "xliff";
+  sourceLocale?: string;
+  materializeInherited?: boolean;
 }
 
 interface CsvContent {
@@ -47,11 +60,17 @@ interface ParsedImportInput {
   rowCount: number;
 }
 
-interface ImportRow {
+export interface ImportRow {
   rowNumber: number;
   set?: string;
   messageKey: string;
   overrideKey?: string;
+  explicitIdentity?: boolean;
+  encodedKey?: string;
+  forceDirect?: boolean;
+  validate?: (message: Message | undefined, locales: Record<string, Locale>) => void;
+  translationState?: TranslationStatus;
+  sourceLocale?: string;
   values: Record<string, string>;
 }
 
@@ -59,6 +78,7 @@ interface ImportPlanEntry {
   set?: string;
   key: string;
   original?: Message;
+  expectedVersion: string | null;
   updated: Message;
   createdMessage: boolean;
   createdOverrides: string[];
@@ -194,6 +214,12 @@ function parseCsv(content: string, delimiter = ","): CsvContent {
 
   const [headers = [], ...dataRows] = rows;
 
+  if (headers.some((header) => header.trim() === "") || new Set(headers).size !== headers.length) {
+    throw new MessagevisorCLIError("Invalid CSV: empty or duplicate headers.", {
+      code: "invalid_csv",
+    });
+  }
+
   return {
     headers,
     rows: dataRows
@@ -210,13 +236,31 @@ function parseCsv(content: string, delimiter = ","): CsvContent {
           );
         }
 
-        return Object.fromEntries(headers.map((header, index) => [header, dataRow[index] || ""]));
+        return Object.fromEntries(
+          headers.slice(0, dataRow.length).map((header, index) => [header, dataRow[index]]),
+        );
       }),
   };
 }
 
 function assertOptions(options: ImportProjectOptions) {
-  if (typeof options.delimiter !== "undefined" && options.delimiter.length !== 1) {
+  if (options.format !== undefined && !["csv", "xliff"].includes(options.format)) {
+    throw new MessagevisorCLIError("Import format must be csv or xliff.", {
+      code: "invalid_option",
+    });
+  }
+  if (
+    options.emptyValues !== undefined &&
+    !["skip", "empty", "delete"].includes(options.emptyValues)
+  ) {
+    throw new MessagevisorCLIError("emptyValues must be skip, empty, or delete.", {
+      code: "invalid_option",
+    });
+  }
+  if (
+    typeof options.delimiter !== "undefined" &&
+    (options.delimiter.length !== 1 || /["\r\n]/.test(options.delimiter))
+  ) {
     throw new MessagevisorCLIError("--delimiter must be a single character.", {
       code: "invalid_option",
       details: { option: "delimiter" },
@@ -271,8 +315,17 @@ async function readAll<T>(
   keys: string[],
   read: (key: string) => Promise<T>,
 ): Promise<Record<string, T>> {
-  const entries = await Promise.all(keys.map(async (key) => [key, await read(key)] as const));
-  return Object.fromEntries(entries);
+  const result: Record<string, T> = Object.create(null);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(16, keys.length) }, async () => {
+      while (next < keys.length) {
+        const key = keys[next++];
+        result[key] = await read(key);
+      }
+    }),
+  );
+  return result;
 }
 
 function resolveTranslation(
@@ -299,6 +352,13 @@ function splitMessageKey(projectConfig: ProjectConfig, key: string) {
     return { messageKey: key };
   }
 
+  if (separatorIndex === 0 || separatorIndex + separator.length === key.length) {
+    throw new MessagevisorCLIError(
+      `Invalid combined import identity "${key}": message and override keys must be nonempty.`,
+      { code: "invalid_import_identity" },
+    );
+  }
+
   return {
     messageKey: key.slice(0, separatorIndex),
     overrideKey: key.slice(separatorIndex + separator.length),
@@ -306,16 +366,13 @@ function splitMessageKey(projectConfig: ProjectConfig, key: string) {
 }
 
 function getLocaleHeaders(headers: string[], localeKeys: string[]) {
-  const reservedHeaders = new Set(["set", "messageKey", "messageDescription"]);
+  const reservedHeaders = new Set(["set", "messageKey", "overrideKey", "messageDescription"]);
 
-  return headers.filter(
-    (header) =>
-      !reservedHeaders.has(header) && !header.endsWith("Status") && localeKeys.includes(header),
-  );
+  return headers.filter((header) => !reservedHeaders.has(header) && localeKeys.includes(header));
 }
 
 function getUnknownTranslationHeaders(headers: string[], localeKeys: string[]) {
-  const reservedHeaders = new Set(["set", "messageKey", "messageDescription"]);
+  const reservedHeaders = new Set(["set", "messageKey", "overrideKey", "messageDescription"]);
 
   return headers.filter(
     (header) =>
@@ -362,14 +419,23 @@ function toImportRows(
   }
 
   return csv.rows.map((row, index) => {
-    const { messageKey, overrideKey } = splitMessageKey(projectConfig, row.messageKey || "");
+    const explicitIdentity = csv.headers.includes("overrideKey");
+    const { messageKey, overrideKey } = explicitIdentity
+      ? { messageKey: row.messageKey || "", overrideKey: row.overrideKey || undefined }
+      : splitMessageKey(projectConfig, row.messageKey || "");
 
     return {
       rowNumber: index + 2,
       set: row.set || undefined,
       messageKey,
       overrideKey,
-      values: Object.fromEntries(localeHeaders.map((locale) => [locale, row[locale] || ""])),
+      explicitIdentity,
+      encodedKey: row.messageKey,
+      values: Object.fromEntries(
+        localeHeaders
+          .filter((locale) => Object.hasOwn(row, locale))
+          .map((locale) => [locale, row[locale]]),
+      ),
     };
   });
 }
@@ -383,8 +449,9 @@ function getOrCreatePlan(
   set: string | undefined,
   messageKey: string,
   original: Message | undefined,
+  expectedVersion: string | null,
 ) {
-  const planKey = `${set || ""}:${messageKey}`;
+  const planKey = JSON.stringify([set, messageKey]);
   const existing = plansByKey.get(planKey);
 
   if (existing) {
@@ -395,6 +462,7 @@ function getOrCreatePlan(
     set,
     key: messageKey,
     original,
+    expectedVersion,
     updated: original ? cloneMessage(original) : { description: "", translations: {} },
     createdMessage: !original,
     createdOverrides: [],
@@ -414,8 +482,10 @@ function shouldApplyTranslation(
   locale: string,
   value: string,
   locales: Record<string, Locale>,
+  emptyValues: ImportProjectOptions["emptyValues"],
+  forceDirect = false,
 ) {
-  if (value === "") {
+  if (value === "" && emptyValues !== "empty") {
     return false;
   }
 
@@ -423,7 +493,7 @@ function shouldApplyTranslation(
     return translations[locale] !== value;
   }
 
-  return resolveTranslation(translations, locale, locales) !== value;
+  return forceDirect || resolveTranslation(translations, locale, locales) !== value;
 }
 
 function getImportValueEntries(values: Record<string, string>, locales: Record<string, Locale>) {
@@ -461,10 +531,10 @@ function getOrCreateOverride(
   return { override: created, created: true };
 }
 
-async function collectImportPlansForDatasource(
+export async function collectImportPlansForDatasource(
   datasource: Datasource,
   rows: ImportRow[],
-  options: Required<Pick<ImportProjectOptions, "createMissing" | "prune">>,
+  options: Pick<ImportProjectOptions, "createMissing" | "prune" | "emptyValues">,
   set: string | undefined,
   warnings: string[],
 ) {
@@ -473,12 +543,47 @@ async function collectImportPlansForDatasource(
     datasource.listMessages(),
   ]);
   const locales = await readAll<Locale>(localeKeys, (key) => datasource.readLocale(key));
-  const messages = await readAll<Message>(messageKeys, (key) => datasource.readMessage(key));
+  const existingKeys = new Set(messageKeys);
+  // Keep the complete key index for ambiguous combined identities, but only open
+  // documents addressed by this import. Large sets must not amplify small edits.
+  const selectedKeys = [...new Set(rows.map((row) => row.messageKey))].filter((key) =>
+    existingKeys.has(key),
+  );
+  const documents = await readAll<EntityDocument<Message>>(selectedKeys, (key) =>
+    datasource.readEntityDocument<Message>("message", key),
+  );
+  const messages = Object.fromEntries(
+    Object.entries(documents).map(([key, document]) => [key, document.entity]),
+  );
   const plansByKey = new Map<string, ImportPlanEntry>();
   let skippedRows = 0;
   let skippedCells = 0;
   let prunedTranslations = 0;
 
+  const seen = new Map<string, string>();
+  for (const row of rows) {
+    if (
+      !row.explicitIdentity &&
+      row.encodedKey &&
+      row.overrideKey &&
+      existingKeys.has(row.encodedKey)
+    ) {
+      throw new MessagevisorCLIError(
+        `Ambiguous message identity "${row.encodedKey}". Use an explicit overrideKey column.`,
+        { code: "ambiguous_import_identity" },
+      );
+    }
+    for (const [locale, value] of Object.entries(row.values)) {
+      const identity = JSON.stringify([set, row.messageKey, row.overrideKey, locale]);
+      if (seen.has(identity) && seen.get(identity) !== value) {
+        throw new MessagevisorCLIError(
+          `Conflicting duplicate import unit at row ${row.rowNumber}.`,
+          { code: "import_conflict" },
+        );
+      }
+      seen.set(identity, value);
+    }
+  }
   const sortedRows = [...rows].sort(
     (a, b) => Number(Boolean(a.overrideKey)) - Number(Boolean(b.overrideKey)),
   );
@@ -490,9 +595,14 @@ async function collectImportPlansForDatasource(
       continue;
     }
 
-    const planKey = `${set || ""}:${row.messageKey}`;
+    const planKey = JSON.stringify([set, row.messageKey]);
     const existingPlan = plansByKey.get(planKey);
-    const message = messages[row.messageKey];
+    const message = Object.hasOwn(messages, row.messageKey) ? messages[row.messageKey] : undefined;
+    row.validate?.(message, locales);
+    if (row.validate && Object.keys(row.values).length === 0) {
+      skippedRows++;
+      continue;
+    }
 
     if (!message && !options.createMissing) {
       skippedRows++;
@@ -509,13 +619,19 @@ async function collectImportPlansForDatasource(
       continue;
     }
 
-    const plan = getOrCreatePlan(plansByKey, set, row.messageKey, message);
+    const plan = getOrCreatePlan(
+      plansByKey,
+      set,
+      row.messageKey,
+      message,
+      documents[row.messageKey]?.version ?? null,
+    );
 
     if (row.overrideKey) {
       const { override, created } = getOrCreateOverride(
         plan.updated,
         row.overrideKey,
-        options.createMissing,
+        options.createMissing === true,
       );
 
       if (!override) {
@@ -552,7 +668,27 @@ async function collectImportPlansForDatasource(
           continue;
         }
 
-        if (!shouldApplyTranslation(override.translations, locale, value, locales)) {
+        if (value === "" && options.emptyValues === "delete") {
+          if (Object.hasOwn(override.translations || {}, locale)) {
+            delete override.translations[locale];
+            if (override.translationStates) delete override.translationStates[locale];
+            plan.prunedOverrideLocales.push({ overrideKey: row.overrideKey, locale });
+            prunedTranslations++;
+            changed = true;
+          } else skippedCells++;
+          continue;
+        }
+
+        if (
+          !shouldApplyTranslation(
+            override.translations,
+            locale,
+            value,
+            locales,
+            options.emptyValues,
+            row.forceDirect,
+          )
+        ) {
           skippedCells++;
           continue;
         }
@@ -595,13 +731,71 @@ async function collectImportPlansForDatasource(
         continue;
       }
 
-      if (!shouldApplyTranslation(plan.updated.translations, locale, value, locales)) {
+      if (value === "" && options.emptyValues === "delete") {
+        if (Object.hasOwn(plan.updated.translations || {}, locale)) {
+          delete plan.updated.translations[locale];
+          if (plan.updated.translationStates) delete plan.updated.translationStates[locale];
+          plan.prunedLocales.push(locale);
+          prunedTranslations++;
+        } else skippedCells++;
+        continue;
+      }
+
+      if (
+        !shouldApplyTranslation(
+          plan.updated.translations,
+          locale,
+          value,
+          locales,
+          options.emptyValues,
+          row.forceDirect,
+        )
+      ) {
         skippedCells++;
         continue;
       }
 
       plan.updated.translations = { ...plan.updated.translations, [locale]: value };
       plan.changedLocales.push(locale);
+    }
+  }
+
+  for (const plan of plansByKey.values()) {
+    plan.updated = reconcileTranslationGroup(plan.original, plan.updated);
+    if (plan.updated.overrides)
+      plan.updated.overrides = plan.updated.overrides.map((override) =>
+        reconcileTranslationGroup(
+          plan.original?.overrides?.find((entry) => entry.key === override.key),
+          override,
+        ),
+      );
+  }
+  for (const row of rows) {
+    if (!row.translationState) continue;
+    const plan = plansByKey.get(JSON.stringify([set, row.messageKey]));
+    if (!plan) continue;
+    const group = row.overrideKey
+      ? plan.updated.overrides?.find((entry) => entry.key === row.overrideKey)
+      : plan.updated;
+    if (!group) continue;
+    const mutations = Object.keys(row.values)
+      .filter((locale) => Object.hasOwn(group.translations, locale))
+      .map((locale) => ({ locale, status: row.translationState }));
+    const updated = applyTranslationMutations(group, mutations, {
+      sourceLocale: row.sourceLocale,
+      locales,
+    });
+    if (deepEqual(updated, group)) continue;
+    Object.assign(group, updated);
+    for (const { locale } of mutations) {
+      if (row.overrideKey) {
+        if (
+          !plan.changedOverrideLocales.some(
+            (entry) => entry.overrideKey === row.overrideKey && entry.locale === locale,
+          )
+        )
+          plan.changedOverrideLocales.push({ overrideKey: row.overrideKey, locale });
+      } else if (!plan.changedLocales.includes(locale)) plan.changedLocales.push(locale);
     }
   }
 
@@ -624,17 +818,20 @@ function deepEqual(a: unknown, b: unknown) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-async function writePlans(datasource: Datasource, plans: ImportPlanEntry[]) {
-  for (const plan of plans) {
-    if (plan.original && deepEqual(withoutKey(plan.original as any), plan.updated)) {
-      continue;
-    }
-
-    await datasource.writeMessage(plan.key, plan.updated);
-  }
+export async function writePlans(datasource: Datasource, plans: ImportPlanEntry[], dryRun = false) {
+  const mutations: EntityMutation[] = plans
+    .filter((plan) => !plan.original || !deepEqual(withoutKey(plan.original as any), plan.updated))
+    .map((plan) => ({
+      operation: "write",
+      type: "message",
+      key: plan.key,
+      entity: plan.updated,
+      expectedVersion: plan.expectedVersion,
+    }));
+  if (mutations.length) await datasource.applyEntityMutations(mutations, { dryRun });
 }
 
-function createResult(
+export function createResult(
   inputFilePath: string,
   apply: boolean,
   startTime: number,
@@ -728,6 +925,20 @@ async function readJsonText(inputFilePath: string) {
 
 function parseJson(content: string) {
   try {
+    const objects: Set<string>[] = [];
+    visit(content, {
+      onObjectBegin: () => {
+        objects.push(new Set());
+      },
+      onObjectProperty: (key) => {
+        const keys = objects[objects.length - 1];
+        if (keys.has(key)) throw new Error(`Duplicate JSON property "${key}"`);
+        keys.add(key);
+      },
+      onObjectEnd: () => {
+        objects.pop();
+      },
+    });
     return JSON.parse(content);
   } catch (error) {
     throw new MessagevisorCLIError("Invalid JSON: unable to parse input.", {
@@ -762,7 +973,7 @@ function selectJsonPath(content: unknown, jsonPath?: string) {
       });
     }
 
-    if (!isPlainObject(current) || !(segment in current)) {
+    if (!isPlainObject(current) || !Object.hasOwn(current, segment)) {
       throw new MessagevisorCLIError(`JSON path "${jsonPath}" was not found.`, {
         code: "invalid_json",
         details: { path: jsonPath },
@@ -806,6 +1017,7 @@ function jsonToImportRows(
       rowNumber: index + 1,
       messageKey,
       overrideKey,
+      encodedKey: key,
       values: {
         [locale]: value,
       },
@@ -907,6 +1119,8 @@ export async function importProject(
   }
 
   const inputFilePath = getInputFilePath(projectConfig, options, parsed);
+  if (options.format === "xliff")
+    return importXliff(projectConfig, datasource, inputFilePath, options);
   const input = options.fromJson
     ? await (async () => {
         const locale = getJsonImportLocale(options);
@@ -922,6 +1136,7 @@ export async function importProject(
     {
       createMissing: options.createMissing === true,
       prune: options.prune === true,
+      emptyValues: options.emptyValues,
     },
     undefined,
     input.warnings,
@@ -963,6 +1178,9 @@ export async function importProjectSets(
   const unknownRequestedSets = requestedSets.filter((set) => !executionSets.includes(set));
   const inputFilePath = getInputFilePath(projectConfig, options, parsed);
 
+  if (options.format === "xliff")
+    return importXliff(projectConfig, datasource, inputFilePath, options);
+
   if (unknownRequestedSets.length > 0) {
     throw new MessagevisorCLIError(
       `Unknown set "${unknownRequestedSets[0]}". Available sets: ${executionSets.join(", ") || "none"}.`,
@@ -993,6 +1211,7 @@ export async function importProjectSets(
       {
         createMissing: options.createMissing === true,
         prune: options.prune === true,
+        emptyValues: options.emptyValues,
       },
       execution.set,
       warnings,
@@ -1080,6 +1299,7 @@ export async function importProjectSets(
       {
         createMissing: options.createMissing === true,
         prune: options.prune === true,
+        emptyValues: options.emptyValues,
       },
       execution.set,
       warnings,
@@ -1089,9 +1309,21 @@ export async function importProjectSets(
     skippedRows += collected.skippedRows;
     skippedCells += collected.skippedCells;
     prunedTranslations += collected.prunedTranslations;
+  }
 
-    if (options.apply === true) {
-      await writePlans(execution.datasource, collected.plans);
+  if (options.apply === true) {
+    for (const execution of selectedExecutions) {
+      await writePlans(
+        execution.datasource,
+        plans.filter((plan) => plan.set === execution.set),
+        true,
+      );
+    }
+    for (const execution of selectedExecutions) {
+      await writePlans(
+        execution.datasource,
+        plans.filter((plan) => plan.set === execution.set),
+      );
     }
   }
 
@@ -1172,11 +1404,16 @@ export const importPlugin = {
           jsonPath: parsed.jsonPath,
           delimiter: parsed.delimiter,
           bom: parsed.bom,
+          emptyValues: parsed.emptyValues,
+          format: parsed.format,
+          sourceLocale: parsed.sourceLocale,
+          materializeInherited: parsed.materializeInherited,
         },
         parsed,
       );
 
-      printImportResult(projectConfig, result);
+      if (parsed.json) console.log(JSON.stringify(result, null, parsed.pretty ? 2 : undefined));
+      else printImportResult(projectConfig, result);
     } catch (error) {
       if (printMessagevisorCLIError(error, parsed)) {
         return false;

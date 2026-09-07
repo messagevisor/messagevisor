@@ -6,6 +6,7 @@ import type { Message } from "@messagevisor/types";
 
 import { getProjectConfig } from "../config";
 import { Datasource } from "./index";
+import { createProjectedDatasource } from "./projected";
 
 describe("Datasource adapter contract", function () {
   let root: string;
@@ -41,6 +42,51 @@ describe("Datasource adapter contract", function () {
     await datasource.deleteEntity("message", "common.welcome");
     expect(await datasource.messageExists("common.welcome")).toBe(false);
     await expect(datasource.deleteMessage("common.welcome")).resolves.toBeUndefined();
+  });
+
+  it.each([null, [], 42, "invalid"])(
+    "preserves malformed source roots for schema validation",
+    async (entity) => {
+      await fs.promises.mkdir(path.join(root, "locales"), { recursive: true });
+      await fs.promises.writeFile(path.join(root, "locales", "en.yml"), JSON.stringify(entity));
+      expect(await datasource.readEntity("locale", "en")).toEqual(entity);
+    },
+  );
+
+  it("projects additions, replacements and deletions through every read helper without writes", async () => {
+    await datasource.writeMessage("removed", { translations: { en: "Removed" } });
+    await datasource.writeMessage("existing", { translations: { en: "Existing" } });
+    const read = jest.spyOn(datasource, "readEntity");
+    const projected = createProjectedDatasource(datasource, [
+      { operation: "delete", type: "message", key: "removed" },
+      {
+        operation: "write",
+        type: "message",
+        key: "added",
+        entity: { translations: { en: "Added" } },
+      },
+    ]);
+    expect(await projected.listMessages()).toEqual(["added", "existing"]);
+    expect(await projected.messageExists("removed")).toBe(false);
+    expect(await projected.messageExists("added")).toBe(true);
+    expect(projected.getSnapshotCachePath()).toBeUndefined();
+    expect(await projected.getEntityFingerprint("message", "added")).toBeUndefined();
+    const existing = await projected.readMessage("existing");
+    existing.translations.en = "Mutated";
+    expect((await projected.readMessage("existing")).translations.en).toBe("Existing");
+    expect((await projected.readMessage("added")).translations.en).toBe("Added");
+    await expect(projected.readMessage("removed")).rejects.toThrow("Unknown projected");
+    expect(read).toHaveBeenCalledTimes(1);
+    for (const write of [
+      () => projected.writeMessage("added", { translations: {} }),
+      () => projected.deleteMessage("existing"),
+      () => projected.applyEntityMutations([]),
+      () => projected.writeRevision("new"),
+      () => projected.writeDatafile({} as never),
+    ])
+      expect(write).toThrow("read only");
+    expect(await datasource.messageExists("added")).toBe(false);
+    expect(await datasource.messageExists("removed")).toBe(true);
   });
 
   it("uses hidden temporary files and leaves none behind after atomic writes", async function () {

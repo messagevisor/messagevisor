@@ -281,6 +281,7 @@ export class FilesystemAdapter extends Adapter {
   async readEntity<T>(type: EntityType, key: string): Promise<T> {
     const entity = await this.readFile<T>(this.getEntityPath(type, key));
 
+    if (!entity || typeof entity !== "object" || Array.isArray(entity)) return entity;
     return { ...(entity as Record<string, unknown>), key } as T;
   }
 
@@ -312,12 +313,15 @@ export class FilesystemAdapter extends Adapter {
   }
 
   getSnapshotCachePath() {
+    if (!this.parser.cacheVersion?.trim()) return undefined;
     const cacheRoot = this.rootDirectoryPath || path.dirname(this.config.localesDirectoryPath);
     const cacheScope = crypto
       .createHash("sha1")
       .update(
         JSON.stringify([
+          this.parser.cacheVersion,
           this.parser.extension,
+          this.config.namespaceCharacter,
           ...Object.values(ENTITY_DIRECTORIES).map((directoryKey) => this.config[directoryKey]),
         ]),
       )

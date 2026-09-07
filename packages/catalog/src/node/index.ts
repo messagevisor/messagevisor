@@ -3,7 +3,16 @@ import * as childProcess from "child_process";
 import * as fs from "fs";
 import * as http from "http";
 import * as path from "path";
-import * as zlib from "zlib";
+import {
+  getContentType,
+  getCatalogCompressionEncoding,
+  sendCatalogResponse,
+  getCatalogCacheControl,
+  injectCatalogLiveReloadClient,
+  decodeCatalogRequestUrl,
+  resolveCatalogRequestFilePath,
+} from "./httpResponse";
+import { getCatalogInputWatchPaths, createCatalogInputWatcher } from "./inputWatcher";
 
 import type {
   Attribute,
@@ -249,6 +258,11 @@ export interface CatalogRuntime {
   ) => Promise<CatalogDuplicateTranslationsResult>;
   targetIncludesMessage: (target: Target | undefined, messageKey: string) => boolean;
   compileTargetMessageMatcher: (target?: Target) => (messageKey: string) => boolean;
+  resolveTargetLocaleKeys: (
+    target: Target | undefined,
+    localeKeys: string[],
+    requested?: string | string[],
+  ) => string[];
   expandTestAssertions: (test: Test) => Array<Record<string, unknown>>;
 }
 
@@ -1742,15 +1756,15 @@ async function buildSetCatalog(
   );
 
   const relationshipsStartedAt = context.progress.step("Mapping relationships");
-  const messageTargets: Record<string, string[]> = {};
-  const targetMessages: Record<string, string[]> = {};
-  const localeTargets: Record<string, Set<string>> = {};
-  const attributeTargets: Record<string, Set<string>> = {};
-  const segmentTargets: Record<string, Set<string>> = {};
-  const attributesUsedInSegments: Record<string, Set<string>> = {};
-  const attributesUsedInMessages: Record<string, Set<string>> = {};
-  const segmentsUsedInMessages: Record<string, Set<string>> = {};
-  const testsByEntity: Record<string, Array<Record<string, unknown>>> = {};
+  const messageTargets: Record<string, string[]> = Object.create(null);
+  const targetMessages: Record<string, string[]> = Object.create(null);
+  const localeTargets: Record<string, Set<string>> = Object.create(null);
+  const attributeTargets: Record<string, Set<string>> = Object.create(null);
+  const segmentTargets: Record<string, Set<string>> = Object.create(null);
+  const attributesUsedInSegments: Record<string, Set<string>> = Object.create(null);
+  const attributesUsedInMessages: Record<string, Set<string>> = Object.create(null);
+  const segmentsUsedInMessages: Record<string, Set<string>> = Object.create(null);
+  const testsByEntity: Record<string, Array<Record<string, unknown>>> = Object.create(null);
 
   for (const testKey of testKeys) {
     const test = tests[testKey];
@@ -1784,9 +1798,7 @@ async function buildSetCatalog(
       targets[targetKey],
       messageKeys,
     );
-    const targetLocaleKeys = targets[targetKey].locales?.length
-      ? targets[targetKey].locales
-      : localeKeys;
+    const targetLocaleKeys = targets[targetKey].locales ?? localeKeys;
 
     for (const localeKey of targetLocaleKeys) {
       if (!localeTargets[localeKey]) {
@@ -2011,7 +2023,7 @@ async function buildSetCatalog(
       formatRows: getFormatRows(context.runtime, localeKey, locales),
       evaluatedExamples: evaluatedLocaleExamplesByKey[localeKey] || [],
       targetFormats: Object.fromEntries(
-        targetKeys.map((targetKey) => [
+        Array.from(localeTargets[localeKey] || []).map((targetKey) => [
           targetKey,
           context.runtime.resolveFormats(localeKey, locales, targets[targetKey]),
         ]),
@@ -2047,7 +2059,7 @@ async function buildSetCatalog(
   }
 
   // translationShards[3charPrefix][messageKey] = Set<lowercased value>
-  const translationShards: Record<string, Record<string, Set<string>>> = {};
+  const translationShards: Record<string, Record<string, Set<string>>> = Object.create(null);
 
   function addToTranslationShard(msgKey: string, value: string) {
     if (!value || value.length < 3) return;
@@ -2058,7 +2070,7 @@ async function buildSetCatalog(
       if (seenSubs.has(sub)) continue;
       seenSubs.add(sub);
       const filename = Buffer.from(sub, "utf8").toString("hex");
-      if (!translationShards[filename]) translationShards[filename] = {};
+      if (!translationShards[filename]) translationShards[filename] = Object.create(null);
       if (!translationShards[filename][msgKey]) translationShards[filename][msgKey] = new Set();
       translationShards[filename][msgKey].add(lower);
     }
@@ -2210,7 +2222,7 @@ async function buildSetCatalog(
     }
 
     for (const [prefix, messageMap] of Object.entries(translationShards)) {
-      const shardData: Record<string, string[]> = {};
+      const shardData: Record<string, string[]> = Object.create(null);
       for (const [msgKey, valueSet] of Object.entries(messageMap)) {
         shardData[msgKey] = Array.from(valueSet);
       }
@@ -2320,9 +2332,9 @@ async function buildSetCatalog(
   const targetsStartedAt = context.progress.step("Writing targets");
   await mapWithConcurrency(targetKeys, 32, async (targetKey) => {
     const target = targets[targetKey];
-    const targetLocaleKeys = target.locales?.length ? target.locales : localeKeys;
-    const formatsByLocale: Record<string, FormatPresets | undefined> = {};
-    const formatRowsByLocale: Record<string, CatalogFormatRow[]> = {};
+    const targetLocaleKeys = context.runtime.resolveTargetLocaleKeys(target, localeKeys);
+    const formatsByLocale: Record<string, FormatPresets | undefined> = Object.create(null);
+    const formatRowsByLocale: Record<string, CatalogFormatRow[]> = Object.create(null);
 
     for (const localeKey of targetLocaleKeys) {
       const datafileFormats = target.includeOnlyUsedFormats
@@ -2638,7 +2650,7 @@ async function rebuildCatalogSetForDev(
     await runtime.getProjectSetExecutions(projectConfig, datasource),
     options.selectedSets,
   );
-  const setIndexes: Record<string, CatalogSetIndex> = {};
+  const setIndexes: Record<string, CatalogSetIndex> = Object.create(null);
   const existingIndexes = await Promise.all(
     executions.map(async (execution) => {
       const indexPath = path.join(
@@ -2755,7 +2767,8 @@ export async function exportCatalog(
   const links = options.devSession?.links || getRepoLinks(rootDirectoryPath);
   progress.done(stepStartedAt);
 
-  let duplicateResultsBySet: Record<string, CatalogDuplicateTranslationsSetResult> = {};
+  let duplicateResultsBySet: Record<string, CatalogDuplicateTranslationsSetResult> =
+    Object.create(null);
   if (withDuplicates) {
     stepStartedAt = progress.step("Scanning duplicate translations");
     duplicateResultsBySet = Object.fromEntries(
@@ -2817,7 +2830,7 @@ export async function exportCatalog(
       ? `(${executions.map((execution) => execution.set).join(", ") || "none"})`
       : "(root)",
   );
-  const setIndexes: Record<string, CatalogSetIndex> = {};
+  const setIndexes: Record<string, CatalogSetIndex> = Object.create(null);
 
   for (const execution of executions) {
     const outputRelativeDirectory = projectConfig.sets ? path.join("sets", execution.set) : "root";
@@ -2877,411 +2890,6 @@ export async function exportCatalog(
   return {
     outputDirectoryPath,
     manifest,
-  };
-}
-
-function getContentType(filePath: string) {
-  const extension = path.extname(filePath);
-
-  switch (extension) {
-    case ".js":
-      return "text/javascript";
-    case ".css":
-      return "text/css";
-    case ".json":
-      return "application/json";
-    case ".png":
-      return "image/png";
-    case ".svg":
-      return "image/svg+xml";
-    case ".ico":
-      return "image/x-icon";
-    default:
-      return "text/html";
-  }
-}
-
-function getAcceptedEncodingQuality(header: string | undefined, encoding: string) {
-  if (!header) {
-    return 0;
-  }
-
-  let wildcardQuality: number | undefined;
-
-  for (const value of header.toLowerCase().split(",")) {
-    const parts = value.trim().split(";");
-    const name = parts.shift()?.trim();
-    const qualityPart = parts.find((part) => part.trim().startsWith("q="));
-    const quality = qualityPart ? Number(qualityPart.trim().slice(2)) : 1;
-
-    if (!Number.isFinite(quality) || quality < 0) {
-      continue;
-    }
-
-    if (name === encoding) {
-      return quality;
-    }
-
-    if (name === "*") {
-      wildcardQuality = quality;
-    }
-  }
-
-  return wildcardQuality ?? 0;
-}
-
-// The no-cache, no-transform directive on mutable data files binds
-// intermediaries: it stops a proxy or CDN from altering a response in transit.
-// It does not restrict this origin from serving a negotiated representation,
-// so compressing here alongside that directive is correct, not a conflict.
-function getCatalogCompressionEncoding(request: http.IncomingMessage, filePath: string) {
-  if (![".css", ".html", ".js", ".json"].includes(path.extname(filePath))) {
-    return undefined;
-  }
-
-  const acceptEncoding = request.headers["accept-encoding"];
-  const header = Array.isArray(acceptEncoding) ? acceptEncoding.join(",") : acceptEncoding;
-  const brotliQuality = getAcceptedEncodingQuality(header, "br");
-  const gzipQuality = getAcceptedEncodingQuality(header, "gzip");
-
-  if (
-    brotliQuality > 0 &&
-    typeof zlib.brotliCompress === "function" &&
-    brotliQuality >= gzipQuality
-  ) {
-    return "br" as const;
-  }
-
-  if (gzipQuality > 0) {
-    return "gzip" as const;
-  }
-
-  return undefined;
-}
-
-function sendCatalogResponse(
-  request: http.IncomingMessage,
-  response: http.ServerResponse,
-  filePath: string,
-  content: Buffer,
-  headers: Record<string, string>,
-) {
-  const compressionEncoding = getCatalogCompressionEncoding(request, filePath);
-  const responseHeaders = {
-    ...headers,
-    Vary: "Accept-Encoding",
-  };
-
-  if (!compressionEncoding) {
-    response.writeHead(200, responseHeaders);
-    response.end(content);
-    return;
-  }
-
-  const compressedHeaders = {
-    ...responseHeaders,
-    "Content-Encoding": compressionEncoding,
-  };
-  const compress = compressionEncoding === "br" ? zlib.brotliCompress : zlib.gzip;
-
-  compress(content, (error, compressedContent) => {
-    if (error) {
-      response.writeHead(500, { "Content-Type": "text/plain" });
-      response.end("Unable to compress Catalog response.");
-      return;
-    }
-
-    response.writeHead(200, compressedHeaders);
-    response.end(compressedContent);
-  });
-}
-
-function getCatalogCacheControl(filePath: string, outputDirectoryPath: string) {
-  const relativePath = path.relative(outputDirectoryPath, filePath).split(path.sep).join("/");
-
-  if (/(^|\/)blocks\/[^/]+\/(?!ranges\.json$)[^/]+\.json$/.test(relativePath)) {
-    return "public, max-age=31536000, immutable";
-  }
-
-  // All generated data metadata is mutable and must be revalidated. This
-  // includes layered index files and entity/history files whose names are not
-  // known here. Without an explicit directive, browsers may heuristically
-  // cache an old index and pair it with blocks from a newer export.
-  if (relativePath.startsWith("data/") && relativePath.endsWith(".json")) {
-    return "no-cache, no-transform";
-  }
-
-  return undefined;
-}
-
-function getCatalogLiveReloadClientScript() {
-  return [
-    "<script>",
-    "(() => {",
-    '  const source = new EventSource("/__messagevisor_catalog_reload");',
-    '  source.addEventListener("reload", () => window.location.reload());',
-    "  source.onerror = () => {",
-    "    source.close();",
-    "    setTimeout(() => window.location.reload(), 1000);",
-    "  };",
-    "})();",
-    "</script>",
-  ].join("");
-}
-
-function injectCatalogLiveReloadClient(html: string) {
-  const script = getCatalogLiveReloadClientScript();
-
-  if (html.includes("</body>")) {
-    return html.replace("</body>", `${script}</body>`);
-  }
-
-  return `${html}${script}`;
-}
-
-function decodeCatalogRequestUrl(url: string) {
-  try {
-    return decodeURIComponent(url.split("?")[0]);
-  } catch (_error) {
-    return undefined;
-  }
-}
-
-function resolveCatalogRequestFilePath(outputDirectoryPath: string, requestedUrl: string) {
-  const requestedPath = requestedUrl === "/" ? "/index.html" : requestedUrl;
-  const filePath = path.resolve(outputDirectoryPath, requestedPath.replace(/^\/+/, ""));
-  const relativeFilePath = path.relative(outputDirectoryPath, filePath);
-
-  if (
-    relativeFilePath === "" ||
-    relativeFilePath.startsWith("..") ||
-    path.isAbsolute(relativeFilePath)
-  ) {
-    return undefined;
-  }
-
-  return { requestedPath, filePath };
-}
-
-function getCatalogInputWatchPaths(rootDirectoryPath: string, projectConfig: any) {
-  const paths = [path.join(rootDirectoryPath, "messagevisor.config.js")];
-
-  if (projectConfig.sets) {
-    paths.push(projectConfig.setsDirectoryPath);
-    return paths;
-  }
-
-  paths.push(
-    projectConfig.localesDirectoryPath,
-    projectConfig.messagesDirectoryPath,
-    projectConfig.attributesDirectoryPath,
-    projectConfig.segmentsDirectoryPath,
-    projectConfig.targetsDirectoryPath,
-    projectConfig.testsDirectoryPath,
-  );
-
-  return paths.filter((entry): entry is string => typeof entry === "string" && entry.length > 0);
-}
-
-function createCatalogInputWatcher(
-  rootDirectoryPath: string,
-  projectConfig: any,
-  ignoredDirectoryPaths: string[],
-  onChange: (changedPaths: string[]) => void,
-) {
-  const watchPaths = getCatalogInputWatchPaths(rootDirectoryPath, projectConfig);
-
-  function shouldIgnore(targetPath: string) {
-    const resolvedTargetPath = path.resolve(targetPath);
-
-    return ignoredDirectoryPaths.some((ignoredDirectoryPath) => {
-      const resolvedIgnoredPath = path.resolve(ignoredDirectoryPath);
-
-      return (
-        resolvedTargetPath === resolvedIgnoredPath ||
-        resolvedTargetPath.startsWith(`${resolvedIgnoredPath}${path.sep}`)
-      );
-    });
-  }
-
-  function shouldWatch(targetPath: string) {
-    const resolvedTargetPath = path.resolve(targetPath);
-
-    if (shouldIgnore(resolvedTargetPath)) {
-      return false;
-    }
-
-    return watchPaths.some((watchPath) => {
-      const resolvedWatchPath = path.resolve(watchPath);
-
-      return (
-        resolvedTargetPath === resolvedWatchPath ||
-        resolvedTargetPath.startsWith(`${resolvedWatchPath}${path.sep}`)
-      );
-    });
-  }
-
-  async function collectSnapshotEntries(
-    directoryPath: string,
-    snapshotEntries: Map<string, string>,
-  ): Promise<void> {
-    if (shouldIgnore(directoryPath)) {
-      return;
-    }
-
-    let entries: fs.Dirent[] = [];
-
-    try {
-      entries = await fs.promises.readdir(directoryPath, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const entryPath = path.join(directoryPath, entry.name);
-
-      if (shouldIgnore(entryPath)) {
-        continue;
-      }
-
-      if (entry.isDirectory()) {
-        await collectSnapshotEntries(entryPath, snapshotEntries);
-        continue;
-      }
-
-      if (!entry.isFile()) {
-        continue;
-      }
-
-      try {
-        const stat = await fs.promises.stat(entryPath);
-        snapshotEntries.set(entryPath, `${stat.size}:${stat.mtimeMs}`);
-      } catch {
-        // Ignore transient editor save races.
-      }
-    }
-  }
-
-  async function createSnapshot() {
-    const snapshotEntries = new Map<string, string>();
-
-    for (const watchPath of watchPaths) {
-      let stat: fs.Stats;
-
-      try {
-        stat = await fs.promises.stat(watchPath);
-      } catch {
-        continue;
-      }
-
-      if (stat.isFile()) {
-        snapshotEntries.set(watchPath, `${stat.size}:${stat.mtimeMs}`);
-        continue;
-      }
-
-      await collectSnapshotEntries(watchPath, snapshotEntries);
-    }
-
-    return snapshotEntries;
-  }
-
-  function getSnapshotChanges(previous: Map<string, string>, next: Map<string, string>) {
-    const changedPaths = new Set<string>();
-
-    for (const [filePath, signature] of Array.from(next.entries())) {
-      if (previous.get(filePath) !== signature) {
-        changedPaths.add(filePath);
-      }
-    }
-
-    for (const filePath of Array.from(previous.keys())) {
-      if (!next.has(filePath)) {
-        changedPaths.add(filePath);
-      }
-    }
-
-    return Array.from(changedPaths);
-  }
-
-  function createPollingWatcher() {
-    let previousSnapshot = new Map<string, string>();
-    let checking = false;
-    let stopped = false;
-
-    async function poll() {
-      if (stopped || checking) {
-        return;
-      }
-
-      checking = true;
-
-      try {
-        const nextSnapshot = await createSnapshot();
-        const changedPaths = getSnapshotChanges(previousSnapshot, nextSnapshot).filter(shouldWatch);
-
-        previousSnapshot = nextSnapshot;
-
-        if (changedPaths.length > 0) {
-          onChange(changedPaths);
-        }
-      } finally {
-        checking = false;
-      }
-    }
-
-    void poll();
-    const interval = setInterval(() => void poll(), 1000);
-
-    return () => {
-      stopped = true;
-      clearInterval(interval);
-    };
-  }
-
-  const watchers: fs.FSWatcher[] = [];
-  let nativeWatcherFailed = false;
-
-  for (const watchPath of watchPaths) {
-    if (!fs.existsSync(watchPath)) {
-      continue;
-    }
-
-    try {
-      const stat = fs.statSync(watchPath);
-      const directoryPath = stat.isDirectory() ? watchPath : path.dirname(watchPath);
-      const watcher = fs.watch(
-        directoryPath,
-        { recursive: stat.isDirectory() },
-        (_eventType, filename) => {
-          const changedPath = filename
-            ? path.resolve(directoryPath, filename.toString())
-            : directoryPath;
-
-          if (shouldWatch(changedPath)) {
-            onChange([changedPath]);
-          }
-        },
-      );
-
-      watchers.push(watcher);
-    } catch (_error) {
-      nativeWatcherFailed = true;
-      break;
-    }
-  }
-
-  if (nativeWatcherFailed || watchers.length === 0) {
-    for (const watcher of watchers) {
-      watcher.close();
-    }
-
-    return createPollingWatcher();
-  }
-
-  return () => {
-    for (const watcher of watchers) {
-      watcher.close();
-    }
   };
 }
 

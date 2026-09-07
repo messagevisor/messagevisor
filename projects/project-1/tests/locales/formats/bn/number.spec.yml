@@ -40,7 +40,7 @@ assertions:
     expectedTranslation: "১২\u00A0লা"
     expectedByRuntime:
       swift: "12\u00A0লা"
-      python: "10 লা"
+      python: "12 লা"
   - description: "Number / scientific notation"
     rawMessage: "{value, number, scientific}"
     values:
@@ -56,7 +56,7 @@ assertions:
     expectedTranslation: "+১,২৩৫"
     expectedByRuntime:
       swift: "+1,235"
-      python: "+1,234"
+      python: "+1,235"
   - description: "Number / rounding half even"
     rawMessage: "{value, number, roundingHalfEven}"
     values:
@@ -71,7 +71,7 @@ assertions:
       value: 2026
     expectedTranslation: "٢٬٠٢٦"
     expectedByRuntime:
-      python: "2,026"
+      python: "2٬026"
   - description: "Number / decimal negative"
     rawMessage: "{value, number, decimal}"
     values:
@@ -103,7 +103,7 @@ assertions:
     expectedTranslation: "-১৩\u00A0লা"
     expectedByRuntime:
       swift: "-13\u00A0লা"
-      python: "-10 লা"
+      python: "-13 লা"
   - description: "Number / sign always zero"
     rawMessage: "{value, number, signAlways}"
     values:

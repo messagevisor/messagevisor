@@ -7,7 +7,7 @@ import {
   type MessagePrimitiveValue,
   type MessageValue,
   type MessageValues,
-  type Messagevisor,
+  type MessagevisorConsumer,
 } from "@messagevisor/sdk";
 import type {
   FormatDateTimePresetOptions,
@@ -15,7 +15,6 @@ import type {
   FormatPresets,
   FormatRelativeTimePresetOptions,
   LocaleKey,
-  MessageKey,
 } from "@messagevisor/types";
 
 export type IntlMessageValues = MessageValues<React.ReactNode>;
@@ -40,7 +39,12 @@ export interface IntlShape {
   messages?: Record<string, string>;
   formats?: FormatPresets;
   timeZone?: string;
-  messagevisor: Messagevisor;
+  messagevisor: MessagevisorConsumer;
+  formatMessageWithValues(
+    descriptor: MessageDescriptor,
+    prepareValues: (source: string) => IntlMessageValues | undefined,
+    options?: TranslateOptions,
+  ): MessageFormatResult<React.ReactNode>;
   formatMessage(
     descriptor: MessageDescriptor,
     values?: PrimitiveMessageValues,
@@ -94,73 +98,113 @@ export interface IntlShape {
 }
 
 export function createIntlFromMessagevisor(
-  messagevisor: Messagevisor,
+  messagevisor: MessagevisorConsumer,
   config: Partial<Pick<IntlShape, "locale" | "messages" | "formats" | "timeZone">> = {},
 ): IntlShape {
-  const locale = messagevisor.getLocale() || config.locale || "";
+  const locale = config.locale ?? messagevisor.getLocale() ?? "";
+  const timeZone = config.timeZone ?? messagevisor.getTimeZone();
+  const evaluationOptions = (options: TranslateOptions = {}): TranslateOptions => ({
+    ...options,
+    locale: options.locale ?? locale,
+    timeZone: options.timeZone ?? timeZone,
+    formats: mergeFormats(config.formats, options.formats),
+  });
 
-  const requireICUModule = (message: string, translation: MessageFormatResult<React.ReactNode>) => {
-    if (translation !== message) {
-      return translation;
-    }
-
-    if (!/[<{]/.test(message)) {
-      return translation;
-    }
-
-    throw new Error(
-      "Message formatting requires a Messagevisor instance configured with createICUModule().",
-    );
+  const requireICUModule = (message: string) => {
+    if (/[<{]/.test(message) && !messagevisor.hasFormatModule())
+      throw new Error(
+        "Message formatting requires a Messagevisor instance configured with createICUModule().",
+      );
   };
 
-  const formatDescriptorMessage = (
+  const formatMessageWithValues = (
     descriptor: MessageDescriptor,
-    values?: MessageValues<React.ReactNode>,
+    prepareValues: (source: string) => IntlMessageValues | undefined,
     options?: TranslateOptions,
   ) => {
-    const translationOptions =
+    const translationOptions = evaluationOptions(
       typeof descriptor.defaultMessage !== "undefined" &&
-      typeof options?.defaultTranslation === "undefined"
+        typeof options?.defaultTranslation === "undefined"
         ? { ...options, defaultTranslation: descriptor.defaultMessage }
-        : options;
-    const resolved = descriptor.id
-      ? messagevisor.getRawTranslation(descriptor.id as MessageKey, translationOptions)
+        : options,
+    );
+    const prepare = (message: string) => {
+      requireICUModule(message);
+      return prepareValues(message);
+    };
+    if (
+      descriptor.id &&
+      !Object.prototype.hasOwnProperty.call(config.messages || {}, descriptor.id)
+    ) {
+      return messagevisor.translateWithValues(descriptor.id, prepare, translationOptions);
+    }
+    const message = descriptor.id
+      ? config.messages![descriptor.id]
       : (descriptor.defaultMessage ?? "");
-    const message = resolved;
-
-    const translation = messagevisor.formatMessage(
+    return messagevisor.formatMessage(
       message,
-      values as MessageValues<React.ReactNode>,
+      prepare(message) as IntlMessageValues,
       translationOptions,
     );
-
-    return requireICUModule(message, translation);
   };
 
   return {
     locale,
-    messages: messagevisor.getDefaultTranslations(locale) || config.messages,
-    formats: messagevisor.getDefaultFormats(locale) || config.formats,
-    timeZone: config.timeZone ?? messagevisor.getTimeZone(),
+    messages: config.messages ?? messagevisor.getDefaultTranslations(locale),
+    formats: config.formats ?? messagevisor.getDefaultFormats(locale),
+    timeZone,
     messagevisor,
-    formatMessage: formatDescriptorMessage as IntlShape["formatMessage"],
-    formatDate: (value, format, options) => messagevisor.formatDate(value, format as any, options),
+    formatMessage: ((descriptor, values, options) =>
+      formatMessageWithValues(descriptor, () => values, options)) as IntlShape["formatMessage"],
+    formatMessageWithValues,
+    formatDate: (value, format, options) =>
+      messagevisor.formatDate(value, format as any, evaluationOptions(options)),
     formatDateToParts: (value, format, options) =>
-      messagevisor.formatDateToParts(value, format as any, options),
-    formatTime: (value, format, options) => messagevisor.formatTime(value, format as any, options),
+      messagevisor.formatDateToParts(value, format as any, evaluationOptions(options)),
+    formatTime: (value, format, options) =>
+      messagevisor.formatTime(value, format as any, evaluationOptions(options)),
     formatTimeToParts: (value, format, options) =>
-      messagevisor.formatTimeToParts(value, format as any, options),
+      messagevisor.formatTimeToParts(value, format as any, evaluationOptions(options)),
     formatNumber: (value, format, options) =>
-      messagevisor.formatNumber(value, format as any, options),
+      messagevisor.formatNumber(value, format as any, evaluationOptions(options)),
     formatNumberToParts: (value, format, options) =>
-      messagevisor.formatNumberToParts(value, format as any, options),
+      messagevisor.formatNumberToParts(value, format as any, evaluationOptions(options)),
     formatRelativeTime: (value, unit, format, options) =>
-      messagevisor.formatRelativeTime(value, unit, format as any, options),
-    formatPlural: (value, options) => messagevisor.formatPlural(value, options),
-    formatList: (values, options) => messagevisor.formatList(values, options),
-    formatListToParts: (values, options) => messagevisor.formatListToParts(values, options),
-    formatDisplayName: (value, options) => messagevisor.formatDisplayName(value, options),
+      messagevisor.formatRelativeTime(value, unit, format as any, evaluationOptions(options)),
+    formatPlural: (value, options) => messagevisor.formatPlural(value, { locale, ...options }),
+    formatList: (values, options) => messagevisor.formatList(values, { locale, ...options }),
+    formatListToParts: (values, options) =>
+      messagevisor.formatListToParts(values, { locale, ...options }),
+    formatDisplayName: (value, options) =>
+      messagevisor.formatDisplayName(value, { locale, ...options }),
   };
+}
+
+function mergeFormats(base?: FormatPresets, overrides?: FormatPresets): FormatPresets | undefined {
+  if (!base) return overrides;
+  if (!overrides) return base;
+  const result = { ...base };
+  for (const type of Object.keys(overrides) as Array<keyof FormatPresets>) {
+    const family: Record<string, object> = { ...base[type] };
+    for (const preset of Object.keys(overrides[type] || {})) {
+      Object.defineProperty(family, preset, {
+        enumerable: true,
+        configurable: true,
+        writable: true,
+        value: {
+          ...(Object.prototype.hasOwnProperty.call(family, preset) ? family[preset] : {}),
+          ...overrides[type]![preset],
+        },
+      });
+    }
+    Object.defineProperty(result, type, {
+      value: family,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+  }
+  return result;
 }
 
 export type WithIntlProps = {
@@ -181,8 +225,12 @@ export function mergeRichTextValues(
   let match: RegExpExecArray | null;
 
   while ((match = tagPattern.exec(message))) {
-    if (defaults[match[1]]) {
-      matchingDefaults[match[1]] = defaults[match[1]];
+    if (Object.prototype.hasOwnProperty.call(defaults, match[1])) {
+      Object.defineProperty(matchingDefaults, match[1], {
+        value: defaults[match[1]],
+        enumerable: true,
+        configurable: true,
+      });
     }
   }
 

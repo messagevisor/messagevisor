@@ -24,6 +24,8 @@ import { formatProjectPath } from "../path";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN, colorize } from "../tester/cliFormat";
 import { prettyDuration } from "../tester/prettyDuration";
 import { matchesPattern } from "../targeting";
+import { reconcileTranslationGroup, type TranslationGroup } from "../translationWorkflow";
+import { applyCombinationToValue, getMatrixCombinations } from "../matrix";
 
 type EntityType = "locale" | "attribute" | "segment" | "target" | "message" | "test";
 type ConflictPolicy = "source" | "destination" | "fail";
@@ -322,6 +324,25 @@ function collectConditionDependencies(
     value.not.forEach((entry) => collectConditionDependencies(entry, segments, attributes));
 }
 
+function reconcilePromotedGroup<T extends TranslationGroup>(
+  destination: TranslationGroup | undefined,
+  source: TranslationGroup,
+  merged: T,
+  policy: ConflictPolicy,
+): T {
+  const translationStates: NonNullable<TranslationGroup["translationStates"]> = {};
+  for (const locale of Object.keys(merged.translations)) {
+    const destinationWins =
+      policy === "destination" && destination?.translations[locale] !== undefined;
+    const state =
+      destinationWins || source.translations[locale] === undefined
+        ? destination?.translationStates?.[locale]
+        : (source.translationStates?.[locale] ?? destination?.translationStates?.[locale]);
+    if (state) translationStates[locale] = state;
+  }
+  return reconcileTranslationGroup(destination, { ...merged, translationStates });
+}
+
 function mergeMessage(
   messageKey: string,
   destination: Message | undefined,
@@ -332,10 +353,13 @@ function mergeMessage(
   if (!destination) {
     const overrides = (source.overrides || []).filter((override) => isPromotable(override));
 
-    return {
+    return reconcileTranslationGroup(undefined, {
       ...source,
-      overrides: overrides.length > 0 ? overrides : undefined,
-    };
+      overrides:
+        overrides.length > 0
+          ? overrides.map((override) => reconcileTranslationGroup(undefined, override))
+          : undefined,
+    });
   }
 
   validateMessageOverrideKeys(messageKey, source);
@@ -378,7 +402,7 @@ function mergeMessage(
       })),
     );
 
-    overrides.push(merged);
+    overrides.push(reconcilePromotedGroup(destinationOverride, sourceOverride, merged, policy));
   }
 
   for (const destinationOverride of destinationOverrides) {
@@ -402,10 +426,15 @@ function mergeMessage(
     })),
   );
 
-  return {
-    ...mergedMessage,
-    overrides: overrides.length > 0 ? overrides : undefined,
-  };
+  return reconcilePromotedGroup(
+    destination,
+    source,
+    {
+      ...mergedMessage,
+      overrides: overrides.length > 0 ? overrides : undefined,
+    },
+    policy,
+  );
 }
 
 function removeMessageOverrides(message: Message): Message {
@@ -423,12 +452,25 @@ function filterMessageForLocales(message: Message, locales: Set<string>): Messag
     .map((override) => ({
       ...override,
       translations: filterLocaleMap(override.translations, locales) || {},
+      translationStates: filterLocaleMap(override.translationStates, locales),
     }))
     .filter((override) => Object.keys(override.translations).length > 0);
 
   return {
     ...message,
     translations: filterLocaleMap(message.translations, locales) || {},
+    translationStates: filterLocaleMap(message.translationStates, locales),
+    examples: message.examples?.flatMap((example) => {
+      if (!example.matrix || !example.locale.includes("${{"))
+        return locales.has(example.locale) ? [example] : [];
+      const { matrix, ...withoutMatrix } = example;
+      return getMatrixCombinations(matrix)
+        .map(
+          (combination) =>
+            applyCombinationToValue(withoutMatrix, combination) as typeof withoutMatrix,
+        )
+        .filter((expanded) => locales.has(expanded.locale));
+    }),
     overrides: overrides.length > 0 ? overrides : undefined,
   };
 }
@@ -720,6 +762,8 @@ async function getPromotionPlan(
       }
       promotedTargetKeys.add(key);
       (targets[key].locales || localeKeys).forEach((locale) => explicitRuntimeLocales.add(locale));
+
+      if (targets[key].locales?.length === 0) return;
 
       for (const messageKey of messageKeys) {
         const included = matchesPattern(

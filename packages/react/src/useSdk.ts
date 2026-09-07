@@ -1,10 +1,10 @@
 import * as React from "react";
 
-import type { Messagevisor } from "@messagevisor/sdk";
+import type { MessagevisorConsumer } from "@messagevisor/sdk";
 
 import { MessagevisorContext } from "./MessagevisorContext";
 
-export function useSdk(): Messagevisor {
+export function useSdk(): MessagevisorConsumer {
   const context = React.useContext(MessagevisorContext);
 
   if (!context) {

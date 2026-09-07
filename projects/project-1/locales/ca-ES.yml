@@ -210,6 +210,8 @@ examples:
     rawMessage: "Arabic digits: {value, number, arabicDigits}"
     values:
       value: 2026
+    expectedByRuntime:
+      python: "Arabic digits: 2٬026"
 
   - description: "Currency / default money"
     rawMessage: "Default money: {amount, number, money}"
@@ -345,6 +347,7 @@ examples:
 
     expectedByRuntime:
       swift: "Weekday narrow: dt., 12 MG 2026"
+      python: "Weekday narrow: dt., 12 MG del 2026"
   - description: "Date / month long"
     rawMessage: "Month long: {when, date, monthLong}"
     values:
@@ -389,6 +392,8 @@ examples:
     rawMessage: "Arabic date digits: {when, date, arabicNumeric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      python: "Arabic date digits: 12/05/2026"
 
   - description: "Date / Buddhist calendar"
     rawMessage: "Buddhist calendar: {when, date, buddhistLong}"
@@ -397,6 +402,7 @@ examples:
 
     expectedByRuntime:
       swift: "Buddhist calendar: 12 de maig del 2569"
+      python: "Buddhist calendar: 12 de maig del 2026"
   - description: "Date / Japanese era calendar"
     rawMessage: "Japanese era calendar: {when, date, japaneseEra}"
     values:
@@ -404,6 +410,7 @@ examples:
 
     expectedByRuntime:
       swift: "Japanese era calendar: 12 de maig de 8 Reiwa"
+      python: "Japanese era calendar: 12 de maig del 2026 dC"
   - description: "Date / format matcher basic"
     rawMessage: "Format matcher basic: {when, date, matcherBasic}"
     values:
@@ -472,22 +479,16 @@ examples:
     values:
       when: "2026-05-12T12:00:00Z"
 
-    expectedByRuntime:
-      swift: "Day period long: 12\u202Fp.\u202Fm."
   - description: "Time / day period short"
     rawMessage: "Day period short: {when, time, dayPeriodShort}"
     values:
       when: "2026-05-12T12:00:00Z"
 
-    expectedByRuntime:
-      swift: "Day period short: 12\u202Fp.\u202Fm."
   - description: "Time / day period narrow"
     rawMessage: "Day period narrow: {when, time, dayPeriodNarrow}"
     values:
       when: "2026-05-12T12:00:00Z"
 
-    expectedByRuntime:
-      swift: "Day period narrow: 12\u202Fp.\u202Fm."
   - description: "Time / hour12 true"
     rawMessage: "Hour12 true: {when, time, hour12}"
     values:
@@ -538,10 +539,13 @@ examples:
 
     expectedByRuntime:
       swift: "Time zone long: 8:30 Hora del meridià de Greenwich"
+      python: "Time zone long: 8:30 (Temps universal coordinat)"
   - description: "Time / time zone short offset"
     rawMessage: "Time zone short offset: {when, time, zoneShortOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      python: "Time zone short offset: 14:15 GMT+05:45"
 
   - description: "Time / time zone long offset"
     rawMessage: "Time zone long offset: {when, time, zoneLongOffset}"
@@ -550,6 +554,7 @@ examples:
 
     expectedByRuntime:
       swift: "Time zone long offset: 14:15 Hora del Nepal"
+      python: "Time zone long offset: 14:15 (GMT+05:45)"
   - description: "Time / time zone short generic"
     rawMessage: "Time zone short generic: {when, time, zoneShortGeneric}"
     values:
@@ -557,6 +562,7 @@ examples:
 
     expectedByRuntime:
       swift: "Time zone short generic: 4:30 GMT-4"
+      python: "Time zone short generic: 4:30 Hora de: Estats Units (Nova York)"
   - description: "Time / time zone long generic"
     rawMessage: "Time zone long generic: {when, time, zoneLongGeneric}"
     values:

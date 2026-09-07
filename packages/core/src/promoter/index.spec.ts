@@ -5,6 +5,7 @@ import * as path from "path";
 import { getProjectConfig } from "../config";
 import { Datasource } from "../datasource";
 import { promotePlugin, promoteProjectSets } from "./index";
+import { applyTranslationMutations } from "../translationWorkflow";
 
 async function writeFile(root: string, relativePath: string, content: string) {
   const filePath = path.join(root, relativePath);
@@ -64,6 +65,115 @@ async function createProject(options?: { configContent?: string; sets?: string[]
 }
 
 describe("promoteProjectSets", function () {
+  it("does not promote translations through a target with no locales", async () => {
+    const root = await createProject();
+    try {
+      const config = getProjectConfig(root);
+      const datasource = new Datasource(config, root);
+      await datasource
+        .forSet("dev")
+        .writeTarget("empty", { description: "No output", locales: [] });
+      const result = await promoteProjectSets(config, datasource, {
+        from: "dev",
+        to: "staging",
+        target: "empty",
+        apply: true,
+      });
+      expect(result.dependencies.messages).toBe(0);
+      expect(result.dependencies.locales).toBe(0);
+      expect(
+        (await datasource.forSet("staging").readMessage("product.price")).translations.en,
+      ).toBe("Old price");
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+  it.each(["source", "destination"] as const)(
+    "keeps review state atomic under %s conflict policy",
+    async (conflicts) => {
+      const root = await createProject();
+      try {
+        const config = getProjectConfig(root);
+        const datasource = new Datasource(config, root);
+        for (const set of ["dev", "staging"]) {
+          const ds = datasource.forSet(set);
+          const message = await ds.readMessage("product.price");
+          const value = set === "dev" ? "New copy" : "Old copy";
+          message.translations["en-US"] = value;
+          message.overrides![0].translations["en-US"] = value;
+          message.overrides![0] = applyTranslationMutations(
+            message.overrides![0],
+            [{ locale: "en-US", status: "reviewed" }],
+            { sourceLocale: "en" },
+          );
+          await ds.writeMessage(
+            "product.price",
+            applyTranslationMutations(message, [{ locale: "en-US", status: "reviewed" }], {
+              sourceLocale: "en",
+            }),
+          );
+        }
+        const previous = await datasource.forSet("staging").readMessage("product.price");
+        await promoteProjectSets(config, datasource, {
+          from: "dev",
+          to: "staging",
+          includeMessages: "product.price",
+          conflicts,
+          apply: true,
+        });
+        const result = await datasource.forSet("staging").readMessage("product.price");
+        if (conflicts === "source") {
+          expect(result.translationStates?.["en-US"]).toEqual({ status: "translated" });
+          expect(result.overrides![0].translationStates?.["en-US"]).toEqual({
+            status: "translated",
+          });
+        } else {
+          expect(result.translationStates).toEqual(previous.translationStates);
+          expect(result.overrides![0].translationStates).toEqual(
+            previous.overrides![0].translationStates,
+          );
+        }
+      } finally {
+        await fs.promises.rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("filters states and locale examples while preserving authoring context", async () => {
+    const root = await createProject();
+    try {
+      const config = getProjectConfig(root);
+      const datasource = new Datasource(config, root);
+      const source = datasource.forSet("dev");
+      await source.writeLocale("fr", { description: "French" });
+      const message = await source.readMessage("product.price");
+      message.translations.fr = "Prix";
+      message.translationStates = { fr: { status: "draft" } };
+      message.overrides![0].translations.fr = "Pro prix";
+      message.overrides![0].translationStates = { fr: { status: "draft" } };
+      message.translatorContext = { notes: "Checkout context" };
+      message.examples = [
+        { locale: "en-US" },
+        { locale: "fr" },
+        { locale: "${{ lang }}", matrix: { lang: ["en-US", "fr"] }, description: "Matrix" },
+      ];
+      await source.writeMessage("product.price", message);
+      await promoteProjectSets(config, datasource, {
+        from: "dev",
+        to: "staging",
+        includeMessages: "product.price",
+        locale: "en-US",
+        apply: true,
+      });
+      const result = await datasource.forSet("staging").readMessage("product.price");
+      expect(result.translationStates?.fr).toBeUndefined();
+      expect(result.overrides![0].translationStates?.fr).toBeUndefined();
+      expect(result.examples?.map((example) => example.locale)).toEqual(["en-US", "en-US"]);
+      expect(result.translatorContext).toEqual(message.translatorContext);
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
   it("previews selected target entities by default and applies only with apply", async function () {
     const root = await createProject();
     const projectConfig = getProjectConfig(root);

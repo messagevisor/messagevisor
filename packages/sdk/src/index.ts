@@ -19,6 +19,7 @@ export type {
   MessageValues,
   Messagevisor,
   MessagevisorChild,
+  MessagevisorConsumer,
   MessagevisorDiagnostic,
   MessagevisorDiagnosticCode,
   MessagevisorDiagnosticDetails,

@@ -59,8 +59,10 @@ export function createTargetContextSpecializer(
   segments: Record<string, Segment>,
   context?: Context,
 ) {
-  const specializedSegments: Record<string, Segment> = {};
-  const segmentResults: Record<string, TargetedResult<Condition | Condition[]>> = {};
+  const specializedSegments: Record<string, Segment> = Object.create(null);
+  const segmentResults: Record<string, TargetedResult<Condition | Condition[]>> = Object.create(
+    null,
+  );
 
   function applyContextToCondition(
     condition: Condition | Condition[] | "*",

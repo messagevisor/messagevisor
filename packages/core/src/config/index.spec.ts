@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { execFileSync } from "child_process";
 
 import { getProjectConfig } from "./index";
 
@@ -13,19 +14,32 @@ async function createProject(configContent: string) {
 describe("getProjectConfig", function () {
   it("reloads changed configuration instead of returning the require cache", async function () {
     const root = await createProject('module.exports = { sourceLocale: "en" };\n');
-    expect(getProjectConfig(root).sourceLocale).toBe("en");
-
-    await fs.promises.writeFile(
-      path.join(root, "messagevisor.config.js"),
-      'module.exports = { sourceLocale: "nl" };\n',
-    );
-
-    // Jest maintains its own module registry, unlike Node's native require cache.
-    // Reload this module so the assertion exercises the same fresh-load path used
-    // by the CLI and Catalog in production.
-    jest.resetModules();
-    const { getProjectConfig: getReloadedProjectConfig } = require("./index");
-    expect(getReloadedProjectConfig(root).sourceLocale).toBe("nl");
+    try {
+      // Exercise native Node caching. Jest's transform cache can reuse a file
+      // rewritten with the same size and timestamp even after resetModules().
+      const output = execFileSync(
+        process.execPath,
+        [
+          "-e",
+          `
+        require("ts-node").register({ transpileOnly: true, compilerOptions: { module: "CommonJS", moduleResolution: "node" } });
+        const fs = require("fs");
+        const { getProjectConfig } = require(${JSON.stringify(path.join(__dirname, "index.ts"))});
+        const root = ${JSON.stringify(root)};
+        const file = ${JSON.stringify(path.join(root, "messagevisor.config.js"))};
+        const stamp = fs.statSync(file);
+        console.log(getProjectConfig(root).sourceLocale);
+        fs.writeFileSync(file, 'module.exports = { sourceLocale: "nl" };\\n');
+        fs.utimesSync(file, stamp.atime, stamp.mtime);
+        console.log(getProjectConfig(root).sourceLocale);
+      `,
+        ],
+        { cwd: path.resolve(__dirname, "../../../.."), encoding: "utf8" },
+      );
+      expect(output.trim().split("\n")).toEqual(["en", "nl"]);
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
   });
 
   it("defaults lintIcu to true", async function () {

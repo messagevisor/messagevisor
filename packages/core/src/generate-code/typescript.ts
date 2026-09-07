@@ -84,7 +84,7 @@ async function collectMessageKeysForDatasource(
   options: TypeScriptCodeGenerationOptions,
 ) {
   const allMessageKeys = await datasource.listMessages();
-  const messages: Record<string, Message> = {};
+  const messages: Record<string, Message> = Object.create(null);
 
   for (const messageKey of allMessageKeys) {
     messages[messageKey] = await datasource.readMessage(messageKey);
@@ -160,10 +160,7 @@ export function setInstance(messagevisor: Messagevisor) {
 
 export function getInstance() {
   if (!instance) {
-    throw new MessagevisorCLIError("Messagevisor instance is not set. Call setInstance(instance) first.", {
-      code: "invalid_input",
-      details: { operation: "setInstance" },
-    });
+    throw new Error("Messagevisor instance is not set. Call setInstance(instance) first.");
   }
 
   return instance;
@@ -184,10 +181,18 @@ export function translate<T>(
   values?: MessageValues<T>,
   options?: TranslateOptions,
 ) {
-  return getInstance().translate(messageKey, values, options);
+  return typeof values === "undefined"
+    ? getInstance().translate(messageKey, undefined, options)
+    : getInstance().translate<T>(messageKey, values, options);
 }
 
 export const t = translate;
+
+/** Bind typed helpers to a request or application instance without global state. */
+export function createTranslations(m: Messagevisor) {
+  const translateBound = m.translate.bind(m) as typeof translate;
+  return { translate: translateBound, t: translateBound };
+}
 `;
 }
 

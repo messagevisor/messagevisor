@@ -41,14 +41,38 @@ describe("catalog message blocks", () => {
     const changedEntries = entries(200);
     changedEntries[17] = {
       ...changedEntries[17],
-      payload: { ...changedEntries[17].payload, value: "changed" },
+      payload: { ...changedEntries[17].payload, value: "XX" },
     };
     const after = toCatalogBlocks(changedEntries, 16384);
     const beforeHashes = new Set(before.map((block) => block.contentHash));
     const changedHashes = after.filter((block) => !beforeHashes.has(block.contentHash));
 
-    expect(changedHashes.length).toBeGreaterThan(0);
-    expect(changedHashes.length).toBeLessThan(after.length);
+    expect(after.map((block) => block.vbucketStart)).toEqual(
+      before.map((block) => block.vbucketStart),
+    );
+    expect(changedHashes).toHaveLength(1);
+    expect(changedHashes[0].content).toHaveProperty([changedEntries[17].key]);
+  });
+
+  it("serializes each payload twice regardless of split depth and honours UTF8 byte budgets", () => {
+    const serialize = jest.fn(() => ({ value: "日本語".repeat(40) }));
+    const input = Array.from({ length: 1024 }, (_, index) => ({
+      key: `message.${index}`,
+      payload: { toJSON: serialize },
+    }));
+    const blocks = toCatalogBlocks(input, 16384);
+    expect(serialize).toHaveBeenCalledTimes(input.length * 2);
+    expect(blocks.length).toBeGreaterThan(16);
+    expect(blocks.reduce((count, block) => count + Object.keys(block.content).length, 0)).toBe(
+      input.length,
+    );
+    for (const block of blocks) {
+      expect(Buffer.byteLength(block.serialized, "utf8")).toBeLessThanOrEqual(16384);
+      expect(block.contentHash).toBe(hashBlockContent(block.serialized));
+    }
+    expect(toCatalogRangeTable(toCatalogBlocks([...input].reverse(), 16384), 16384)).toEqual(
+      toCatalogRangeTable(blocks, 16384),
+    );
   });
 
   it("hashes the exact compact block payload", () => {

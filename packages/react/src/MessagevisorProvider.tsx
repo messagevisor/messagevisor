@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import type { Messagevisor } from "@messagevisor/sdk";
+import type { MessagevisorConsumer } from "@messagevisor/sdk";
 
 import {
   MessagevisorContext,
@@ -9,7 +9,7 @@ import {
 } from "./MessagevisorContext";
 
 export interface MessagevisorProviderProps {
-  instance: Messagevisor;
+  instance: MessagevisorConsumer;
   children: React.ReactNode;
   defaultRichTextElements?: Record<string, RichTextElementHandler>;
   wrapRichTextChunksInFragment?: boolean;

@@ -124,19 +124,22 @@ export function useTranslation(
     const key = toValue(messageKey);
     const resolvedValues = resolveMaybeRecord(values);
     const resolvedOptions = resolveMaybeRecord(options);
-    const message = context.instance.getRawTranslation(key, resolvedOptions);
-    const translation = context.instance.translate<VueMessageChunk>(
+    const locale = resolvedOptions?.locale || context.instance.getLocale() || undefined;
+
+    const translation = context.instance.translateWithValues<VueMessageChunk>(
       key,
-      richText.mergeValues(
-        resolvedValues as VueMessageValues | undefined,
-        message,
-      ) as MessageValues<VueMessageChunk>,
+      (message) =>
+        richText.mergeValues(
+          resolvedValues as VueMessageValues | undefined,
+          message,
+        ) as MessageValues<VueMessageChunk>,
       resolvedOptions,
     );
 
     return richText.wrapResult(
       richText.runModules(translation, {
         source: "translation",
+        locale,
         messageKey: key,
       }),
     );
@@ -163,18 +166,21 @@ export function useFormatMessage(
 
   return computed(() => {
     const resolvedMessage = toValue(message);
+    const resolvedOptions = resolveMaybeRecord(options);
+    const locale = resolvedOptions?.locale || context.instance.getLocale() || undefined;
     const translation = context.instance.formatMessage<VueMessageChunk>(
       resolvedMessage,
       richText.mergeValues(
         resolveMaybeRecord(values) as VueMessageValues | undefined,
         resolvedMessage,
       ) as MessageValues<VueMessageChunk>,
-      resolveMaybeRecord(options),
+      resolvedOptions,
     );
 
     return richText.wrapResult(
       richText.runModules(translation, {
         source: "formatMessage",
+        locale,
       }),
     );
   });

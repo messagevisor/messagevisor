@@ -1,6 +1,18 @@
 locale: en-US
 
 assertions:
+  - description: Quoted braces do not hide an ICU format reference
+    rawMessage: "This '{' literal {amount, number, money}"
+    values:
+      amount: 12.5
+    expectedTranslation: "This { literal $12.50"
+
+  - description: Quoted placeholders remain literal after ICU formatting
+    rawMessage: "'{name}'"
+    values:
+      name: Ada
+    expectedTranslation: "{name}"
+
   - description: en-US partial format subset
     expectedFormats:
       number:

@@ -186,6 +186,54 @@ function getDatasource(root: string) {
 }
 
 describe("pruneProject", function () {
+  it("removes base and override states atomically with pruned direct translations", async () => {
+    const root = await createProject();
+    try {
+      const config = getProjectConfig(root);
+      const datasource = new Datasource(config, root);
+      const message = await datasource.readMessage("common.welcome");
+      message.translationStates = {
+        "en-US": { status: "draft" },
+        "en-AU": { status: "translated" },
+      };
+      message.overrides![0].translationStates = { "en-US": { status: "draft" } };
+      await datasource.writeMessage("common.welcome", message);
+      await pruneProject(config, datasource, {
+        pruneMode: "translations",
+        locale: "en-US",
+        apply: true,
+      });
+      const result = await datasource.readMessage("common.welcome");
+      expect(result.translations["en-US"]).toBeUndefined();
+      expect(result.translationStates).toEqual({ "en-AU": { status: "translated" } });
+      expect(result.overrides![0].translationStates).toBeUndefined();
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("treats explicit empty target locales as zero locales", async () => {
+    const root = await createProject();
+    try {
+      const config = getProjectConfig(root);
+      const datasource = new Datasource(config, root);
+      await datasource.writeTarget("empty", { locales: [] });
+      expect(
+        (
+          await pruneProject(config, datasource, {
+            pruneMode: "translations",
+            target: "empty",
+            apply: true,
+          })
+        ).entries,
+      ).toEqual([]);
+      expect((await datasource.readMessage("common.welcome")).translations["en-US"]).toBe(
+        "Welcome",
+      );
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
   it("reports and applies prune-able inherited message and override translations", async function () {
     const root = await createProject();
     const { projectConfig, datasource } = getDatasource(root);

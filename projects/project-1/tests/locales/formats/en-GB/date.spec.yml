@@ -27,7 +27,7 @@ assertions:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12/05/26"
     expectedByRuntime:
-      python: "12/05/2026"
+      python: "12/5/26"
   - description: "Date / numeric fields"
     rawMessage: "{when, date, numeric}"
     values:
@@ -43,15 +43,11 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "Tue, 12 May 2026"
-    expectedByRuntime:
-      python: "Tuesday, 12 May 2026"
   - description: "Date / weekday narrow"
     rawMessage: "{when, date, weekdayNarrow}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "T, 12 M 2026"
-    expectedByRuntime:
-      python: "Tuesday, 12 May 2026"
   - description: "Date / month long"
     rawMessage: "{when, date, monthLong}"
     values:
@@ -67,15 +63,11 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 M 2026"
-    expectedByRuntime:
-      python: "12 May 2026"
   - description: "Date / era long"
     rawMessage: "{when, date, eraLong}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 May 2026 Anno Domini"
-    expectedByRuntime:
-      python: "12 May 2026 AD"
   - description: "Date / era short"
     rawMessage: "{when, date, eraShort}"
     values:
@@ -86,8 +78,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 May 2026 A"
-    expectedByRuntime:
-      python: "12 May 2026 AD"
   - description: "Date / Arabic digits"
     rawMessage: "{when, date, arabicNumeric}"
     values:
@@ -102,7 +92,6 @@ assertions:
     expectedTranslation: "12 May 2569 BE"
     expectedByRuntime:
       swift: "12 May 2569"
-      php: "12 May 2026 AD"
       python: "12 May 2026"
   - description: "Date / Japanese era calendar"
     rawMessage: "{when, date, japaneseEra}"
@@ -110,7 +99,7 @@ assertions:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "12 May 8 Reiwa"
     expectedByRuntime:
-      php: "May 12, 2026 AD"
+      php: "May 12, 8 Reiwa"
       python: "12 May 2026 AD"
   - description: "Date / format matcher basic"
     rawMessage: "{when, date, matcherBasic}"
@@ -132,8 +121,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "26"
-    expectedByRuntime:
-      python: "2026"
   - description: "Date / month numeric only"
     rawMessage: "{when, date, monthNumericOnly}"
     values:
@@ -144,8 +131,6 @@ assertions:
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "05"
-    expectedByRuntime:
-      python: "5"
   - description: "Date / day numeric only"
     rawMessage: "{when, date, dayNumericOnly}"
     values:
@@ -168,7 +153,6 @@ assertions:
     expectedTranslation: "25 Dhuʻl-Qiʻdah 1447 AH"
     expectedByRuntime:
       swift: "25 Dhuʻl-Qiʻdah 1447"
-      php: "12 May 2026 AD"
       python: "12 May 2026"
   - description: "Date / Latin digits"
     rawMessage: "{when, date, latinNumeric}"

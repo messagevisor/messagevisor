@@ -40,7 +40,8 @@ revisionFromHash: false
 
 - `includeMessages` and `excludeMessages` choose message keys by glob pattern. Use a string for one pattern, or an array for multiple patterns.
 - Omitted `includeMessages` means all messages. Explicit `includeMessages: []` means no messages.
-- `locales` lists which locale datafiles are produced.
+- `locales` lists which locale datafiles are produced. Omitted means all locales; explicit `locales: []` means none. Unknown locale keys, including build locale selectors, are errors.
+- Explicit `--locale` selection intersects the Target's locale list. It never bypasses the Target boundary. Targets with omitted locales remain eligible for locale filtered listing.
 - `context` is compile-time known context. It can remove impossible override branches from output.
 - `formats.<locale>` applies target-level format overrides after locale format resolution.
 - `includeFormats` and `excludeFormats` filter resolved format presets by type and style name. Use a string for one pattern, or an array for multiple patterns.
@@ -80,6 +81,10 @@ includeOnlyUsedFormats: true
 ```
 
 This optimization is mutually exclusive with `includeFormats` and `excludeFormats`.
+
+Used format filtering parses emitted translations as ICU, including when `lintIcu: false`. Malformed input fails with `invalid_icu_syntax`. Ordinary builds with used format filtering disabled are unchanged. Quoted literal ICU looking text is not a reference, and direct SDK formatter calls cannot be discovered. Use explicit filters for presets needed only by application code.
+
+Attribute definitions never ship in datafiles. They validate authored conditions; surviving runtime conditions can still reference context field names supplied by the application.
 
 ## Check target coverage
 

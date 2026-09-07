@@ -60,16 +60,22 @@ examples:
     rawMessage: "Decimal max 2: {value, number, decimal}"
     values:
       value: 1234.567
+    expectedByRuntime:
+      python: "Decimal max 2: 1.234,57"
 
   - description: "Number / fixed 2 decimals"
     rawMessage: "Fixed 2 decimals: {value, number, decimalFixed}"
     values:
       value: 1234.5
+    expectedByRuntime:
+      python: "Fixed 2 decimals: 1.234,50"
 
   - description: "Number / padded integer"
     rawMessage: "Padded integer: {value, number, integerPadded}"
     values:
       value: 12
+    expectedByRuntime:
+      python: "Padded integer: 0.012"
 
   - description: "Number / 3 significant digits"
     rawMessage: "3 significant digits: {value, number, significant3}"
@@ -129,16 +135,22 @@ examples:
     rawMessage: "Sign auto: {value, number, signAuto}"
     values:
       value: -1234.5
+    expectedByRuntime:
+      python: "Sign auto: -1.235"
 
   - description: "Number / sign never"
     rawMessage: "Sign never: {value, number, signNever}"
     values:
       value: -1234.5
+    expectedByRuntime:
+      python: "Sign never: 1.235"
 
   - description: "Number / sign always"
     rawMessage: "Sign always: {value, number, signAlways}"
     values:
       value: 1234.5
+    expectedByRuntime:
+      python: "Sign always: +1.235"
 
   - description: "Number / sign except zero"
     rawMessage: "Sign except zero: {value, number, signExceptZero}"
@@ -149,6 +161,8 @@ examples:
     rawMessage: "Sign negative: {value, number, signNegative}"
     values:
       value: -1234.5
+    expectedByRuntime:
+      python: "Sign negative: -1.235"
 
   - description: "Number / rounding increment 5"
     rawMessage: "Rounding increment 5: {value, number, roundingFive}"
@@ -221,57 +235,79 @@ examples:
     rawMessage: "Arabic digits: {value, number, arabicDigits}"
     values:
       value: 2026
+    expectedByRuntime:
+      python: "Arabic digits: 2٬026"
 
   - description: "Currency / default money"
     rawMessage: "Default money: {amount, number, money}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "Default money: 1.234,50 €"
 
   - description: "Currency / symbol display"
     rawMessage: "Currency symbol: {amount, number, moneySymbol}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "Currency symbol: 1.234,50 €"
 
   - description: "Currency / code display"
     rawMessage: "Currency code: {amount, number, moneyCode}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "Currency code: 1.234,50 EUR"
 
   - description: "Currency / narrow symbol display"
     rawMessage: "Currency narrow symbol: {amount, number, moneyNarrow}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "Currency narrow symbol: 1.234,50 €"
 
   - description: "Currency / name display"
     rawMessage: "Currency name: {amount, number, moneyName}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "Currency name: 1.234,50 euros"
 
   - description: "Currency / accounting sign"
     rawMessage: "Accounting sign: {amount, number, moneyAccounting}"
     values:
       amount: -1234.5
+    expectedByRuntime:
+      python: "Accounting sign: -1.234,50 €"
 
   - description: "Currency / runtime currency"
     rawMessage: "Runtime currency: {amount, number, moneyRuntimeCurrency}"
     currency: EUR
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "Runtime currency: 1.234,50 EUR"
 
   - description: "Currency / GBP"
     rawMessage: "GBP: {amount, number, moneyGbp}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "GBP: 1.234,50 GBP"
 
   - description: "Currency / JPY"
     rawMessage: "JPY: {amount, number, moneyJpy}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "JPY: 1.235 JPY"
 
   - description: "Currency / EUR"
     rawMessage: "EUR: {amount, number, moneyEur}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "EUR: 1.234,50 €"
 
   - description: "Unit and percent / percent"
     rawMessage: "Percent: {value, number, percent}"
@@ -350,6 +386,7 @@ examples:
 
     expectedByRuntime:
       swift: "Weekday narrow: M, 12 M 2026"
+      python: "Weekday narrow: M, 12 de M de 2026"
   - description: "Date / month long"
     rawMessage: "Month long: {when, date, monthLong}"
     values:
@@ -367,6 +404,7 @@ examples:
 
     expectedByRuntime:
       swift: "Month narrow: 12 M 2026"
+      python: "Month narrow: 12 de M de 2026"
   - description: "Date / era long"
     rawMessage: "Era long: {when, date, eraLong}"
     values:
@@ -386,6 +424,8 @@ examples:
     rawMessage: "Arabic date digits: {when, date, arabicNumeric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      python: "Arabic date digits: 12/05/2026"
 
   - description: "Date / Buddhist calendar"
     rawMessage: "Buddhist calendar: {when, date, buddhistLong}"
@@ -394,10 +434,13 @@ examples:
 
     expectedByRuntime:
       swift: "Buddhist calendar: 12 de mayo de 2569"
+      python: "Buddhist calendar: 12 de mayo de 2026"
   - description: "Date / Japanese era calendar"
     rawMessage: "Japanese era calendar: {when, date, japaneseEra}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      python: "Japanese era calendar: 12 de mayo de 2026 d. C."
 
   - description: "Date / format matcher basic"
     rawMessage: "Format matcher basic: {when, date, matcherBasic}"
@@ -463,29 +506,21 @@ examples:
     values:
       when: "2026-05-12T12:00:00Z"
 
-    expectedByRuntime:
-      swift: "Day period long: 12\u202Fp.\u202Fm."
   - description: "Time / day period short"
     rawMessage: "Day period short: {when, time, dayPeriodShort}"
     values:
       when: "2026-05-12T12:00:00Z"
 
-    expectedByRuntime:
-      swift: "Day period short: 12\u202Fp.\u202Fm."
   - description: "Time / day period narrow"
     rawMessage: "Day period narrow: {when, time, dayPeriodNarrow}"
     values:
       when: "2026-05-12T12:00:00Z"
 
-    expectedByRuntime:
-      swift: "Day period narrow: 12\u202Fp.\u202Fm."
   - description: "Time / hour12 true"
     rawMessage: "Hour12 true: {when, time, hour12}"
     values:
       when: "2026-05-12T08:30:45.678Z"
 
-    expectedByRuntime:
-      swift: "Hour12 true: 8:30\u202Fa.\u202Fm."
   - description: "Time / hour12 false"
     rawMessage: "Hour12 false: {when, time, hour24}"
     values:
@@ -497,7 +532,7 @@ examples:
       when: "2026-05-12T00:30:45.678Z"
 
     expectedByRuntime:
-      swift: "Hour cycle h11: 12:30\u202Fa.\u202Fm."
+      swift: "Hour cycle h11: 12:30 de la madrugada"
   - description: "Time / hour cycle h12"
     rawMessage: "Hour cycle h12: {when, time, hourCycle12}"
     values:
@@ -535,6 +570,8 @@ examples:
     rawMessage: "Time zone short offset: {when, time, zoneShortOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      python: "Time zone short offset: 14:15 GMT+05:45"
 
   - description: "Time / time zone long offset"
     rawMessage: "Time zone long offset: {when, time, zoneLongOffset}"
@@ -550,6 +587,7 @@ examples:
 
     expectedByRuntime:
       swift: "Time zone short generic: 4:30 GMT-4"
+      python: "Time zone short generic: 4:30 hora de Estados Unidos (Nueva York)"
   - description: "Time / time zone long generic"
     rawMessage: "Time zone long generic: {when, time, zoneLongGeneric}"
     values:
@@ -580,6 +618,8 @@ examples:
     rawMessage: "{value, number, decimal}"
     values:
       value: -1234.567
+    expectedByRuntime:
+      python: "-1.234,57"
   - description: Number / decimal zero
     rawMessage: "{value, number, decimal}"
     values:
@@ -612,6 +652,8 @@ examples:
     rawMessage: "{value, number, groupingAuto}"
     values:
       value: 1000
+    expectedByRuntime:
+      python: "1.000"
   - description: Number / compact short thousands
     rawMessage: "{value, number, compactShort}"
     values:
@@ -714,6 +756,8 @@ examples:
     rawMessage: "{value, number, latinDigits}"
     values:
       value: 2026
+    expectedByRuntime:
+      python: "2.026"
   - description: Currency / default zero
     rawMessage: "{amount, number, money}"
     values:
@@ -722,19 +766,27 @@ examples:
     rawMessage: "{amount, number, money}"
     values:
       amount: -1234.5
+    expectedByRuntime:
+      python: "-1.234,50 €"
   - description: Currency / accounting positive
     rawMessage: "{amount, number, moneyAccounting}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "1.234,50 €"
   - description: Currency / runtime GBP
     rawMessage: "{amount, number, moneyRuntimeCurrency}"
     currency: GBP
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "1.234,50 GBP"
   - description: Currency / JPY zero decimals
     rawMessage: "{amount, number, moneyJpy}"
     values:
       amount: 1234.5
+    expectedByRuntime:
+      python: "1.235 JPY"
   - description: Unit and percent / percent zero
     rawMessage: "{value, number, percent}"
     values:
@@ -785,6 +837,7 @@ examples:
       when: "2026-05-12T08:30:45.678Z"
     expectedByRuntime:
       swift: "25 de dhuʻl-qiʻdah de 1447"
+      python: "12 de mayo de 2026"
   - description: Date / Latin digits
     rawMessage: "{when, date, latinNumeric}"
     values:
@@ -824,26 +877,20 @@ examples:
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T08:00:00Z"
-    expectedByRuntime:
-      swift: "8\u202Fa.\u202Fm."
   - description: Time / noon day period
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T12:00:00Z"
-    expectedByRuntime:
-      swift: "12\u202Fp.\u202Fm."
   - description: Time / evening day period
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T19:00:00Z"
-    expectedByRuntime:
-      swift: "7\u202Fp.\u202Fm."
   - description: Time / midnight hour cycle h11
     rawMessage: "{when, time, hourCycle11}"
     values:
       when: "2026-05-12T00:00:00Z"
     expectedByRuntime:
-      swift: "12:00\u202Fa.\u202Fm."
+      swift: "12:00 de la madrugada"
   - description: Time / midnight hour cycle h12
     rawMessage: "{when, time, hourCycle12}"
     values:

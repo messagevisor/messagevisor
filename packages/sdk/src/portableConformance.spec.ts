@@ -14,6 +14,12 @@ import { createMessagevisor } from "./instance";
 
 interface Fixture {
   fixtureVersion: number;
+  pluralSemantics: Array<{
+    locale: string;
+    value: number;
+    options?: Intl.PluralRulesOptions;
+    expected: string;
+  }>;
   portableRegex: {
     accepted: Array<{ pattern: string; flags?: string; value: string }>;
     rejected: Array<{ name: string; pattern: string; flags?: string }>;
@@ -63,7 +69,7 @@ interface Fixture {
   events: {
     stateEventBeforeChange: boolean;
     childDatafileTrace: Array<Record<string, unknown>>;
-    childDatafileRevisionAfterClose: string;
+    capturedChildDatafileRevisionAfterClose: string;
     changeSources: Array<
       "datafile_set" | "locale_set" | "context_set" | "currency_set" | "timeZone_set"
     >;
@@ -75,6 +81,18 @@ const fixture = JSON.parse(
 ) as Fixture;
 
 describe("portable SDK conformance", function () {
+  test.each(fixture.pluralSemantics)("canonical plural case: $locale ($value)", (row) => {
+    const diagnostics: string[] = [];
+    const m = createMessagevisor({
+      locale: row.locale,
+      onDiagnostic: (d) => {
+        if (d.level === "error") diagnostics.push(d.code);
+      },
+    });
+    expect(m.formatPlural(row.value, row.options)).toBe(row.expected);
+    expect(diagnostics).toEqual([]);
+  });
+
   test.each(fixture.portableRegex.accepted)(
     "accepts portable regex $pattern",
     function ({ pattern, flags, value }) {
@@ -377,7 +395,9 @@ describe("portable SDK conformance", function () {
 
     await child.close();
     parent.setDatafile({ ...datafile, revision: "3" }, true);
-    expect(trace[0].datafileRevision).toBe(fixture.events.childDatafileRevisionAfterClose);
+    // This fixture value refers to the previously captured event only. It does not
+    // promise that reading or evaluating a closed child returns a frozen snapshot.
+    expect(trace[0].datafileRevision).toBe(fixture.events.capturedChildDatafileRevisionAfterClose);
     expect(trace).toHaveLength(fixture.events.childDatafileTrace.length);
   });
 });

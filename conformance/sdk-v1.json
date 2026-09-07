@@ -1,6 +1,112 @@
 {
-  "fixtureVersion": 3,
+  "fixtureVersion": 5,
   "description": "Language-neutral Messagevisor SDK behavioral contract",
+  "icuSemantics": [
+    {
+      "id": "unused-number-branch",
+      "locale": "en-US",
+      "message": "{kind, select, yes {YES} other {{n, number}}}",
+      "values": { "kind": "yes", "n": "invalid" },
+      "expected": "YES"
+    },
+    {
+      "id": "unused-date-branch",
+      "locale": "en-US",
+      "message": "{kind, select, date {{d, date}} other {Safe}}",
+      "values": { "kind": "other", "d": "invalid" },
+      "expected": "Safe"
+    },
+    {
+      "id": "quoted-nested-date",
+      "locale": "en-US",
+      "message": "'{quoted {d, date}}'",
+      "values": { "d": "invalid" },
+      "expected": "{quoted {d, date}}"
+    },
+    {
+      "id": "missing-simple",
+      "locale": "en-US",
+      "message": "{x}",
+      "values": {},
+      "error": "invalid_message"
+    },
+    {
+      "id": "missing-number",
+      "locale": "en-US",
+      "message": "{x, number}",
+      "values": {},
+      "error": "invalid_message"
+    },
+    {
+      "id": "missing-date",
+      "locale": "en-US",
+      "message": "{x, date}",
+      "values": {},
+      "error": "invalid_message"
+    },
+    {
+      "id": "missing-select",
+      "locale": "en-US",
+      "message": "{x, select, yes {Yes} other {Other}}",
+      "values": {},
+      "error": "invalid_message"
+    },
+    {
+      "id": "empty-selected-branch",
+      "locale": "en-US",
+      "message": "{kind, select, yes {} other {Other}}",
+      "values": { "kind": "yes" },
+      "expected": ""
+    },
+    {
+      "id": "fractional-exact-plural",
+      "locale": "en-US",
+      "message": "{n, plural, =1 {Exact} one {One} other {Other}}",
+      "values": { "n": 1.5 },
+      "expected": "Other"
+    },
+    {
+      "id": "plural-offset-category",
+      "locale": "en-US",
+      "message": "{n, plural, offset:1 one {One #} other {Other #}}",
+      "values": { "n": 2 },
+      "expected": "One 1"
+    },
+    {
+      "id": "empty-plural-branch",
+      "locale": "en-US",
+      "message": "{n, plural, one {} other {Other}}",
+      "values": { "n": 1 },
+      "expected": ""
+    },
+    {
+      "id": "builtin-percent",
+      "locale": "en-US",
+      "message": "{n, number, percent}",
+      "values": { "n": 0.5 },
+      "expected": "50%"
+    },
+    {
+      "id": "builtin-integer",
+      "locale": "en-US",
+      "message": "{n, number, integer}",
+      "values": { "n": 0.5 },
+      "expected": "1"
+    },
+    {
+      "id": "currency-skeleton",
+      "locale": "en-US",
+      "message": "{n, number, ::currency/USD}",
+      "values": { "n": 0.5 },
+      "expected": "$0.50"
+    }
+  ],
+  "pluralSemantics": [
+    { "locale": "ru", "value": 1.5, "expected": "other" },
+    { "locale": "fr", "value": 1.5, "expected": "one" },
+    { "locale": "cy", "value": 2, "expected": "two" },
+    { "locale": "en", "value": 1, "options": { "minimumFractionDigits": 2 }, "expected": "other" }
+  ],
   "runtimeVariability": {
     "notGuaranteed": [
       "locale-specific punctuation and spacing",
@@ -8,6 +114,93 @@
       "CLDR-dependent date, time, number, list, and plural output"
     ],
     "policy": "Assert semantic behavior portably; use runtime-specific expectations for legitimate host ICU or CLDR output differences."
+  },
+  "hardening": {
+    "dictionaryKeys": ["__proto__", "constructor", "toString"],
+    "formatMerge": {
+      "initial": {
+        "number": {
+          "money": { "style": "currency", "currency": "USD" },
+          "whole": { "maximumFractionDigits": 0 }
+        },
+        "date": { "year": { "year": "numeric", "timeZone": "UTC" } }
+      },
+      "incoming": {
+        "number": {
+          "money": { "style": "percent" },
+          "precise": { "minimumFractionDigits": 2 }
+        }
+      },
+      "expected": {
+        "number": {
+          "money": { "style": "percent" },
+          "whole": { "maximumFractionDigits": 0 },
+          "precise": { "minimumFractionDigits": 2 }
+        },
+        "date": { "year": { "year": "numeric", "timeZone": "UTC" } }
+      },
+      "omittedFormatsPreserveStored": true,
+      "replaceRemovesStoredFormats": true
+    },
+    "datafileValidation": {
+      "requiredStrings": ["schemaVersion", "messagevisorVersion", "revision", "target", "locale"],
+      "requiredMaps": ["segments", "messages", "translations"],
+      "schemaVersion": "1",
+      "nonemptyStrings": ["locale"],
+      "invalidInputs": [null, [], {}, "{", "[]", "null"],
+      "invalidFields": [
+        { "field": "schemaVersion", "value": "2" },
+        { "field": "revision", "value": 1 },
+        { "field": "target", "value": null },
+        { "field": "messagevisorVersion", "value": [] },
+        { "field": "locale", "value": "" },
+        { "field": "segments", "value": [] },
+        { "field": "messages", "value": null },
+        { "field": "translations", "value": "wrong" },
+        { "field": "formats", "value": [] },
+        { "field": "direction", "value": "wrong" }
+      ],
+      "code": "invalid_datafile",
+      "message": "could not parse datafile",
+      "throws": false,
+      "changesState": false
+    },
+    "moduleSetup": {
+      "initialRevision": "ready",
+      "setupBeforeInitialized": true,
+      "formatFailureCode": "invalid_message",
+      "transformFailureCode": "invalid_message",
+      "preservesOriginalError": true
+    },
+    "errors": {
+      "missingSetLocaleCode": "missing_datafile",
+      "invalidFormatterValueCode": "invalid_format",
+      "errorEventsPerDiagnostic": 1,
+      "throwsOriginalError": true
+    },
+    "timeZones": {
+      "precedence": ["call", "preset", "instance", "host"],
+      "hostDefaultScope": "root and children",
+      "instant": "2026-01-01T00:30:00Z",
+      "instance": "Pacific/Honolulu",
+      "preset": "UTC",
+      "call": "Asia/Tokyo",
+      "bareDateAndTimeUseEffectiveTimeZone": true,
+      "bareTimeFields": ["hour", "minute", "second"],
+      "directAndIcuNamedPresetResultsAgree": true
+    },
+    "fallbacks": {
+      "diagnosticCode": "unsupported_formatter",
+      "listSeparator": ", ",
+      "listInput": ["A", "B"],
+      "listParts": [
+        { "type": "element", "value": "A" },
+        { "type": "literal", "value": ", " },
+        { "type": "element", "value": "B" }
+      ],
+      "missingListPartsMethod": "single literal containing native list output",
+      "dateRangeSeparator": " - "
+    }
   },
   "portableRegex": {
     "flags": ["i", "m", "s", "u"],
@@ -29,6 +222,18 @@
     ]
   },
   "conditions": [
+    {
+      "name": "missing attribute is not explicit null",
+      "condition": { "attribute": "value", "operator": "equals", "value": null },
+      "context": {},
+      "expected": false
+    },
+    {
+      "name": "explicit null equals null",
+      "condition": { "attribute": "value", "operator": "equals", "value": null },
+      "context": { "value": null },
+      "expected": true
+    },
     {
       "name": "equals is type strict",
       "context": { "value": "10" },
@@ -338,7 +543,7 @@
         "previousSnapshotDatafileRevision": "1"
       }
     ],
-    "childDatafileRevisionAfterClose": "2",
+    "capturedChildDatafileRevisionAfterClose": "2",
     "changeSources": ["datafile_set", "locale_set", "context_set", "currency_set", "timeZone_set"]
   }
 }

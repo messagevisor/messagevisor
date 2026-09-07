@@ -79,7 +79,25 @@ Prefer named formats for reusable product copy.
 
 ### Stale or structurally incompatible translation
 
-When `sourceLocale` is configured, translated copy must use the same ICU arguments and rich-text tags as the source. A `translationStates.<locale>.sourceHash` identifies the source text that was reviewed; lint reports it as stale after source copy changes. Update the translation, then record the new source hash and workflow status.
+When `sourceLocale` is configured, translations preserve compatible ICU value contracts and required rich text tags while allowing locale appropriate grammar. Reviewed state requires both `sourceHash` and `targetHash` so changing either text invalidates approval. Revisit old reviewed entries missing a target hash through human review, not bulk hash acceptance.
+
+## Readiness and quality
+
+```bash
+npx messagevisor readiness --set=production --locale=nl --target=web --requireReviewed --requireDirect --maxMissing=0 --maxStale=0 --json
+npx messagevisor quality --pseudo=accent --expansion=0.3 --json
+npx messagevisor quality --pseudo=rtl --bidi --json
+```
+
+Both commands support set, locale, target, and `includeMessages`/`excludeMessages` filters. Readiness defaults missing and stale limits to zero. Review and direct requirements are explicit gates, not synonyms for translation presence.
+
+For readiness, quality, and review previews, `--set` takes one value and omission visits all sets. Locale and target selectors are repeatable; repeated override selectors belong to review only. Readiness excludes the configured source locale by default; explicitly selected source copy does not require translation review. Without `sourceLocale`, readiness can report resolution but cannot certify `--requireReviewed`. Confirm the selected scope before accepting a passing gate. Use the saved preview and input `review` flow in [authoring.md](authoring.md#translation-workflow-state) to record approvals, never a bare apply or bulk hash rewrite. Rerun readiness afterwards.
+
+Quality is preview only, with no filesystem writes or apply step. It checks authored context budgets and forbidden terminology, not interpolation value sizes. Opt in bidi checks report unsafe embedding or override controls, unbalanced isolates, and unisolated dynamic arguments in RTL copy. Normal builds are unchanged. Treat pseudo output as a test aid, not a translation to publish.
+
+Forbidden terms use exact, case sensitive substring matching across possible literal paths, including text split by tags or branch boundaries. Alternatives are not concatenated together; unknown runtime values break literal matching. Dynamic output still needs rendered tests. `preferred` and `doNotTranslate` are translator guidance, not automatic enforcement. Grapheme budgets concern the longest literal branch path.
+
+For bidi checks, explicit locale direction wins; otherwise the host's `Intl.Locale` data supplies it. If inference fails, `bidi_unknown_direction` fails the report rather than hiding incomplete coverage. Set the locale's direction explicitly and rerun. In RTL copy, isolate substitutions that are not explicitly documented as RTL using LRI or FSI, with balanced isolates in each branch.
 
 ### Set-specific failures
 

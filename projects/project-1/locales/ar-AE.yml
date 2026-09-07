@@ -118,6 +118,8 @@ examples:
     rawMessage: "Sign auto: {value, number, signAuto}"
     values:
       value: -1234.5
+    expectedByRuntime:
+      python: "Sign auto: -1,235"
 
   - description: "Number / sign never"
     rawMessage: "Sign never: {value, number, signNever}"
@@ -140,6 +142,8 @@ examples:
     rawMessage: "Sign negative: {value, number, signNegative}"
     values:
       value: -1234.5
+    expectedByRuntime:
+      python: "Sign negative: -1,235"
 
   - description: "Number / rounding increment 5"
     rawMessage: "Rounding increment 5: {value, number, roundingFive}"
@@ -160,11 +164,15 @@ examples:
     rawMessage: "Rounding expand: {value, number, roundingExpand}"
     values:
       value: -1.234
+    expectedByRuntime:
+      python: "Rounding expand: -2"
 
   - description: "Number / rounding trunc"
     rawMessage: "Rounding trunc: {value, number, roundingTrunc}"
     values:
       value: -1.987
+    expectedByRuntime:
+      python: "Rounding trunc: -1"
 
   - description: "Number / rounding half ceil"
     rawMessage: "Rounding half ceil: {value, number, roundingHalfCeil}"
@@ -212,6 +220,8 @@ examples:
     rawMessage: "Arabic digits: {value, number, arabicDigits}"
     values:
       value: 2026
+    expectedByRuntime:
+      python: "Arabic digits: 2٬026"
 
   - description: "Currency / default money"
     rawMessage: "Default money: {amount, number, money}"
@@ -242,6 +252,8 @@ examples:
     rawMessage: "Accounting sign: {amount, number, moneyAccounting}"
     values:
       amount: -1234.5
+    expectedByRuntime:
+      python: "Accounting sign: (؜1,234.50د.إ.‏)"
 
   - description: "Currency / runtime currency"
     rawMessage: "Runtime currency: {amount, number, moneyRuntimeCurrency}"
@@ -268,11 +280,15 @@ examples:
     rawMessage: "Percent: {value, number, percent}"
     values:
       value: 0.125
+    expectedByRuntime:
+      python: "Percent: 12.5%"
 
   - description: "Unit and percent / percent fixed"
     rawMessage: "Percent fixed: {value, number, percentFixed}"
     values:
       value: 0.125
+    expectedByRuntime:
+      python: "Percent fixed: 12.50%"
 
   - description: "Unit and percent / kilometer short"
     rawMessage: "Kilometer short: {value, number, unitKilometerShort}"
@@ -395,6 +411,8 @@ examples:
     rawMessage: "Arabic date digits: {when, date, arabicNumeric}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      python: "Arabic date digits: 12‏/05‏/2026"
 
   - description: "Date / Buddhist calendar"
     rawMessage: "Buddhist calendar: {when, date, buddhistLong}"
@@ -403,6 +421,7 @@ examples:
 
     expectedByRuntime:
       swift: "Buddhist calendar: 12 مايو، 2569"
+      python: "Buddhist calendar: 12 مايو 2026"
   - description: "Date / Japanese era calendar"
     rawMessage: "Japanese era calendar: {when, date, japaneseEra}"
     values:
@@ -410,6 +429,7 @@ examples:
 
     expectedByRuntime:
       swift: "Japanese era calendar: 12 مايو، 8 ريوا"
+      python: "Japanese era calendar: 12 مايو 2026 م"
   - description: "Date / format matcher basic"
     rawMessage: "Format matcher basic: {when, date, matcherBasic}"
     values:
@@ -478,22 +498,16 @@ examples:
     values:
       when: "2026-05-12T12:00:00Z"
 
-    expectedByRuntime:
-      swift: "Day period long: 12\u00A0م"
   - description: "Time / day period short"
     rawMessage: "Day period short: {when, time, dayPeriodShort}"
     values:
       when: "2026-05-12T12:00:00Z"
 
-    expectedByRuntime:
-      swift: "Day period short: 12\u00A0م"
   - description: "Time / day period narrow"
     rawMessage: "Day period narrow: {when, time, dayPeriodNarrow}"
     values:
       when: "2026-05-12T12:00:00Z"
 
-    expectedByRuntime:
-      swift: "Day period narrow: 12\u00A0م"
   - description: "Time / hour12 true"
     rawMessage: "Hour12 true: {when, time, hour12}"
     values:
@@ -503,6 +517,8 @@ examples:
     rawMessage: "Hour12 false: {when, time, hour24}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      python: "Hour12 false: 8:30"
 
   - description: "Time / hour cycle h11"
     rawMessage: "Hour cycle h11: {when, time, hourCycle11}"
@@ -546,6 +562,8 @@ examples:
     rawMessage: "Time zone short offset: {when, time, zoneShortOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
+    expectedByRuntime:
+      python: "Time zone short offset: 2:15 م غرينتش+05:45"
 
   - description: "Time / time zone long offset"
     rawMessage: "Time zone long offset: {when, time, zoneLongOffset}"
@@ -561,6 +579,7 @@ examples:
 
     expectedByRuntime:
       swift: "Time zone short generic: 4:30\u00A0ص غرينتش-4"
+      python: "Time zone short generic: 4:30 ص توقيت الولايات المتحدة (نيويورك)"
   - description: "Time / time zone long generic"
     rawMessage: "Time zone long generic: {when, time, zoneLongGeneric}"
     values:

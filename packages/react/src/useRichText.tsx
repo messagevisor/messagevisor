@@ -29,11 +29,12 @@ function getRichTagNames(message: string) {
 }
 
 export function useRichText() {
-  const context = React.useContext(MessagevisorContext);
+  const contextValue = React.useContext(MessagevisorContext);
 
-  if (!context) {
+  if (!contextValue) {
     throw new Error("useSdk must be used within MessagevisorProvider.");
   }
+  const context = contextValue;
 
   return React.useMemo(() => {
     function mergeValues(values?: ReactMessageValues, message?: string) {
@@ -78,10 +79,11 @@ export function useRichText() {
       payload: {
         source: MessagevisorTranslationSource;
         messageKey?: MessageKey;
+        locale?: string;
       },
     ) {
       let currentTranslation = translation as React.ReactNode;
-      const locale = context.instance.getLocale();
+      const locale = payload.locale || context.instance.getLocale();
 
       if (!locale) {
         return translation;
@@ -90,8 +92,8 @@ export function useRichText() {
       for (const module of context.modules) {
         const nextTranslation = module.transform?.({
           translation: currentTranslation,
-          locale,
           ...payload,
+          locale,
         });
 
         if (typeof nextTranslation !== "undefined") {

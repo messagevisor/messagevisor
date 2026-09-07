@@ -40,12 +40,13 @@ function getTranslationErrors(
 ): LintError[] {
   const errors: LintError[] = [];
   const reportedReferences = new Set<string>();
+  let references: ReturnType<typeof extractIcuStyleReferences>;
 
   try {
     // Parsing is all the ICU lint pass needs. Constructing IntlMessageFormat
     // also resolves the locale and creates formatter infrastructure for every
     // translation, even though no translation is evaluated here.
-    parse(translation);
+    references = extractIcuStyleReferences(parse(translation));
   } catch (error) {
     errors.push({
       level: "error",
@@ -61,7 +62,7 @@ function getTranslationErrors(
     return errors;
   }
 
-  for (const reference of extractIcuStyleReferences(translation)) {
+  for (const reference of references) {
     const referenceKey = `${reference.type}:${reference.style}`;
 
     if (reportedReferences.has(referenceKey)) {

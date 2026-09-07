@@ -42,9 +42,12 @@ async function main() {
     mkdirSync(scopeDirectory, { recursive: true });
     symlinkSync(packedPackageDirectory, path.join(scopeDirectory, "sdk"), "dir");
     const assertion =
-      "if(typeof entry.createMessagevisor!=='function')throw new Error('missing createMessagevisor');" +
-      "if(typeof entry.Messagevisor!=='undefined'||typeof entry.evaluateCondition!=='undefined')" +
-      "throw new Error('internal runtime API exposed')";
+      "const names=['createMessagevisor','evaluateCondition','evaluateGroupSegment','evaluateSegment','getPortableRegexError'];" +
+      "if(JSON.stringify(Object.keys(entry).sort())!==JSON.stringify(names))throw new Error('unexpected runtime exports');" +
+      "if(names.some(name=>typeof entry[name]!=='function'))throw new Error('missing runtime function');" +
+      "const sdk=entry.createMessagevisor({locale:'en-GB',logLevel:'error',defaultTranslations:{'en-GB':{constructor:'Own'}}});" +
+      "if(sdk.translateWithValues('constructor',source=>({source}))!=='Own')throw new Error('reserved translation failed');" +
+      "if(sdk.hasFormatModule())throw new Error('unexpected format module')";
 
     execFileSync("node", ["-e", `const entry=require('@messagevisor/sdk');${assertion}`], {
       cwd: consumerDirectory,

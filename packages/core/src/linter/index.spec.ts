@@ -14,6 +14,114 @@ async function writeFile(root: string, relativePath: string, content: string) {
 }
 
 describe("lintProject", function () {
+  it.each(
+    [
+      "locales/en.yml",
+      "messages/welcome.yml",
+      "attributes/role.yml",
+      "segments/pro.yml",
+      "targets/web.yml",
+      "tests/welcome.spec.yml",
+    ].flatMap((file) => ["null", "42", "invalid", "[]"].map((value) => [file, value])),
+  )("reports invalid root %s: %s without throwing", async (file, value) => {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-lint-root-"));
+    try {
+      await writeFile(root, "messagevisor.config.js", "module.exports = {};\n");
+      await writeFile(root, file, `${value}\n`);
+      const config = getProjectConfig(root);
+      const result = await lintProject(config, new Datasource(config, root));
+      expect(result.hasError).toBe(true);
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves inherited source copy when linting translation contracts", async () => {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-source-lint-"));
+    try {
+      await writeFile(
+        root,
+        "messagevisor.config.js",
+        'module.exports = { sourceLocale: "en-US" };\n',
+      );
+      await writeFile(root, "locales/en.yml", "description: English\n");
+      await writeFile(root, "locales/en-US.yml", "description: US\ninheritTranslationsFrom: en\n");
+      await writeFile(root, "locales/nl.yml", "description: Dutch\n");
+      await writeFile(
+        root,
+        "messages/hello.yml",
+        "description: Greeting\ntranslations:\n  en: Hello {name}\n  nl: Hallo {name}\n",
+      );
+      const config = getProjectConfig(root);
+      const result = await lintProject(config, new Datasource(config, root));
+      expect(result.errors).toEqual([]);
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+  it.each([
+    ["messages/welcome.yml", "description: Welcome\ntranslations: {en: Hello}\noverrides: {}\n"],
+    ["messages/welcome.yml", "description: Welcome\ntranslations: null\n"],
+    ["messages/welcome.yml", "null\n"],
+    ["messages/welcome.yml", "- invalid\n"],
+    ["targets/web.yml", "description: Web\nincludeMessages: 42\n"],
+    ["targets/web.yml", "description: Web\ncontext: []\n"],
+    ["targets/web.yml", "description: Web\nincludeFormats: {number: 7}\n"],
+    ["locales/en.yml", "description: English\nformats: null\n"],
+    ["attributes/role.yml", "description: Role\noneOf: {}\n"],
+  ])("reports malformed %s without crashing semantic lint", async (file, content) => {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-invalid-shape-"));
+    try {
+      await writeFile(root, "messagevisor.config.js", "module.exports = {};");
+      await writeFile(root, "locales/en.yml", "description: English\n");
+      await writeFile(
+        root,
+        "messages/welcome.yml",
+        "description: Welcome\ntranslations: {en: Hello}\n",
+      );
+      await writeFile(root, file, content);
+      const config = getProjectConfig(root);
+      const result = await lintProject(config, new Datasource(config, root));
+      expect(result.hasError).toBe(true);
+      expect(result.errors.some((error) => error.code === "TypeError")).toBe(false);
+      expect(() => JSON.stringify(result)).not.toThrow();
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("validates effective format option combinations without evaluating messages", async () => {
+    const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-invalid-format-"));
+    try {
+      await writeFile(root, "messagevisor.config.js", "module.exports = {};");
+      await writeFile(
+        root,
+        "locales/en.yml",
+        "description: English\nformats:\n  number:\n    cash:\n      roundingIncrement: 5\n      maximumFractionDigits: 2\n",
+      );
+      await writeFile(root, "locales/en-US.yml", "description: US\ninheritFormatsFrom: en\n");
+      await writeFile(
+        root,
+        "targets/web.yml",
+        "description: Web\nformats:\n  en-US:\n    date:\n      invalid:\n        timeZone: Not/AZone\n",
+      );
+      const config = getProjectConfig(root);
+      const result = await lintProject(config, new Datasource(config, root));
+      expect(
+        result.errors.some(
+          (error) => error.entityKey === "en-US" && error.code === "invalid_format_options",
+        ),
+      ).toBe(true);
+      expect(
+        result.errors.some(
+          (error) =>
+            error.entityType === "target" && error.path.join(".") === "formats.en-US.date.invalid",
+        ),
+      ).toBe(true);
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
   it("finds missing locales", async function () {
     const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), "messagevisor-"));
 
@@ -1008,6 +1116,7 @@ describe("lintProject", function () {
         "formats:",
         "  number:",
         "    money:",
+        "      style: currency",
         "      currency: EUR",
         "",
       ].join("\n"),
@@ -1268,6 +1377,7 @@ describe("lintProject", function () {
         "translations:",
         '  en: "Hello <strong>{name}</strong>"',
         '  nl: "Hallo {firstName}"',
+        "description: Welcome",
         "",
       ].join("\n"),
     );
@@ -1290,6 +1400,7 @@ describe("lintProject", function () {
         "translations:",
         '  en: "Hello {name}"',
         '  nl: "Hallo {name}"',
+        "description: Welcome",
         "translationStates:",
         "  nl:",
         "    status: reviewed",
@@ -1316,6 +1427,7 @@ describe("lintProject", function () {
     expect(result.errors.map((error) => error.code)).not.toContain("stale_translation");
 
     await datasource.writeMessage("welcome", {
+      description: "Welcome",
       translations: { en: "Hello again {name}", nl: "Hallo {name}" },
       translationStates: { nl: { status: "reviewed", sourceHash: hash } },
     });

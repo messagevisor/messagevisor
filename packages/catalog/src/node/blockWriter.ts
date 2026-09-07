@@ -145,7 +145,7 @@ export function hashBlockContent(content: string) {
 export function toCatalogBlocks<T>(entries: BlockPlanEntry<T>[], blockSize: number) {
   return planBlocks(entries, blockSize).map((planned) => {
     const serialized = serializeBlock(planned.entries);
-    const content: Record<string, T> = {};
+    const content: Record<string, T> = Object.create(null);
 
     for (const entry of planned.entries) {
       content[entry.key] = entry.payload;

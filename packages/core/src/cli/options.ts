@@ -97,7 +97,18 @@ const definitions: Record<string, CLIOptionDefinitions> = {
     includeEvaluationInput: { type: "boolean" },
   },
   export: {
+    ...outputOptions,
     ...messageFilters,
+    format: {
+      type: "string",
+      choices: ["csv", "xliff"],
+      description: "translation interchange format",
+    },
+    sourceLocale: { type: "string", description: "source locale for XLIFF" },
+    explicitIdentities: {
+      type: "boolean",
+      description: "write override keys in a separate CSV column",
+    },
     set: { type: "array" },
     locale: { type: "array" },
     target: { type: "array" },
@@ -136,6 +147,22 @@ const definitions: Record<string, CLIOptionDefinitions> = {
     react: { type: "boolean" },
   },
   import: {
+    ...outputOptions,
+    format: {
+      type: "string",
+      choices: ["csv", "xliff"],
+      description: "translation interchange format",
+    },
+    sourceLocale: { type: "string", description: "expected XLIFF source locale" },
+    emptyValues: {
+      type: "string",
+      choices: ["skip", "empty", "delete"],
+      description: "how to handle empty imported translations",
+    },
+    materializeInherited: {
+      type: "boolean",
+      description: "allow inherited XLIFF translations to become direct copy",
+    },
     set: { type: "array" },
     locale: { type: "array" },
     input: { type: "string" },
@@ -148,6 +175,56 @@ const definitions: Record<string, CLIOptionDefinitions> = {
     jsonPath: { type: "string" },
   },
   info: { ...outputOptions, ...setOption },
+  readiness: {
+    ...outputOptions,
+    ...messageFilters,
+    ...setOption,
+    locale: { type: "array" },
+    target: { type: "array" },
+    requireReviewed: {
+      type: "boolean",
+      description: "require every resolved translation to be reviewed",
+    },
+    requireDirect: { type: "boolean", description: "reject inherited translations" },
+    maxMissing: { type: "number", description: "maximum missing translations (default 0)" },
+    maxStale: { type: "number", description: "maximum stale translations (default 0)" },
+  },
+  quality: {
+    ...outputOptions,
+    ...messageFilters,
+    ...setOption,
+    locale: { type: "array" },
+    target: { type: "array" },
+    pseudo: {
+      type: "string",
+      choices: ["accent", "rtl"],
+      description: "preview pseudo translations without writing definitions",
+    },
+    expansion: { type: "number", description: "additional literal text ratio, between 0 and 3" },
+    bidi: {
+      type: "boolean",
+      description: "check directional controls and interpolation isolation",
+    },
+  },
+  review: {
+    ...outputOptions,
+    ...messageFilters,
+    ...setOption,
+    locale: { type: "array" },
+    target: { type: "array" },
+    override: { type: "array", description: "select override keys only" },
+    status: {
+      type: "string",
+      choices: ["draft", "translated", "reviewed"],
+      description: "translation workflow status (default reviewed)",
+    },
+    apply: { type: "boolean", description: "persist the previewed review state and hashes" },
+    input: {
+      type: "string",
+      description: "apply a saved review preview without changing its selection",
+    },
+    output: { type: "string", description: "save exact copy and versions for human review" },
+  },
   init: {
     project: { type: "string" },
     overwrite: { type: "boolean" },

@@ -1,5 +1,7 @@
 # Sets and promotion
 
+Build revision state has two levels: root `.messagevisor/REVISION` advances after selected sets finish, while `.messagevisor/sets/<set>/REVISION` tracks each built set. Unselected set revisions stay unchanged. A root revision change does not prove production was rebuilt or published. Poll the actual deployed datafile revision or a release manifest. `revisionFromHash` gives each datafile a content revision independent of numeric set state; explicit build revisions and `--no-state-files` suppress revision file updates.
+
 Sets model parallel definition trees in one repository. They are usually used for release lanes such as `dev`, `staging`, and `production`.
 
 Use targets for different applications. Use sets for different copies of the same project state at different release stages.

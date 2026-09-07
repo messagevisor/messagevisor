@@ -3,7 +3,7 @@ import type {
   MessageFormatResult,
   MessagePrimitiveValue,
   MessageValues,
-  Messagevisor,
+  MessagevisorConsumer,
   TranslateOptions,
 } from "@messagevisor/sdk";
 import type { MessageKey } from "@messagevisor/types";
@@ -33,9 +33,8 @@ const BOUND_METHODS = [
   "getCurrency",
   "setTimeZone",
   "getTimeZone",
-  "setDatafile",
   "getRevision",
-] as const satisfies readonly (keyof Messagevisor)[];
+] as const satisfies readonly (keyof MessagevisorConsumer)[];
 
 type VueTranslationMethod = {
   (
@@ -67,10 +66,13 @@ export type MessagevisorApi = {
   t: VueTranslationMethod;
   translate: VueTranslationMethod;
   formatMessage: VueFormatMessageMethod;
-} & Pick<Messagevisor, (typeof BOUND_METHODS)[number]>;
+} & Pick<MessagevisorConsumer, (typeof BOUND_METHODS)[number]>;
 
-function bindMethod<K extends keyof Messagevisor>(instance: Messagevisor, key: K): Messagevisor[K] {
-  return (instance[key] as (...args: never[]) => unknown).bind(instance) as Messagevisor[K];
+function bindMethod<K extends keyof MessagevisorConsumer>(
+  instance: MessagevisorConsumer,
+  key: K,
+): MessagevisorConsumer[K] {
+  return (instance[key] as (...args: never[]) => unknown).bind(instance) as MessagevisorConsumer[K];
 }
 
 export function createMessagevisorApi(context: MessagevisorVueContextValue): MessagevisorApi {
@@ -78,16 +80,18 @@ export function createMessagevisorApi(context: MessagevisorVueContextValue): Mes
   const richText = createRichTextTools(context);
 
   const translate = ((messageKey, values, options) => {
-    const message = sdk.getRawTranslation(messageKey, options);
-    const translation = sdk.translate<VueMessageChunk>(
+    const locale = options?.locale || sdk.getLocale() || undefined;
+    const translation = sdk.translateWithValues<VueMessageChunk>(
       messageKey,
-      richText.mergeValues(values as VueMessageValues, message) as MessageValues<VueMessageChunk>,
+      (message) =>
+        richText.mergeValues(values as VueMessageValues, message) as MessageValues<VueMessageChunk>,
       options,
     );
 
     return richText.wrapResult(
       richText.runModules(translation, {
         source: "translation",
+        locale,
         messageKey,
       }),
     );
@@ -97,6 +101,7 @@ export function createMessagevisorApi(context: MessagevisorVueContextValue): Mes
     t: translate,
     translate,
     formatMessage: ((message, values, options) => {
+      const locale = options?.locale || sdk.getLocale() || undefined;
       const translation = sdk.formatMessage<VueMessageChunk>(
         message,
         richText.mergeValues(values as VueMessageValues, message) as MessageValues<VueMessageChunk>,
@@ -106,6 +111,7 @@ export function createMessagevisorApi(context: MessagevisorVueContextValue): Mes
       return richText.wrapResult(
         richText.runModules(translation, {
           source: "formatMessage",
+          locale,
         }),
       );
     }) as VueFormatMessageMethod,

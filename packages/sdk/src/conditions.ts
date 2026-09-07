@@ -1,6 +1,7 @@
 import type { Condition, Context, GroupSegment, Segment } from "@messagevisor/types";
 
 import { getPortableRegexError } from "./portableRegex.js";
+import { own } from "./records.js";
 
 export interface EvaluateOptions {
   context?: Context;
@@ -17,7 +18,8 @@ function getContextValue(context: Context | undefined, attribute: string) {
   return attribute
     .split(".")
     .reduce(
-      (value: any, part) => (value !== null && typeof value === "object" ? value[part] : undefined),
+      (value: any, part) =>
+        value !== null && typeof value === "object" ? own(value, part) : undefined,
       context as any,
     );
 }
@@ -232,7 +234,7 @@ export function evaluateGroupSegment(
 }
 
 export function evaluateSegment(segmentKey: string, options: EvaluateOptions = {}) {
-  const segment = options.segments ? options.segments[segmentKey] : undefined;
+  const segment = own(options.segments, segmentKey);
 
   if (!segment || segment.archived) {
     return false;

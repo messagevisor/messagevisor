@@ -12,6 +12,7 @@ import {
   mergeFormats,
 } from "./index";
 import { loadProjectSnapshot } from "../snapshot";
+import { createMessagevisor } from "@messagevisor/sdk";
 
 async function writeFile(root: string, relativePath: string, content: string) {
   const filePath = path.join(root, relativePath);
@@ -77,6 +78,170 @@ async function createProject() {
 }
 
 describe("buildProject", function () {
+  it("preserves reserved entity keys from YAML through cold/warm builds and SDK evaluation", async () => {
+    const root = await createProject();
+    try {
+      const keys = ["__proto__", "constructor", "toString"];
+      for (const key of keys) {
+        await writeFile(
+          root,
+          `segments/${key}.yml`,
+          "description: Reserved\nconditions: {attribute: platform, operator: equals, value: web}\n",
+        );
+        await writeFile(
+          root,
+          `messages/${key}.yml`,
+          `description: Reserved\ntranslations: {en: '${key} base'}\noverrides:\n  - key: reserved\n    segments: ${key}\n    translations: {en: '${key} override'}\n`,
+        );
+      }
+      await writeFile(root, "targets/__proto__.yml", "description: Reserved\nlocales: [en]\n");
+      const config = getProjectConfig(root);
+      const datasource = new Datasource(config, root);
+      for (let run = 0; run < 2; run++) {
+        const snapshot = await loadProjectSnapshot(datasource);
+        const datafile = await buildDatafile(config, datasource, "__proto__", "en", "1", snapshot);
+        const m = createMessagevisor({
+          datafile: JSON.stringify(datafile),
+          context: { platform: "web" },
+          logLevel: "error",
+        });
+        for (const key of keys) {
+          expect(Object.hasOwn(datafile.translations, key)).toBe(true);
+          expect(Object.hasOwn(datafile.messages, key)).toBe(true);
+          expect(Object.hasOwn(datafile.segments, key)).toBe(true);
+          expect(m.translate(key)).toBe(`${key} override`);
+        }
+        await m.close();
+      }
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each<{ locales?: string[] }>([
+    { locales: undefined },
+    { locales: [] },
+    { locales: ["en"] },
+    { locales: ["en-US"] },
+  ])("intersects explicit locale selection with target locales %j", async ({ locales }) => {
+    const root = await createProject();
+    try {
+      const config = getProjectConfig(root);
+      const datasource = new Datasource(config, root);
+      await datasource.writeTarget("web", {
+        description: "Web",
+        ...(locales === undefined ? {} : { locales }),
+      });
+      const result = await buildProject(config, datasource, {
+        target: "web",
+        locale: "en-US",
+        noStateFiles: true,
+      });
+      expect(result.map((file) => file.locale)).toEqual(
+        locales === undefined || locales.includes("en-US") ? ["en-US"] : [],
+      );
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+  it("does not emit authoring context or review state into runtime datafiles", async () => {
+    const root = await createProject();
+    try {
+      const config = getProjectConfig(root);
+      const datasource = new Datasource(config, root);
+      await datasource.writeMessage("auth.private", {
+        description: "Private context",
+        translations: { en: "Hello" },
+        translatorContext: { notes: "authoring-only-marker", maxGraphemes: 25 },
+        translationStates: { en: { status: "draft" } },
+        overrides: [
+          {
+            key: "always",
+            conditions: "*",
+            translations: { en: "Hi" },
+            translatorContext: { notes: "override-authoring-marker" },
+            translationStates: { en: { status: "draft" } },
+          },
+        ],
+      });
+      const datafiles = await buildProject(config, datasource, {});
+      const serialized = JSON.stringify(datafiles);
+      expect(serialized).not.toContain("translatorContext");
+      expect(serialized).not.toContain("translationStates");
+      expect(serialized).not.toContain("authoring-only-marker");
+      expect(serialized).not.toContain("override-authoring-marker");
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+  it("keeps real used presets after quoted ICU braces and ignores literal arguments", async () => {
+    const root = await createProject();
+    try {
+      const config = getProjectConfig(root);
+      const datasource = new Datasource(config, root);
+      await datasource.writeTarget("web", {
+        description: "Web",
+        locales: ["en"],
+        includeMessages: ["auth.quoted"],
+        includeOnlyUsedFormats: true,
+      });
+      await datasource.writeMessage("auth.quoted", {
+        description: "Quoted",
+        translations: { en: "This '{' literal {amount, number, money}" },
+      });
+      let datafiles = await buildProject(config, datasource, {});
+      expect(Object.keys(datafiles[0].formats!.number!)).toEqual(["money"]);
+      await datasource.writeMessage("auth.quoted", {
+        description: "Quoted",
+        translations: { en: "'{amount, number, fake}'" },
+      });
+      datafiles = await buildProject(config, datasource, {});
+      expect(datafiles[0].formats).toBeUndefined();
+      await datasource.writeMessage("auth.quoted", {
+        description: "Quoted",
+        translations: { en: "{broken" },
+      });
+      await expect(buildProject(config, datasource, {})).rejects.toMatchObject({
+        code: "invalid_icu_syntax",
+      });
+      await datasource.writeTarget("web", { description: "Web", locales: ["en"] });
+      await expect(buildProject(config, datasource, {})).resolves.toHaveLength(1);
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+  it("treats explicit empty Target locales as no outputs", async () => {
+    const root = await createProject();
+    try {
+      const config = getProjectConfig(root);
+      const datasource = new Datasource(config, root);
+      await datasource.writeTarget("web", { description: "Web", locales: [] });
+      const write = jest.spyOn(datasource, "writeDatafile");
+      const result = await buildProject(config, datasource, {});
+      expect(result).toEqual([]);
+      expect(write).not.toHaveBeenCalled();
+      await datasource.writeTarget("web", { description: "Web" });
+      await buildProject(config, datasource, {});
+      expect(write).toHaveBeenCalledTimes(2);
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects an unknown explicit locale before writing output", async () => {
+    const root = await createProject();
+    try {
+      const config = getProjectConfig(root);
+      const datasource = new Datasource(config, root);
+      const write = jest.spyOn(datasource, "writeDatafile");
+      await expect(buildProject(config, datasource, { locale: "typo" })).rejects.toMatchObject({
+        code: "unknown_locale",
+      });
+      expect(write).not.toHaveBeenCalled();
+    } finally {
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
   it("uses the installed CLI package version in generated datafiles", function () {
     expect(getMessagevisorVersion()).toBe(require("@messagevisor/cli/package.json").version);
   });

@@ -1,4 +1,4 @@
-import type { Messagevisor, MessagevisorTranslationSource } from "@messagevisor/sdk";
+import type { MessagevisorConsumer, MessagevisorTranslationSource } from "@messagevisor/sdk";
 import type { MessageKey } from "@messagevisor/types";
 import type { InjectionKey, VNodeChild } from "vue";
 
@@ -18,7 +18,7 @@ export interface MessagevisorProviderModule {
 }
 
 export interface MessagevisorVueContextValue {
-  instance: Messagevisor;
+  instance: MessagevisorConsumer;
   defaultRichTextElements: Record<string, VueRichTextElementHandler>;
   wrapRichTextChunksInFragment: boolean;
   modules: MessagevisorProviderModule[];

@@ -1,6 +1,6 @@
 {
   "name": "@messagevisor/catalog",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Static catalog UI for Messagevisor projects",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -44,7 +44,7 @@
     "node": ">=20.19.0"
   },
   "dependencies": {
-    "@messagevisor/types": "1.2.0"
+    "@messagevisor/types": "1.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

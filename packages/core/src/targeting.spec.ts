@@ -1,6 +1,15 @@
-import { matchesPattern, targetIncludesMessage } from "./targeting";
+import { matchesPattern, targetIncludesMessage, resolveTargetLocaleKeys } from "./targeting";
 
 describe("targeting", function () {
+  it("shares omitted, empty and explicit locale boundaries across consumers", () => {
+    const all = ["en", "nl"];
+    expect(resolveTargetLocaleKeys(undefined, all)).toEqual(all);
+    expect(resolveTargetLocaleKeys({ locales: [] }, all, "en")).toEqual([]);
+    expect(resolveTargetLocaleKeys({ locales: ["en"] }, all, "nl")).toEqual([]);
+    expect(resolveTargetLocaleKeys({ locales: ["en"] }, all, ["nl", "en"])).toEqual(["en"]);
+    expect(resolveTargetLocaleKeys(undefined, all, [])).toEqual([]);
+    expect(resolveTargetLocaleKeys({}, all, "nl")).toEqual(["nl"]);
+  });
   it("matches exact and wildcard patterns without treating regex characters specially", function () {
     expect(matchesPattern("checkout.title", "checkout.*")).toBe(true);
     expect(matchesPattern("checkoutXtitle", "checkout.title")).toBe(false);

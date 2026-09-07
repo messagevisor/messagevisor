@@ -81,16 +81,18 @@ export function useTranslation(
 ): string | React.ReactNode {
   const sdk = useReactiveSdk();
   const richText = useRichText();
-  const message = sdk.getRawTranslation(messageKey, options);
-  const translation = sdk.translate<React.ReactNode>(
+
+  const locale = options?.locale || sdk.getLocale() || undefined;
+  const translation = sdk.translateWithValues<React.ReactNode>(
     messageKey,
-    richText.mergeValues(values, message),
+    (message) => richText.mergeValues(values, message),
     options,
   );
 
   return richText.wrapResult(
     richText.runModules(translation, {
       source: "translation",
+      locale,
       messageKey,
     }),
   ) as React.ReactNode;
@@ -113,11 +115,17 @@ export function useFormatMessage(
 ): string | React.ReactNode {
   const sdk = useReactiveSdk();
   const richText = useRichText();
-  const translation = sdk.formatMessage(message, richText.mergeValues(values, message), options);
+  const locale = options?.locale || sdk.getLocale() || undefined;
+  const mergedValues = richText.mergeValues(values, message);
+  const translation =
+    mergedValues === undefined
+      ? sdk.formatMessage(message, undefined, options)
+      : sdk.formatMessage<React.ReactNode>(message, mergedValues, options);
 
   return richText.wrapResult(
     richText.runModules(translation, {
       source: "formatMessage",
+      locale,
     }),
   ) as React.ReactNode;
 }

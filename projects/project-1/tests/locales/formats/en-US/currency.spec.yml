@@ -51,8 +51,6 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "¥1,235"
-    expectedByRuntime:
-      python: "¥1,234"
   - description: "Currency / EUR"
     rawMessage: "{amount, number, moneyEur}"
     values:
@@ -116,8 +114,6 @@ assertions:
     values:
       amount: 1234.5
     expectedTranslation: "¥1,235"
-    expectedByRuntime:
-      python: "¥1,234"
   - description: "Unit and percent / percent zero"
     rawMessage: "{value, number, percent}"
     values:

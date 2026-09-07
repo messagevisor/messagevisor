@@ -112,6 +112,40 @@ function getDatasource(root: string) {
 }
 
 describe("exportProject", function () {
+  it("treats omitted target locales as all locales and an explicit empty list as zero locales", async () => {
+    const root = await createProject();
+    const { projectConfig, datasource } = getDatasource(root);
+    await datasource.writeTarget("all", { description: "All" });
+    await datasource.writeTarget("none", { description: "None", locales: [] });
+    expect(
+      (await exportProject(projectConfig, datasource, { target: "all", print: true })).locales,
+    ).toEqual(["en", "en-US", "nl"]);
+    expect(
+      (await exportProject(projectConfig, datasource, { target: "none", print: true })).locales,
+    ).toEqual([]);
+    await expect(
+      exportProject(projectConfig, datasource, { locale: "unknown", print: true }),
+    ).rejects.toMatchObject({ code: "unknown_locale" });
+  });
+
+  it("offers separate CSV identities without growing default metadata output", async () => {
+    const root = await createProject();
+    const { projectConfig, datasource } = getDatasource(root);
+    const result = await exportProject(projectConfig, datasource, {
+      locale: "nl",
+      explicitIdentities: true,
+      print: true,
+      withoutDescription: true,
+      withoutStatus: true,
+    });
+    expect(result.csv).toContain("messageKey,overrideKey,nl");
+    expect(result.csv).toContain("common.welcome,pro,Welkom pro");
+    expect(result.csv).toContain("common.welcome,,Welkom");
+    expect(result.csv).not.toContain("translatorContext");
+    expect(JSON.stringify(result.rows)).not.toContain('"group"');
+    expect(JSON.stringify(result.rows)).not.toContain('"sourceLocales"');
+  });
+
   it("validates export separator configuration and entity filenames", async function () {
     const invalidRoot = await fs.promises.mkdtemp(
       path.join(os.tmpdir(), "messagevisor-export-config-"),

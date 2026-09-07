@@ -65,7 +65,7 @@ assertions:
     expectedTranslation: "১,২৩৫\u00A0JP¥"
     expectedByRuntime:
       swift: "1,235\u00A0JP¥"
-      python: "1,234JP¥"
+      python: "1,235JP¥"
   - description: "Unit and percent / percent negative"
     rawMessage: "{value, number, percent}"
     values:

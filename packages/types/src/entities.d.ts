@@ -257,9 +257,27 @@ export interface TranslationState {
   status: TranslationStatus;
   /** SHA-256 hash of the source-locale text this translation was based on. */
   sourceHash?: string;
+  /** SHA256 of the exact target text approved by a reviewer. */
+  targetHash?: string;
 }
 
 export type TranslationStates = Partial<Record<LocaleKey, TranslationState>>;
+
+/** Translator context retained in authoring files, never in runtime datafiles. */
+export interface TranslatorContext {
+  notes?: string;
+  contextUrls?: string[];
+  maxGraphemes?: number;
+  productArea?: string;
+  owner?: string;
+  legalClassification?: string;
+  terminology?: { preferred?: string[]; forbidden?: string[]; doNotTranslate?: string[] };
+  placeholders?: Record<
+    string,
+    { description: string; examples?: string[]; direction?: "ltr" | "rtl" | "auto" }
+  >;
+  accessibility?: "visible" | "spoken" | "label";
+}
 
 /**
  * Overrides
@@ -269,6 +287,7 @@ export interface Override {
   promotable?: boolean;
   description?: string;
   summary?: string;
+  translatorContext?: TranslatorContext;
 
   // one of them need to be provided
   conditions?: Condition | Condition[] | "*"; // string can be "*" or stringified datafile condition
@@ -302,6 +321,7 @@ export interface Message {
   deprecationWarning?: string;
   description?: string;
   summary?: string;
+  translatorContext?: TranslatorContext;
   meta?: MessageMeta;
   examples?: MessageExample[];
 

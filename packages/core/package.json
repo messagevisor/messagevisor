@@ -40,6 +40,8 @@
     "@messagevisor/parsers": "1.0.0",
     "@messagevisor/sdk": "1.2.0",
     "@messagevisor/types": "1.2.0",
+    "jsonc-parser": "3.3.1",
+    "saxes": "6.0.0",
     "tar": "^7.5.11",
     "yargs": "^17.7.2",
     "zod": "^4.3.6"

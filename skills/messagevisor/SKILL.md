@@ -263,7 +263,7 @@ Practical consequences:
 
 ## CLI: safe to run
 
-All `messagevisor` CLI commands are local and safe to run without confirmation. `import`, `promote`, and `prune` preview by default — only `--apply` writes files, so show the preview first. Most useful during authoring:
+The CLI operates on the selected project. `import`, `promote`, and `prune` preview by default; only `--apply` writes their changes, so show the preview first. For `review`, save a preview with `--output`, obtain human approval of its actual source and target copy, then use `review --apply --input=<file>` without selection or status flags. Keep preview files private and regenerate them for review after any conflict; never bypass their checksums. Use [authoring guidance](references/authoring.md) for review state, [CSV and XLIFF guidance](references/csv.md) for interchange, and [linting guidance](references/linting.md) for readiness and quality previews. Most useful during authoring:
 
 | Command                                                          | Purpose                                     |
 | ---------------------------------------------------------------- | ------------------------------------------- |
@@ -300,5 +300,5 @@ For automation, use the JSON error envelope's stable `error.code` rather than ma
 - Do not add a message without confirming it is included in the relevant targets.
 - Do not change module setup in just one place. Keep CLI config and runtime registration in sync.
 - Do not put runtime-only context values in a target `context` field. Use only values guaranteed to be true for every use of that target datafile.
-- Do not run `import`, `promote`, or `prune` with `--apply` before showing the preview.
+- Do not run `import`, `promote`, `prune`, or `review` with `--apply` before showing the preview.
 - Do not skip `npx messagevisor lint` after edits.

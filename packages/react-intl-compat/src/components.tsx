@@ -50,23 +50,13 @@ export function FormattedMessage(props: {
 }) {
   const intl = useIntl();
   const context = useIntlContext();
-  const values = mergeRichTextValues(
-    context.defaultRichTextElements,
-    props.values,
-    props.defaultMessage ||
-      (props.id
-        ? intl.messagevisor.getRawTranslation(props.id as any, {
-            defaultTranslation: props.defaultMessage,
-          })
-        : undefined),
-  );
-  const output = intl.formatMessage(
+  const output = intl.formatMessageWithValues(
     {
       id: props.id as any,
       defaultMessage: props.defaultMessage,
       description: props.description,
     },
-    values,
+    (message) => mergeRichTextValues(context.defaultRichTextElements, props.values, message),
   );
 
   if (props.children) {
@@ -197,7 +187,14 @@ export function FormattedPlural(props: {
     other: props.other,
   };
 
-  return <>{renderOutput(byCategory[category] || props.other, context.textComponent)}</>;
+  return (
+    <>
+      {renderOutput(
+        byCategory[category] === undefined ? props.other : byCategory[category],
+        context.textComponent,
+      )}
+    </>
+  );
 }
 
 export function FormattedNumberParts(props: {

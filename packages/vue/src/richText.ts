@@ -98,10 +98,11 @@ export function createRichTextTools(context: MessagevisorVueContextValue) {
     payload: {
       source: MessagevisorTranslationSource;
       messageKey?: MessageKey;
+      locale?: string;
     },
   ) {
     let currentTranslation = translation as VueMessageChunk;
-    const locale = context.instance.getLocale();
+    const locale = payload.locale || context.instance.getLocale();
 
     if (!locale) {
       return translation;
@@ -110,8 +111,8 @@ export function createRichTextTools(context: MessagevisorVueContextValue) {
     for (const module of context.modules) {
       const nextTranslation = module.transform?.({
         translation: currentTranslation,
-        locale,
         ...payload,
+        locale,
       });
 
       if (typeof nextTranslation !== "undefined") {

@@ -2,11 +2,11 @@ import { z } from "zod";
 
 const numberShared = {
   useGrouping: z.union([z.boolean(), z.enum(["min2", "auto", "always"])]).optional(),
-  minimumIntegerDigits: z.number().int().nonnegative().optional(),
-  minimumFractionDigits: z.number().int().nonnegative().optional(),
-  maximumFractionDigits: z.number().int().nonnegative().optional(),
-  minimumSignificantDigits: z.number().int().nonnegative().optional(),
-  maximumSignificantDigits: z.number().int().nonnegative().optional(),
+  minimumIntegerDigits: z.number().int().min(1).max(21).optional(),
+  minimumFractionDigits: z.number().int().min(0).max(100).optional(),
+  maximumFractionDigits: z.number().int().min(0).max(100).optional(),
+  minimumSignificantDigits: z.number().int().min(1).max(21).optional(),
+  maximumSignificantDigits: z.number().int().min(1).max(21).optional(),
   notation: z.enum(["standard", "scientific", "engineering", "compact"]).optional(),
   compactDisplay: z.enum(["short", "long"]).optional(),
   signDisplay: z.enum(["auto", "never", "always", "exceptZero", "negative"]).optional(),
@@ -59,6 +59,22 @@ const numberPresetZodSchema = z
   })
   .strict()
   .superRefine((data, ctx) => {
+    for (const [minimum, maximum] of [
+      ["minimumFractionDigits", "maximumFractionDigits"],
+      ["minimumSignificantDigits", "maximumSignificantDigits"],
+    ] as const) {
+      if (
+        data[minimum] !== undefined &&
+        data[maximum] !== undefined &&
+        data[minimum]! > data[maximum]!
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: [maximum],
+          message: `\`${maximum}\` must not be less than \`${minimum}\`.`,
+        });
+      }
+    }
     if (data.style !== "currency" && (data.currency || data.currencyDisplay || data.currencySign)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

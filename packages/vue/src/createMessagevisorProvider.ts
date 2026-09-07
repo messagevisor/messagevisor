@@ -1,4 +1,4 @@
-import type { Messagevisor } from "@messagevisor/sdk";
+import type { MessagevisorConsumer } from "@messagevisor/sdk";
 import type { App, Plugin } from "vue";
 
 import {
@@ -9,7 +9,7 @@ import {
 import { createMessagevisorApi, type MessagevisorApi } from "./api";
 
 export interface MessagevisorProviderOptions {
-  instance: Messagevisor;
+  instance: MessagevisorConsumer;
   defaultRichTextElements?: Record<string, VueRichTextElementHandler>;
   wrapRichTextChunksInFragment?: boolean;
   modules?: MessagevisorProviderModule[];

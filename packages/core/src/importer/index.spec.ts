@@ -5,7 +5,12 @@ import * as path from "path";
 import { getProjectConfig } from "../config";
 import { Datasource } from "../datasource";
 import { toCsv } from "../exporter";
-import { importPlugin, importProject, importProjectSets } from "./index";
+import {
+  collectImportPlansForDatasource,
+  importPlugin,
+  importProject,
+  importProjectSets,
+} from "./index";
 
 async function writeFile(root: string, relativePath: string, content: string) {
   const filePath = path.join(root, relativePath);
@@ -69,6 +74,293 @@ function getDatasource(root: string) {
 }
 
 describe("importProject", function () {
+  it("reads one selected document in a 50,000 message set and still detects ambiguous keys", async () => {
+    const root = await createProject();
+    const { datasource } = getDatasource(root);
+    const keys = Array.from({ length: 50000 }, (_, i) => `message${i}`);
+    keys.push("message0:pro");
+    const list = jest.spyOn(datasource, "listMessages").mockResolvedValue(keys);
+    const read = jest
+      .spyOn(datasource, "readEntityDocument")
+      .mockImplementation(async (_type, key) => ({
+        type: "message",
+        key,
+        version: "original",
+        entity: { translations: { en: "Original" } } as any,
+      }));
+    try {
+      const result = await collectImportPlansForDatasource(
+        datasource,
+        [
+          {
+            rowNumber: 1,
+            messageKey: "message0",
+            values: { nl: "Changed" },
+          },
+        ],
+        {},
+        undefined,
+        [],
+      );
+      expect(result.plans).toHaveLength(1);
+      expect(read).toHaveBeenCalledTimes(1);
+      await expect(
+        collectImportPlansForDatasource(
+          datasource,
+          [
+            {
+              rowNumber: 1,
+              messageKey: "message0",
+              overrideKey: "pro",
+              encodedKey: "message0:pro",
+              values: { nl: "Changed" },
+            },
+          ],
+          {},
+          undefined,
+          [],
+        ),
+      ).rejects.toMatchObject({ code: "ambiguous_import_identity" });
+    } finally {
+      list.mockRestore();
+      read.mockRestore();
+    }
+  });
+
+  it("bounds concurrent selected document reads and deduplicates identities", async () => {
+    const root = await createProject();
+    const { datasource } = getDatasource(root);
+    const keys = Array.from({ length: 100 }, (_, i) => `message${i}`);
+    const list = jest.spyOn(datasource, "listMessages").mockResolvedValue(keys);
+    let active = 0;
+    let peak = 0;
+    const read = jest
+      .spyOn(datasource, "readEntityDocument")
+      .mockImplementation(async (_type, key) => {
+        active++;
+        peak = Math.max(peak, active);
+        await new Promise((resolve) => setImmediate(resolve));
+        active--;
+        return {
+          type: "message",
+          key,
+          version: "original",
+          entity: { translations: { en: "Original" } } as any,
+        };
+      });
+    try {
+      const rows = keys.map((messageKey, i) => ({
+        rowNumber: i + 1,
+        messageKey,
+        values: { nl: "Changed" },
+      }));
+      const result = await collectImportPlansForDatasource(
+        datasource,
+        [...rows, ...rows],
+        {},
+        undefined,
+        [],
+      );
+      expect(result.plans).toHaveLength(100);
+      expect(read).toHaveBeenCalledTimes(100);
+      expect(peak).toBeGreaterThan(1);
+      expect(peak).toBeLessThanOrEqual(16);
+    } finally {
+      list.mockRestore();
+      read.mockRestore();
+    }
+  });
+  it("rejects an empty component in combined CSV and JSON identities", async () => {
+    const root = await createProject();
+    const { projectConfig, datasource } = getDatasource(root);
+    for (const key of ["common.welcome:", ":pro"]) {
+      await writeFile(root, "input.csv", `messageKey,nl\n${key},Changed`);
+      await expect(
+        importProject(projectConfig, datasource, { input: "input.csv", apply: true }),
+      ).rejects.toMatchObject({ code: "invalid_import_identity" });
+      await writeFile(root, "input.json", JSON.stringify({ [key]: "Changed" }));
+      await expect(
+        importProject(projectConfig, datasource, {
+          input: "input.json",
+          fromJson: true,
+          locale: "nl",
+          apply: true,
+        }),
+      ).rejects.toMatchObject({ code: "invalid_import_identity" });
+    }
+    expect((await datasource.readMessage("common.welcome")).translations.nl).toBe("Welkom");
+  });
+
+  it.each(["messageKey,nl,nl", "messageKey,,nl", "messageKey, ,nl"])(
+    "rejects ambiguous CSV headers %s before writing",
+    async (headers) => {
+      const root = await createProject();
+      const { projectConfig, datasource } = getDatasource(root);
+      await writeFile(root, "input.csv", `${headers}\ncommon.welcome,A,B`);
+      await expect(
+        importProject(projectConfig, datasource, { input: "input.csv", apply: true }),
+      ).rejects.toMatchObject({ code: "invalid_csv" });
+      expect((await datasource.readMessage("common.welcome")).translations.nl).toBe("Welkom");
+    },
+  );
+
+  it("rejects conflicting duplicate base and override units but accepts identical duplicates", async () => {
+    const root = await createProject();
+    const { projectConfig, datasource } = getDatasource(root);
+    for (const key of ["common.welcome", "common.welcome:pro"]) {
+      await writeFile(root, "input.csv", `messageKey,nl\n${key},A\n${key},B`);
+      await expect(
+        importProject(projectConfig, datasource, { input: "input.csv", apply: true }),
+      ).rejects.toMatchObject({ code: "import_conflict" });
+    }
+    await writeFile(root, "input.csv", "messageKey,nl\ncommon.welcome,A\ncommon.welcome,A");
+    const result = await importProject(projectConfig, datasource, {
+      input: "input.csv",
+      apply: true,
+    });
+    expect(result.summary.changedTranslations).toBe(1);
+  });
+
+  it.each(["skip", "empty", "delete"] as const)(
+    "applies the explicit CSV %s empty policy without treating absent cells as empty",
+    async (emptyValues) => {
+      const root = await createProject();
+      const { projectConfig, datasource } = getDatasource(root);
+      await writeFile(root, "input.csv", "messageKey,nl,en\ncommon.welcome,\ncommon.welcome:pro,");
+      await importProject(projectConfig, datasource, {
+        input: "input.csv",
+        emptyValues,
+        apply: true,
+      });
+      const message = await datasource.readMessage("common.welcome");
+      expect(message.translations.nl).toBe(
+        emptyValues === "skip" ? "Welkom" : emptyValues === "empty" ? "" : undefined,
+      );
+      expect(message.translations.en).toBe("Welcome");
+      expect(message.overrides?.[0].translations.en).toBe("Welcome pro");
+      expect(message.overrides?.[0].translations.nl).toBe(emptyValues === "empty" ? "" : undefined);
+    },
+  );
+
+  it("rejects duplicate decoded JSON properties, including nested objects and escaped aliases", async () => {
+    const root = await createProject();
+    const { projectConfig, datasource } = getDatasource(root);
+    for (const content of [
+      '{"common.welcome":"A","common.welcome":"B"}',
+      '{"common.welcome":"A","common.\\u0077elcome":"A"}',
+      '{"nested":{"common.welcome":"A","common.welcome":"B"}}',
+    ]) {
+      await writeFile(root, "input.json", content);
+      await expect(
+        importProject(projectConfig, datasource, {
+          input: "input.json",
+          fromJson: true,
+          locale: "nl",
+          apply: true,
+        }),
+      ).rejects.toMatchObject({ code: "invalid_json" });
+    }
+  });
+
+  it.each(["empty", "delete"] as const)(
+    "supports JSON %s and invalidates edited target review state",
+    async (emptyValues) => {
+      const root = await createProject();
+      const { projectConfig, datasource } = getDatasource(root);
+      const original = await datasource.readMessage("common.welcome");
+      original.translationStates = {
+        nl: { status: "reviewed", sourceHash: "old", targetHash: "old" },
+      };
+      await datasource.writeMessage("common.welcome", original);
+      await writeFile(root, "input.json", '{"common.welcome":""}');
+      await importProject(projectConfig, datasource, {
+        input: "input.json",
+        fromJson: true,
+        locale: "nl",
+        emptyValues,
+        apply: true,
+      });
+      const message = await datasource.readMessage("common.welcome");
+      expect(message.translations.nl).toBe(emptyValues === "empty" ? "" : undefined);
+      expect(message.translationStates?.nl).toEqual(
+        emptyValues === "empty" ? { status: "translated" } : undefined,
+      );
+    },
+  );
+
+  it("uses separate override identities and rejects ambiguous legacy combined keys", async () => {
+    const root = await createProject();
+    await writeFile(
+      root,
+      "messagevisor.config.js",
+      'module.exports = { exportOverrideKeySeparator: "_" };\n',
+    );
+    const { projectConfig, datasource } = getDatasource(root);
+    await datasource.writeMessage("common.welcome_pro", {
+      description: "Literal key",
+      translations: { en: "Literal", nl: "Original" },
+    });
+    // Alternate adapters can expose keys that the filesystem discovery rejects.
+    jest
+      .spyOn(datasource, "listMessages")
+      .mockResolvedValue(["common.welcome", "common.goodbye", "common.welcome_pro"]);
+    await writeFile(root, "input.csv", "messageKey,nl\ncommon.welcome_pro,Ambiguous");
+    await expect(
+      importProject(projectConfig, datasource, { input: "input.csv" }),
+    ).rejects.toMatchObject({ code: "ambiguous_import_identity" });
+    await writeFile(
+      root,
+      "input.csv",
+      "messageKey,overrideKey,nl\ncommon.welcome_pro,,Literal updated\ncommon.welcome,pro,Override updated",
+    );
+    await importProject(projectConfig, datasource, { input: "input.csv", apply: true });
+    expect((await datasource.readMessage("common.welcome_pro")).translations.nl).toBe(
+      "Literal updated",
+    );
+    expect((await datasource.readMessage("common.welcome")).overrides?.[0].translations.nl).toBe(
+      "Override updated",
+    );
+  });
+
+  it("rejects a concurrent message write without overwriting the author's changes", async () => {
+    const root = await createProject();
+    const { projectConfig, datasource } = getDatasource(root);
+    await writeFile(root, "input.csv", "messageKey,nl\ncommon.welcome,Updated");
+    const apply = datasource.applyEntityMutations.bind(datasource);
+    jest
+      .spyOn(datasource, "applyEntityMutations")
+      .mockImplementationOnce(async (mutations, options) => {
+        const message = await datasource.readMessage("common.welcome");
+        await datasource.writeMessage("common.welcome", {
+          ...message,
+          description: "Concurrent author edit",
+        });
+        return apply(mutations, options);
+      });
+    await expect(
+      importProject(projectConfig, datasource, { input: "input.csv", apply: true }),
+    ).rejects.toMatchObject({ code: "entity_conflict" });
+    const message = await datasource.readMessage("common.welcome");
+    expect(message.description).toBe("Concurrent author edit");
+    expect(message.translations.nl).toBe("Welkom");
+  });
+
+  it("plans every set before writes so later conflicting units cannot leave earlier sets applied", async () => {
+    const root = await createSetsProject();
+    const { projectConfig, datasource } = getDatasource(root);
+    await writeFile(
+      root,
+      "input.csv",
+      "set,messageKey,nl\ndev,common.welcome,A\nproduction,common.welcome,B\nproduction,common.welcome,C",
+    );
+    await expect(
+      importProject(projectConfig, datasource, { input: "input.csv", apply: true }),
+    ).rejects.toMatchObject({ code: "import_conflict" });
+    expect(
+      (await datasource.forSet("dev").readMessage("common.welcome")).translations.nl,
+    ).toBeUndefined();
+  });
+
   it("previews direct and override translations by default and applies only with apply", async function () {
     const root = await createProject();
     const { projectConfig, datasource } = getDatasource(root);

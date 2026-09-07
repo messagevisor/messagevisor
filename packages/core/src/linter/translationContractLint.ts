@@ -1,170 +1,203 @@
-import * as crypto from "crypto";
-import { parse } from "@formatjs/icu-messageformat-parser";
-
-import type { Message, TranslationStates } from "@messagevisor/types";
-
+import { parse, TYPE, type MessageFormatElement } from "@formatjs/icu-messageformat-parser";
+import type { Locale, Message } from "@messagevisor/types";
+import { visitIcuElements } from "../icuStyleReferences";
+import { resolveLocaleValue } from "../localeResolution";
+import { getTranslationStateIssues, type TranslationGroup } from "../translationWorkflow";
 import type { LintError } from "./index";
 
-function sourceHash(value: string) {
-  return crypto.createHash("sha256").update(value).digest("hex");
+export { getTranslationSourceHash, getTranslationTargetHash } from "../translationWorkflow";
+
+export interface IcuArgumentContract {
+  arguments: Record<string, string[]>;
+  selectors: string[];
+  tags: string[];
 }
 
-function collectMessageContract(message: string) {
+/** Plain interpolation is unconstrained; plural categories belong to each language. */
+export function collectMessageContract(message: string): IcuArgumentContract {
   const ast = parse(message);
-  const entries = new Set<string>();
-
-  function visit(value: unknown) {
-    if (Array.isArray(value)) {
-      value.forEach(visit);
-      return;
+  const argumentsByName = new Map<string, Set<string>>();
+  const selectors = new Set<string>();
+  const tags = new Set<string>();
+  visitIcuElements(ast, (element) => {
+    if (element.type >= TYPE.argument && element.type <= TYPE.plural) {
+      const name = (element as { value: string }).value;
+      const kinds = argumentsByName.get(name) || new Set<string>();
+      kinds.add(
+        element.type === TYPE.argument
+          ? "value"
+          : element.type === TYPE.date || element.type === TYPE.time
+            ? "datetime"
+            : element.type === TYPE.select
+              ? "string"
+              : "number",
+      );
+      argumentsByName.set(name, kinds);
     }
-    if (!value || typeof value !== "object") return;
-
-    const node = value as Record<string, unknown>;
-    const type = node.type;
-    const name = node.value;
-
-    // FormatJS AST: 1=argument, 2=number, 3=date, 4=time,
-    // 5=select, 6=plural/selectordinal, 8=rich-text tag.
-    if (typeof name === "string" && typeof type === "number") {
-      if (type >= 1 && type <= 6) entries.add(`argument:${name}:${type}`);
-      if (type === 8) entries.add(`tag:${name}`);
+    if (element.type === TYPE.select) {
+      selectors.add(JSON.stringify([element.value, "select", Object.keys(element.options).sort()]));
     }
-
-    Object.values(node).forEach(visit);
+    if (element.type === TYPE.plural) {
+      selectors.add(
+        JSON.stringify([
+          element.value,
+          element.pluralType,
+          element.offset,
+          Object.keys(element.options)
+            .filter((key) => key.startsWith("="))
+            .sort(),
+        ]),
+      );
+    }
+  });
+  function visitTags(elements: MessageFormatElement[], ancestors: string[]) {
+    for (const element of elements) {
+      if (element.type === TYPE.tag) {
+        const nesting = [...ancestors, element.value];
+        tags.add(JSON.stringify(nesting));
+        visitTags(element.children, nesting);
+      } else if (element.type === TYPE.select || element.type === TYPE.plural) {
+        Object.values(element.options).forEach((option) => visitTags(option.value, ancestors));
+      }
+    }
   }
-
-  visit(ast);
-  return Array.from(entries).sort();
+  visitTags(ast, []);
+  return {
+    arguments: Object.fromEntries(
+      [...argumentsByName]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([name, kinds]) => [name, [...kinds].sort()]),
+    ),
+    selectors: [...selectors].sort(),
+    tags: [...tags].sort(),
+  };
 }
 
-function lintTranslationGroup(
-  messageKey: string,
-  filePath: string,
-  sourceLocale: string,
-  translations: Record<string, string>,
-  states: TranslationStates | undefined,
-  basePath: (string | number)[],
-  checkMessageContract: boolean,
-) {
-  const errors: LintError[] = [];
-  const source = translations[sourceLocale];
-
-  if (typeof source === "undefined") {
-    errors.push({
-      level: "error",
-      filePath,
-      entityType: "message",
-      entityKey: messageKey,
-      message: `Missing source-locale translation "${sourceLocale}".`,
-      path: [...basePath, "translations", sourceLocale],
-      code: "missing_source_translation",
-    });
-    return errors;
-  }
-
-  let sourceContract: string[] = [];
-  if (checkMessageContract) {
-    try {
-      sourceContract = collectMessageContract(source);
-    } catch {
-      // ICU syntax diagnostics are owned by the ICU lint pass.
-      return errors;
+export function compareMessageContracts(
+  expected: IcuArgumentContract,
+  actual: IcuArgumentContract,
+): string[] {
+  const differences: string[] = [];
+  const names = new Set([...Object.keys(expected.arguments), ...Object.keys(actual.arguments)]);
+  for (const name of names) {
+    const source = expected.arguments[name];
+    const target = actual.arguments[name];
+    if (!source || !target) differences.push(`arguments.${name}`);
+    else {
+      const sourceKinds = source.filter((kind) => kind !== "value");
+      const targetKinds = target.filter((kind) => kind !== "value");
+      if (
+        sourceKinds.length &&
+        targetKinds.length &&
+        targetKinds.some((kind) => !sourceKinds.includes(kind))
+      )
+        differences.push(`arguments.${name}.type`);
     }
   }
-
-  const expectedHash = sourceHash(source);
-
-  for (const [locale, translation] of Object.entries(translations)) {
-    if (locale === sourceLocale) continue;
-
-    try {
-      if (!checkMessageContract) throw new Error("contract check disabled");
-      const contract = collectMessageContract(translation);
-      if (JSON.stringify(contract) !== JSON.stringify(sourceContract)) {
-        errors.push({
-          level: "error",
-          filePath,
-          entityType: "message",
-          entityKey: messageKey,
-          message: `Translation for locale "${locale}" does not preserve the ICU arguments and rich-text tags from source locale "${sourceLocale}".`,
-          path: [...basePath, "translations", locale],
-          code: "translation_contract_mismatch",
-          value: { expected: sourceContract, actual: contract },
-        });
-      }
-    } catch {
-      // ICU syntax diagnostics are owned by the ICU lint pass.
-    }
-
-    const state = states?.[locale];
-    if (state?.sourceHash && state.sourceHash !== expectedHash) {
-      errors.push({
-        level: "error",
-        filePath,
-        entityType: "message",
-        entityKey: messageKey,
-        message: `Translation for locale "${locale}" is stale because its sourceHash does not match the current "${sourceLocale}" source translation.`,
-        path: [...basePath, "translationStates", locale, "sourceHash"],
-        code: "stale_translation",
-        value: state.sourceHash,
-      });
-    }
-
-    if (state?.status === "reviewed" && !state.sourceHash) {
-      errors.push({
-        level: "error",
-        filePath,
-        entityType: "message",
-        entityKey: messageKey,
-        message: `Reviewed translation for locale "${locale}" requires sourceHash.`,
-        path: [...basePath, "translationStates", locale, "sourceHash"],
-        code: "reviewed_translation_missing_source_hash",
-      });
-    }
+  // New linguistic branching is allowed. Existing source selectors remain invariant.
+  for (const selector of expected.selectors) {
+    if (!actual.selectors.includes(selector))
+      differences.push(`selectors.${JSON.parse(selector)[0]}`);
   }
+  for (const selector of actual.selectors) {
+    const [name, kind] = JSON.parse(selector);
+    if (
+      expected.selectors.some((entry) => {
+        const [sourceName, sourceKind] = JSON.parse(entry);
+        return name === sourceName && kind === sourceKind;
+      }) &&
+      !expected.selectors.includes(selector)
+    )
+      differences.push(`selectors.${name}`);
+  }
+  if (JSON.stringify(expected.tags) !== JSON.stringify(actual.tags)) differences.push("tags");
+  return [...new Set(differences)];
+}
 
-  return errors;
+export interface TranslationContractLintOptions {
+  checkMessageContract: boolean;
+  /** Supply locale entities to resolve the effective source translation. */
+  locales?: Record<string, Locale>;
 }
 
 export function lintTranslationContracts(
   messagesByKey: Record<string, Message>,
   sourceLocale: string,
   getMessageFilePath: (key: string) => string,
-  options: { checkMessageContract: boolean },
+  options: TranslationContractLintOptions,
 ) {
   const errors: LintError[] = [];
-
   for (const [messageKey, message] of Object.entries(messagesByKey)) {
-    const filePath = getMessageFilePath(messageKey);
-    errors.push(
-      ...lintTranslationGroup(
-        messageKey,
-        filePath,
+    const lintGroup = (group: TranslationGroup, basePath: (string | number)[]) => {
+      const add = (code: string, path: (string | number)[], text: string, value?: unknown) =>
+        errors.push({
+          level: "error",
+          filePath: getMessageFilePath(messageKey),
+          entityType: "message",
+          entityKey: messageKey,
+          code,
+          path: [...basePath, ...path],
+          message: text,
+          ...(value === undefined ? {} : { value }),
+        });
+      const source = resolveLocaleValue(
+        group.translations,
         sourceLocale,
-        message.translations,
-        message.translationStates,
-        [],
-        options.checkMessageContract,
-      ),
-    );
-
-    (message.overrides || []).forEach((override, index) => {
-      errors.push(
-        ...lintTranslationGroup(
-          messageKey,
-          filePath,
-          sourceLocale,
-          override.translations,
-          override.translationStates,
-          ["overrides", index],
-          options.checkMessageContract,
-        ),
-      );
-    });
+        options.locales || {},
+      )?.value;
+      if (source === undefined)
+        add(
+          "missing_source_translation",
+          ["translations", sourceLocale],
+          `Missing source-locale translation "${sourceLocale}".`,
+        );
+      let sourceContract: IcuArgumentContract | undefined;
+      if (options.checkMessageContract && source !== undefined) {
+        try {
+          sourceContract = collectMessageContract(source);
+        } catch {
+          /* Syntax belongs to ICU lint. */
+        }
+      }
+      for (const [locale, translation] of Object.entries(group.translations)) {
+        if (locale !== sourceLocale && sourceContract) {
+          try {
+            const actual = collectMessageContract(translation);
+            const differences = compareMessageContracts(sourceContract, actual);
+            if (differences.length)
+              add(
+                "translation_contract_mismatch",
+                ["translations", locale],
+                `Translation for locale "${locale}" changes the source ICU contract: ${differences.join(", ")}.`,
+                { expected: sourceContract, actual, differences },
+              );
+          } catch {
+            /* Syntax belongs to ICU lint, without suppressing review checks. */
+          }
+        }
+        for (const issue of getTranslationStateIssues(
+          translation,
+          group.translationStates?.[locale],
+          source,
+        )) {
+          add(
+            issue.code,
+            ["translationStates", locale, issue.field],
+            `Translation for locale "${locale}" has an invalid review invariant: ${issue.code}.`,
+          );
+        }
+      }
+      for (const locale of Object.keys(group.translationStates || {})) {
+        if (group.translations[locale] === undefined)
+          add(
+            "orphan_translation_state",
+            ["translationStates", locale],
+            `Translation state for locale "${locale}" requires direct copy.`,
+          );
+      }
+    };
+    lintGroup(message, []);
+    message.overrides?.forEach((override, index) => lintGroup(override, ["overrides", index]));
   }
-
   return errors;
 }
-
-export { sourceHash as getTranslationSourceHash };

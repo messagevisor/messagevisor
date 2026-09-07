@@ -3,7 +3,7 @@ import type { Attribute, Locale, Message, Target, Segment, Test } from "@message
 import type { DatafileFile } from "../datasource";
 import { MessagevisorCLIError, printMessagevisorCLIError } from "../error";
 import { assertProjectSetJsonSelection, getProjectSetExecutions } from "../sets";
-import { matchesPattern } from "../targeting";
+import { matchesPattern, resolveTargetLocaleKeys } from "../targeting";
 import { CLI_FORMAT_GREEN, CLI_FORMAT_YELLOW, colorize } from "../tester/cliFormat";
 import { parseRegexOption } from "../cli/validation";
 import {
@@ -354,7 +354,11 @@ function applyEntitySpecificFilters(
 
   const target = item.entity as Target;
 
-  if (options.locale && !target.locales?.includes(options.locale)) return false;
+  if (
+    options.locale &&
+    resolveTargetLocaleKeys(target, [options.locale], options.locale).length === 0
+  )
+    return false;
   if (options.withContext && !hasContext(target.context)) return false;
   if (options.withoutContext && hasContext(target.context)) return false;
   if (options.withFormats && !hasFormats(target.formats)) return false;
@@ -365,6 +369,17 @@ function applyEntitySpecificFilters(
 
 async function listEntities(datasource: any, options: any, entityType: EntityType) {
   validateFilters(entityType, options);
+
+  if (
+    entityType === "targets" &&
+    options.locale &&
+    !(await datasource.listLocales()).includes(options.locale)
+  ) {
+    throw new MessagevisorCLIError(`Unknown locale "${options.locale}".`, {
+      code: "unknown_locale",
+      details: { locale: options.locale },
+    });
+  }
 
   const entityKeys = await listEntityKeys(datasource, entityType);
   const requiresTestScan = Boolean(options.withTests || options.withoutTests);

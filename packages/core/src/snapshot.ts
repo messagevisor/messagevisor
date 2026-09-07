@@ -6,7 +6,7 @@ import type { Attribute, Locale, Message, Segment, Target, Test } from "@message
 import type { Datasource } from "./datasource";
 import type { EntityType } from "./datasource/adapter";
 
-const SNAPSHOT_CACHE_VERSION = 2;
+const SNAPSHOT_CACHE_VERSION = 3;
 
 export const SNAPSHOT_ENTITY_TYPES: EntityType[] = [
   "locale",
@@ -72,17 +72,17 @@ function emptyKeys(): Record<EntityType, string[]> {
 
 function emptyEntities(): Record<EntityType, Record<string, SnapshotEntity>> {
   return {
-    locale: {},
-    message: {},
-    segment: {},
-    attribute: {},
-    target: {},
-    test: {},
+    locale: Object.create(null),
+    message: Object.create(null),
+    segment: Object.create(null),
+    attribute: Object.create(null),
+    target: Object.create(null),
+    test: Object.create(null),
   };
 }
 
 function orderEntityRecord<T>(keys: string[], values: Record<string, T>): Record<string, T> {
-  const ordered: Record<string, T> = {};
+  const ordered: Record<string, T> = Object.create(null);
 
   for (const key of keys) {
     if (Object.prototype.hasOwnProperty.call(values, key)) {
@@ -98,16 +98,34 @@ async function readSnapshotCacheFile(directoryPath: string, entityType: EntityTy
 
   try {
     const content = await fs.readFile(cachePath, "utf8");
-    const cache = JSON.parse(content) as SnapshotCacheFile;
-
-    if (cache.version === SNAPSHOT_CACHE_VERSION && cache.entries) {
-      return cache;
+    const cache: unknown = JSON.parse(content);
+    const isRecord = (value: unknown): value is Record<string, unknown> =>
+      value !== null && typeof value === "object" && !Array.isArray(value);
+    if (isRecord(cache) && cache.version === SNAPSHOT_CACHE_VERSION && isRecord(cache.entries)) {
+      const entries: SnapshotCacheFile["entries"] = Object.create(null);
+      for (const [type, shard] of Object.entries(cache.entries)) {
+        if (!SNAPSHOT_ENTITY_TYPES.includes(type as EntityType) || !isRecord(shard))
+          throw new Error("Invalid cache shard");
+        const validated: Record<string, SnapshotCacheEntry> = Object.create(null);
+        for (const [key, entry] of Object.entries(shard)) {
+          if (
+            !isRecord(entry) ||
+            typeof entry.fingerprint !== "string" ||
+            !Object.prototype.hasOwnProperty.call(entry, "entity")
+          )
+            throw new Error("Invalid cache entry");
+          // Invalid authored values remain cacheable so normal linting can diagnose them.
+          validated[key] = entry as unknown as SnapshotCacheEntry;
+        }
+        entries[type as EntityType] = validated;
+      }
+      return { version: SNAPSHOT_CACHE_VERSION, entries };
     }
   } catch {
     // A missing or corrupt cache shard is rebuilt from source entities.
   }
 
-  return { version: SNAPSHOT_CACHE_VERSION, entries: {} };
+  return { version: SNAPSHOT_CACHE_VERSION, entries: Object.create(null) };
 }
 
 async function readSnapshotCache(
@@ -200,8 +218,10 @@ export async function loadProjectSnapshot(
     while (nextJobIndex < jobs.length) {
       const job = jobs[nextJobIndex++];
       try {
-        const fingerprint = await datasource.getEntityFingerprint(job.entityType, job.key);
         const cache = cacheState.caches[job.entityType];
+        const fingerprint = cache
+          ? await datasource.getEntityFingerprint(job.entityType, job.key)
+          : undefined;
         const cachedEntry = fingerprint ? cache?.entries[job.entityType]?.[job.key] : undefined;
         const entity =
           cachedEntry && cachedEntry.fingerprint === fingerprint
@@ -214,7 +234,7 @@ export async function loadProjectSnapshot(
         entities[job.entityType][job.key] = entity;
 
         if (cache && fingerprint && (!cachedEntry || cachedEntry.fingerprint !== fingerprint)) {
-          cache.entries[job.entityType] ||= {};
+          cache.entries[job.entityType] ||= Object.create(null);
           cache.entries[job.entityType]![job.key] = { fingerprint, entity };
           changedEntityTypes.add(job.entityType);
         }

@@ -189,7 +189,7 @@ describe("Intl formatter helpers", function () {
       "5/12/2026",
     );
     expect(m.formatTime("2026-05-12T08:30:00Z", "missing", { timeZone: "UTC" })).toEqual(
-      "5/12/2026",
+      "8:30:00 AM",
     );
     expect(m.formatRelativeTime(-1, "day", "missing")).toEqual("1 day ago");
   });
@@ -316,7 +316,11 @@ describe("Intl formatter helpers", function () {
       (Intl as any).DisplayNames = undefined;
 
       expect(m.formatList(["A", "B"])).toEqual("A, B");
-      expect(m.formatListToParts(["A", "B"])).toEqual(["A", "B"]);
+      expect(m.formatListToParts(["A", "B"])).toEqual([
+        { type: "element", value: "A" },
+        { type: "literal", value: ", " },
+        { type: "element", value: "B" },
+      ]);
       expect(m.formatDisplayName("NL", { type: "region" })).toEqual("NL");
       expect(m.formatDisplayName("NL", { type: "region", fallback: "none" })).toEqual(undefined);
     } finally {

@@ -98,6 +98,8 @@ m.translate("footer.terms", {
 
 ## Authoring rules
 
+Preserve argument names, compatible value types, required rich text tags, named format references, and application select keys. Do not demand identical source and target grammar: translations may reorder or repeat arguments, use a number in a plural expression, or format a date value as date or time. Use target locale plural categories with `other`, and review deliberate exact selectors for meaning. Add examples for relevant branches rather than copying English plural structure into every language.
+
 - Quote ICU strings in YAML when punctuation or braces make parsing ambiguous.
 - Always provide `other` for plural and select.
 - Put number, date, and time styles in locale `formats` when product language needs consistency.

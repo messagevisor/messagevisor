@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import * as ts from "typescript";
 
 import { getProjectConfig } from "../config";
 import { Datasource } from "../datasource";
@@ -76,6 +77,48 @@ describe("generate-code/typescript", function () {
       // Keep generator unit tests focused on generated files.
     });
   });
+
+  it.each([false, true])(
+    "compiles a generated consumer including empty key sets (%s)",
+    async (empty) => {
+      const root = await createProject();
+      roots.push(root);
+      await generate(root, { react: true, ...(empty ? { includeMessages: "nothing*" } : {}) });
+      await fs.promises.symlink(
+        path.resolve(__dirname, "../../../../node_modules"),
+        path.join(root, "node_modules"),
+        "dir",
+      );
+      await writeFile(
+        root,
+        "consumer.ts",
+        [
+          'import { createMessagevisor } from "@messagevisor/sdk";',
+          'import { createTranslations } from "./generated";',
+          "const a = createTranslations(createMessagevisor());",
+          "const b = createTranslations(createMessagevisor());",
+          ...(empty ? [] : ['const result: string = a.t("common.welcome");']),
+          "// @ts-expect-error unknown authored key",
+          'b.t("not-a-message");',
+        ].join("\n"),
+      );
+      const program = ts.createProgram([path.join(root, "consumer.ts")], {
+        noEmit: true,
+        strict: true,
+        skipLibCheck: true,
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.NodeNext,
+        moduleResolution: ts.ModuleResolutionKind.NodeNext,
+        types: [],
+      });
+      const diagnostics = ts.getPreEmitDiagnostics(program);
+      expect(
+        diagnostics.map((diagnostic) =>
+          ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
+        ),
+      ).toEqual([]);
+    },
+  );
 
   afterEach(async function () {
     consoleLogSpy.mockRestore();

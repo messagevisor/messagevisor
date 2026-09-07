@@ -16,6 +16,19 @@ npx messagevisor generate-code --language typescript --out-dir src/generated --r
 
 Only TypeScript is currently supported.
 
+## Instance bound helpers
+
+Generated `createTranslations(m)` returns `{ t, translate }` bound to the supplied root SDK instance and typed by the generated authored message keys. Use it with a request owned root instance, or bind to a shared root and pass locale and context per call. The factory does not fetch datafiles or manage instance cleanup.
+
+```ts
+import { createTranslations } from "./generated";
+
+const { t } = createTranslations(sharedRoot);
+return t("dashboard.welcome", { name: "Ada" }, { locale, context: { plan } });
+```
+
+The legacy generated `setInstance(m)` and global `t`/`translate` remain available for a single application instance. Never change that global instance for concurrent server requests. The factory captures its own instance without changing global state.
+
 ## Filtering
 
 Generate helpers for the surface an app actually uses:

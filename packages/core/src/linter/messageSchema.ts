@@ -106,6 +106,10 @@ export function getMessageZodSchema(
             .string()
             .regex(/^[a-f0-9]{64}$/)
             .optional(),
+          targetHash: z
+            .string()
+            .regex(/^[a-f0-9]{64}$/)
+            .optional(),
         })
         .strict(),
     )
@@ -113,6 +117,38 @@ export function getMessageZodSchema(
 
   const conditionsZodSchema = getConditionsZodSchema(attributesByKey);
   const groupSegmentZodSchema = getGroupSegmentZodSchema(segmentKeys);
+  const translatorContext = z
+    .object({
+      notes: z.string().optional(),
+      contextUrls: z.array(z.url({ protocol: /^https?$/ })).optional(),
+      maxGraphemes: z.number().int().min(0).optional(),
+      productArea: z.string().optional(),
+      owner: z.string().optional(),
+      legalClassification: z.string().optional(),
+      terminology: z
+        .object({
+          preferred: z.array(z.string().min(1)).optional(),
+          forbidden: z.array(z.string().min(1)).optional(),
+          doNotTranslate: z.array(z.string().min(1)).optional(),
+        })
+        .strict()
+        .optional(),
+      placeholders: z
+        .record(
+          z.string().min(1),
+          z
+            .object({
+              description: z.string(),
+              examples: z.array(z.string()).optional(),
+              direction: z.enum(["ltr", "rtl", "auto"]).optional(),
+            })
+            .strict(),
+        )
+        .optional(),
+      accessibility: z.enum(["visible", "spoken", "label"]).optional(),
+    })
+    .strict()
+    .optional();
 
   const overrideZodSchema = z
     .object({
@@ -120,6 +156,7 @@ export function getMessageZodSchema(
       promotable: z.boolean().optional(),
       description: z.string().optional(),
       summary: z.string().optional(),
+      translatorContext,
       conditions: conditionsZodSchema.optional(),
       segments: groupSegmentZodSchema.optional(),
       translations: localeTranslations,
@@ -150,6 +187,7 @@ export function getMessageZodSchema(
         error: (issue) => (issue.input === undefined ? "Required" : undefined),
       }),
       summary: z.string().optional(),
+      translatorContext,
       meta: z.record(z.string(), valueZodSchema).optional(),
       examples: z.array(messageExampleZodSchema).optional(),
       translations: localeTranslations,

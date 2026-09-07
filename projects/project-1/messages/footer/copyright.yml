@@ -1,5 +1,11 @@
 description: Copyright
 
+translatorContext:
+  notes: Footer label shown next to the copyright year.
+  productArea: Footer
+  maxGraphemes: 30
+  accessibility: visible
+
 translations:
   en: Copyright
   nl: Copyright
@@ -8,3 +14,4 @@ translationStates:
   nl:
     status: reviewed
     sourceHash: 8dfc77ab4089e09d4397e12306086c19767ffd4bbf6e239240bde83fe537a4a7
+    targetHash: 8dfc77ab4089e09d4397e12306086c19767ffd4bbf6e239240bde83fe537a4a7

@@ -40,20 +40,21 @@ export const MessageTranslation = defineComponent({
     const richText = createRichTextTools(context);
 
     return () => {
-      const message = context.instance.getRawTranslation(props.messageKey, props.options);
       const values = {
         ...(resolveRecord(props.values) || {}),
         ...getSlotValues(slots),
       };
-      const translation = context.instance.translate<VueMessageChunk>(
+      const locale = props.options?.locale || context.instance.getLocale() || undefined;
+      const translation = context.instance.translateWithValues<VueMessageChunk>(
         props.messageKey,
-        richText.mergeValues(values, message) as MessageValues<VueMessageChunk>,
+        (message) => richText.mergeValues(values, message) as MessageValues<VueMessageChunk>,
         props.options,
       );
 
       const result = richText.wrapResult(
         richText.runModules(translation, {
           source: "translation",
+          locale,
           messageKey: props.messageKey,
         }),
       );
@@ -93,6 +94,7 @@ export const FormatMessage = defineComponent({
         ...(resolveRecord(props.values) || {}),
         ...getSlotValues(slots),
       };
+      const locale = props.options?.locale || context.instance.getLocale() || undefined;
       const translation = context.instance.formatMessage<VueMessageChunk>(
         props.message,
         richText.mergeValues(values, props.message) as MessageValues<VueMessageChunk>,
@@ -102,6 +104,7 @@ export const FormatMessage = defineComponent({
       const result = richText.wrapResult(
         richText.runModules(translation, {
           source: "formatMessage",
+          locale,
         }),
       );
 

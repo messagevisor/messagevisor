@@ -55,6 +55,7 @@ describe("useMessagevisor", function () {
 
   it("exposes formatting helpers and SDK setters/getters", function () {
     const results: string[] = [];
+    const instance = createTestInstance();
 
     function TestComponent() {
       const {
@@ -71,14 +72,13 @@ describe("useMessagevisor", function () {
         getDirection,
         setContext,
         getContext,
-        setDatafile,
         getRevision,
       } = useMessagevisor();
 
       setCurrency("EUR");
       setTimeZone("UTC");
       setContext({ plan: "pro" });
-      setDatafile({
+      instance.setDatafile({
         ...datafile,
         locale: "nl-NL",
         revision: "2",
@@ -110,7 +110,7 @@ describe("useMessagevisor", function () {
     }
 
     render(
-      <MessagevisorProvider instance={createTestInstance()}>
+      <MessagevisorProvider instance={instance}>
         <TestComponent />
       </MessagevisorProvider>,
     );
@@ -127,15 +127,16 @@ describe("useMessagevisor", function () {
   });
 
   it("switches locale only when setLocale is called after setDatafile", function () {
+    const instance = createTestInstance();
     let before = "";
     let afterDatafile = "";
     let afterLocale = "";
 
     function TestComponent() {
-      const { t, setDatafile, setLocale, getLocale } = useMessagevisor();
+      const { t, setLocale, getLocale } = useMessagevisor();
 
       before = String(getLocale());
-      setDatafile({
+      instance.setDatafile({
         ...datafile,
         locale: "nl-NL",
         translations: {
@@ -155,7 +156,7 @@ describe("useMessagevisor", function () {
     }
 
     render(
-      <MessagevisorProvider instance={createTestInstance()}>
+      <MessagevisorProvider instance={instance}>
         <TestComponent />
       </MessagevisorProvider>,
     );

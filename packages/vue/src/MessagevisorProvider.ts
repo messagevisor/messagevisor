@@ -1,4 +1,4 @@
-import type { Messagevisor } from "@messagevisor/sdk";
+import type { MessagevisorConsumer } from "@messagevisor/sdk";
 import { defineComponent, Fragment, h, provide, type PropType } from "vue";
 
 import {
@@ -11,7 +11,7 @@ export const MessagevisorProvider = defineComponent({
   name: "MessagevisorProvider",
   props: {
     instance: {
-      type: Object as PropType<Messagevisor>,
+      type: Object as PropType<MessagevisorConsumer>,
       required: true,
     },
     defaultRichTextElements: {

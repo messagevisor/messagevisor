@@ -4,7 +4,7 @@ import type {
   EvaluationOptions,
   TranslateOptions,
   MessagePrimitiveValue,
-  Messagevisor,
+  MessagevisorConsumer,
 } from "@messagevisor/sdk";
 import type { MessageKey } from "@messagevisor/types";
 
@@ -33,9 +33,8 @@ const BOUND_METHODS = [
   "getCurrency",
   "setTimeZone",
   "getTimeZone",
-  "setDatafile",
   "getRevision",
-] as const satisfies readonly (keyof Messagevisor)[];
+] as const satisfies readonly (keyof MessagevisorConsumer)[];
 
 export const MESSAGEVISOR_METHODS = ["t", "formatMessage", ...BOUND_METHODS] as const;
 
@@ -64,10 +63,13 @@ type ReactFormatMessageMethod = {
 export type MessagevisorApi = {
   t: ReactTranslationMethod;
   formatMessage: ReactFormatMessageMethod;
-} & Pick<Messagevisor, (typeof BOUND_METHODS)[number]>;
+} & Pick<MessagevisorConsumer, (typeof BOUND_METHODS)[number]>;
 
-function bindMethod<K extends keyof Messagevisor>(instance: Messagevisor, key: K): Messagevisor[K] {
-  return (instance[key] as (...args: never[]) => unknown).bind(instance) as Messagevisor[K];
+function bindMethod<K extends keyof MessagevisorConsumer>(
+  instance: MessagevisorConsumer,
+  key: K,
+): MessagevisorConsumer[K] {
+  return (instance[key] as (...args: never[]) => unknown).bind(instance) as MessagevisorConsumer[K];
 }
 
 export function useMessagevisor(): MessagevisorApi {
@@ -77,30 +79,33 @@ export function useMessagevisor(): MessagevisorApi {
   return React.useMemo(() => {
     const result = {
       t: ((messageKey, values, options) => {
-        const message = sdk.getRawTranslation(messageKey, options);
-        const translation = sdk.translate<React.ReactNode>(
+        const locale = options?.locale || sdk.getLocale() || undefined;
+        const translation = sdk.translateWithValues<React.ReactNode>(
           messageKey,
-          richText.mergeValues(values as ReactMessageValues, message),
+          (message) => richText.mergeValues(values as ReactMessageValues, message),
           options,
         );
 
         return richText.wrapResult(
           richText.runModules(translation, {
             source: "translation",
+            locale,
             messageKey,
           }),
         );
       }) as ReactTranslationMethod,
       formatMessage: ((message, values, options) => {
-        const translation = sdk.formatMessage(
-          message,
-          richText.mergeValues(values as ReactMessageValues, message),
-          options,
-        );
+        const locale = options?.locale || sdk.getLocale() || undefined;
+        const mergedValues = richText.mergeValues(values as ReactMessageValues, message);
+        const translation =
+          mergedValues === undefined
+            ? sdk.formatMessage(message, undefined, options)
+            : sdk.formatMessage<React.ReactNode>(message, mergedValues, options);
 
         return richText.wrapResult(
           richText.runModules(translation, {
             source: "formatMessage",
+            locale,
           }),
         );
       }) as ReactFormatMessageMethod,

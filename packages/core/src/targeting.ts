@@ -2,6 +2,16 @@ import type { Target } from "@messagevisor/types";
 
 export type PatternValue = string | string[];
 
+/** Explicit locale selection narrows a Target; it never bypasses its locale boundary. */
+export function resolveTargetLocaleKeys(
+  target: Pick<Target, "locales"> | undefined,
+  localeKeys: string[],
+  requested?: PatternValue,
+): string[] {
+  const selected = requested === undefined ? undefined : new Set(normalizePatterns(requested));
+  return (target?.locales ?? localeKeys).filter((key) => !selected || selected.has(key));
+}
+
 export function normalizePatterns(patterns?: PatternValue): string[] {
   if (typeof patterns === "undefined") {
     return [];

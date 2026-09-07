@@ -32,15 +32,15 @@ assertions:
     expectedTranslation: "৮:৩০:৪৫.৬৭৮ AM"
     expectedByRuntime:
       swift: "8:30:45.678 AM"
-      python: "{when, time, fractional}"
+      python: "8:30:45.678 AM"
   - description: "Time / day period long"
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T12:00:00Z"
     expectedTranslation: "১২ দুপুরবেলায়"
     expectedByRuntime:
-      swift: "12\u202FPM"
-      python: "12 দুপুর"
+      swift: "12 দুপুরবেলায়"
+      python: "12 দুপুরবেলায়"
   - description: "Time / hour12 true"
     rawMessage: "{when, time, hour12}"
     values:
@@ -56,8 +56,7 @@ assertions:
     expectedTranslation: "০৮:৩০"
     expectedByRuntime:
       swift: "08:30"
-      java: ৮:৩০
-      python: "8:30 AM"
+      python: "8:30"
   - description: "Time / hour cycle h11"
     rawMessage: "{when, time, hourCycle11}"
     values:
@@ -65,8 +64,7 @@ assertions:
     expectedTranslation: "০০:৩০ AM"
     expectedByRuntime:
       swift: "12:30 AM"
-      php: "০:৩০ AM"
-      python: "12:30 AM"
+      python: "00:30 AM"
   - description: "Time / hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:
@@ -82,7 +80,7 @@ assertions:
     expectedTranslation: "৮:৩০ AM UTC"
     expectedByRuntime:
       swift: "8:30 AM GMT +0"
-      python: "8:30 AM অজানা অঞ্চল (UTC) সময়"
+      python: "8:30 AM UTC"
   - description: "Time / time zone short offset"
     rawMessage: "{when, time, zoneShortOffset}"
     values:
@@ -90,7 +88,7 @@ assertions:
     expectedTranslation: "২:১৫ PM GMT +৫:৪৫"
     expectedByRuntime:
       swift: "2:15 PM GMT +5:45"
-      python: "{when, time, zoneShortOffset}"
+      python: "2:15 PM GMT +05:45"
   - description: "Time / time zone short generic"
     rawMessage: "{when, time, zoneShortGeneric}"
     values:
@@ -106,7 +104,7 @@ assertions:
     expectedTranslation: "৪:৩০ AM পূর্বাঞ্চলীয় সময়"
     expectedByRuntime:
       swift: "4:30 AM পূর্বাঞ্চলের দিবালোক সময়"
-      python: "4:30 AM মার্কিন যুক্তরাষ্ট্র (নিউইয়র্ক) সময়"
+      python: "4:30 AM পূর্বাঞ্চলীয় সময়"
   - description: "Time / Amsterdam winter"
     rawMessage: "{when, time, amsterdamShort}"
     values:

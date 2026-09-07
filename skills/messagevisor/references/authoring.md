@@ -126,9 +126,26 @@ translationStates:
   nl-NL:
     status: reviewed
     sourceHash: <sha256-of-source-translation>
+    targetHash: <sha256-of-approved-target-translation>
 ```
 
-The source locale is required for every base or override translation group. Lint compares ICU arguments and rich-text tags with the source and uses `sourceHash` to detect copy that needs retranslation or review.
+Every base or override translation group must resolve the source locale directly or through locale inheritance. Lint compares compatible ICU value contracts and required rich text tags. Reviewed state needs both `sourceHash` and `targetHash` to bind approval to the exact source and target text. Existing reviewed entries with only a source hash need a fresh review; never bulk accept hashes to silence lint. Until approved, use an appropriate unreviewed status.
+
+Save a preview, show the actual source and target copy to the reviewer, and apply only that approved file:
+
+```bash
+npx messagevisor review --locale=nl --includeMessages='checkout.*' --status=reviewed --output=review.json --json
+# Stop for human approval of the saved copy and scope.
+npx messagevisor review --apply --input=review.json --json
+```
+
+Apply requires `--input`; a bare `--apply` is rejected. Selection and status options belong only to preview creation and cannot accompany apply. The saved file binds exact copy, document versions, locale inheritance, effective selection, status, and project storage identity. If it no longer matches, create and inspect a fresh preview. Never edit or recompute checksums to bypass a conflict. Application regenerates and validates mutations instead of trusting file contents as write instructions. Atomic writes cover each set, not the entire project or concurrent locale graph edits.
+
+Only direct translations can be reviewed. Default status is `reviewed`; `draft` and `translated` are alternatives. Preview locale selection excludes the source locale by default. Locale, target, and override selectors repeat; `--override` selects overrides only. `--set` accepts one value, and omission visits all sets. A command without `--output` only displays the preview; redirecting its JSON report does not create an applicable saved preview.
+
+Preview files contain full sensitive message content. Keep them out of public commits and logs unless explicitly intended. They are bound to the current project storage location, created exclusively with owner access where supported, and never overwrite existing files. The 64 MiB limit applies to saved output and input; narrow large selections. Relative input and output paths resolve from the project root. Tokens are content checksums, not signatures, authorisation credentials, or proof of human approval.
+
+Messages and overrides may include authoring only `translatorContext`: `notes`, `contextUrls`, `maxGraphemes`, `productArea`, `owner`, `legalClassification`, `terminology` (`preferred`, `forbidden`, `doNotTranslate` string arrays), `placeholders` (description plus optional string examples and `ltr`/`rtl`/`auto` direction), and `accessibility` (`visible`, `spoken`, or `label`). These fields never ship in runtime datafiles. Budgets concern authored text, not runtime interpolation value sizes.
 
 ## Archival and deprecation
 

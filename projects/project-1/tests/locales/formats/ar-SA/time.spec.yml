@@ -29,14 +29,13 @@ assertions:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "٨:٣٠:٤٥٫٦٧٨ ص"
     expectedByRuntime:
-      python: "{when, time, fractional}"
+      python: "8:30:45.678 ص"
   - description: "Time / day period long"
     rawMessage: "{when, time, dayPeriodLong}"
     values:
       when: "2026-05-12T12:00:00Z"
     expectedTranslation: "١٢ ظهرًا"
     expectedByRuntime:
-      swift: "١٢\u00A0م"
       python: "12 ظهرًا"
   - description: "Time / hour12 true"
     rawMessage: "{when, time, hour12}"
@@ -51,8 +50,7 @@ assertions:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "٠٨:٣٠"
     expectedByRuntime:
-      java: ٨:٣٠
-      python: "8:30 ص"
+      python: "8:30"
   - description: "Time / hour cycle h11"
     rawMessage: "{when, time, hourCycle11}"
     values:
@@ -60,8 +58,7 @@ assertions:
     expectedTranslation: "٠٠:٣٠ ص"
     expectedByRuntime:
       swift: "١٢:٣٠\u00A0ص"
-      php: "٠:٣٠ ص"
-      python: "12:30 ص"
+      python: "00:30 ص"
   - description: "Time / hour cycle h23"
     rawMessage: "{when, time, hourCycle23}"
     values:
@@ -76,14 +73,14 @@ assertions:
     expectedTranslation: "٨:٣٠ ص UTC"
     expectedByRuntime:
       swift: "٨:٣٠\u00A0ص غرينتش+٠"
-      python: "8:30 ص توقيت منطقة غير معروفة (UTC)"
+      python: "8:30 ص UTC"
   - description: "Time / time zone short offset"
     rawMessage: "{when, time, zoneShortOffset}"
     values:
       when: "2026-05-12T08:30:45.678Z"
     expectedTranslation: "٢:١٥ م غرينتش+٥:٤٥"
     expectedByRuntime:
-      python: "{when, time, zoneShortOffset}"
+      python: "2:15 م غرينتش+05:45"
   - description: "Time / time zone short generic"
     rawMessage: "{when, time, zoneShortGeneric}"
     values:
@@ -99,7 +96,7 @@ assertions:
     expectedTranslation: "٤:٣٠ ص التوقيت الشرقي لأمريكا الشمالية"
     expectedByRuntime:
       swift: "٤:٣٠\u00A0ص التوقيت الصيفي الشرقي لأمريكا الشمالية"
-      python: "4:30 ص توقيت الولايات المتحدة (نيويورك)"
+      python: "4:30 ص التوقيت الشرقي لأمريكا الشمالية"
   - description: "Time / Amsterdam winter"
     rawMessage: "{when, time, amsterdamShort}"
     values:

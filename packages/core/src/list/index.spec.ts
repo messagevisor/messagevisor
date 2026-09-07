@@ -167,6 +167,49 @@ function getDatasource(root: string) {
 }
 
 describe("listPlugin", function () {
+  it("includes unrestricted targets and excludes empty or incompatible locale targets", async () => {
+    const root = await createProject();
+    const { datasource } = getDatasource(root);
+    const log = jest.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      await datasource.writeTarget("allLocales", { description: "All" });
+      await datasource.writeTarget("emptyLocales", { description: "Empty", locales: [] });
+      await datasource.writeTarget("englishOnly", { description: "English", locales: ["en"] });
+      await listPlugin.handler({ datasource, parsed: { targets: true, locale: "nl", json: true } });
+      const keys = JSON.parse(log.mock.calls[0][0]).map((entry: { key: string }) => entry.key);
+      expect(keys).toContain("allLocales");
+      expect(keys).not.toContain("emptyLocales");
+      expect(keys).not.toContain("englishOnly");
+    } finally {
+      log.mockRestore();
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not treat an unknown locale as part of an unrestricted Target", async () => {
+    const root = await createProject();
+    const { datasource } = getDatasource(root);
+    const error = jest.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await datasource.writeTarget("allLocales", { description: "All" });
+      expect(
+        await listPlugin.handler({
+          datasource,
+          parsed: { targets: true, locale: "unknown", json: true },
+        }),
+      ).toBe(false);
+      expect(JSON.parse(error.mock.calls[0][0])).toEqual({
+        error: {
+          code: "unknown_locale",
+          message: 'Unknown locale "unknown".',
+          details: { locale: "unknown" },
+        },
+      });
+    } finally {
+      error.mockRestore();
+      await fs.promises.rm(root, { recursive: true, force: true });
+    }
+  });
   it("lists generated datafiles with raw and gzip sizes", async function () {
     const root = await createProject();
     const { datasource } = getDatasource(root);

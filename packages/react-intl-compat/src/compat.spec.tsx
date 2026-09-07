@@ -298,6 +298,7 @@ describe("@messagevisor/react-intl-compat", function () {
   });
 
   it("updates useIntl locale and formatted messages after SDK locale changes", function () {
+    const instance = createMessagevisor({ datafile, modules: [createICUModule()] });
     function Example() {
       const intl = useIntl();
 
@@ -307,7 +308,7 @@ describe("@messagevisor/react-intl-compat", function () {
           <p>{intl.formatMessage({ id: "greeting" }, { name: "Ada" })}</p>
           <button
             onClick={() => {
-              intl.messagevisor.setDatafile(nlDatafile);
+              instance.setDatafile(nlDatafile);
               intl.messagevisor.setLocale("nl-NL");
             }}
           >
@@ -318,9 +319,7 @@ describe("@messagevisor/react-intl-compat", function () {
     }
 
     render(
-      <MessagevisorProvider
-        instance={createMessagevisor({ datafile, modules: [createICUModule()] })}
-      >
+      <MessagevisorProvider instance={instance}>
         <Example />
       </MessagevisorProvider>,
     );
@@ -335,6 +334,7 @@ describe("@messagevisor/react-intl-compat", function () {
   });
 
   it("updates FormattedMessage after SDK locale changes", function () {
+    const instance = createMessagevisor({ datafile, modules: [createICUModule()] });
     function Example() {
       const intl = useIntl();
 
@@ -343,7 +343,7 @@ describe("@messagevisor/react-intl-compat", function () {
           <FormattedMessage id="greeting" values={{ name: "Ada" }} />
           <button
             onClick={() => {
-              intl.messagevisor.setDatafile(nlDatafile);
+              instance.setDatafile(nlDatafile);
               intl.messagevisor.setLocale("nl-NL");
             }}
           >
@@ -354,9 +354,7 @@ describe("@messagevisor/react-intl-compat", function () {
     }
 
     render(
-      <MessagevisorProvider
-        instance={createMessagevisor({ datafile, modules: [createICUModule()] })}
-      >
+      <MessagevisorProvider instance={instance}>
         <Example />
       </MessagevisorProvider>,
     );
@@ -369,6 +367,7 @@ describe("@messagevisor/react-intl-compat", function () {
   });
 
   it("updates formatter components after SDK locale changes", function () {
+    const instance = createMessagevisor({ datafile, modules: [createICUModule()] });
     function Example() {
       const intl = useIntl();
 
@@ -380,7 +379,7 @@ describe("@messagevisor/react-intl-compat", function () {
           <span data-testid="currency">{intl.formatNumber(12, "money")}</span>
           <button
             onClick={() => {
-              intl.messagevisor.setDatafile(nlDatafile);
+              instance.setDatafile(nlDatafile);
               intl.messagevisor.setLocale("nl-NL");
             }}
           >
@@ -391,9 +390,7 @@ describe("@messagevisor/react-intl-compat", function () {
     }
 
     render(
-      <MessagevisorProvider
-        instance={createMessagevisor({ datafile, modules: [createICUModule()] })}
-      >
+      <MessagevisorProvider instance={instance}>
         <Example />
       </MessagevisorProvider>,
     );
@@ -409,6 +406,7 @@ describe("@messagevisor/react-intl-compat", function () {
   });
 
   it("updates injected intl props after SDK locale changes", function () {
+    const instance = createMessagevisor({ datafile, modules: [createICUModule()] });
     const Base = injectIntl(function Base(props: { intl: ReturnType<typeof useIntl> }) {
       return <span>{props.intl.formatMessage({ id: "greeting" }, { name: "Ada" })}</span>;
     });
@@ -421,7 +419,7 @@ describe("@messagevisor/react-intl-compat", function () {
           <Base />
           <button
             onClick={() => {
-              intl.messagevisor.setDatafile(nlDatafile);
+              instance.setDatafile(nlDatafile);
               intl.messagevisor.setLocale("nl-NL");
             }}
           >
@@ -432,9 +430,7 @@ describe("@messagevisor/react-intl-compat", function () {
     }
 
     render(
-      <MessagevisorProvider
-        instance={createMessagevisor({ datafile, modules: [createICUModule()] })}
-      >
+      <MessagevisorProvider instance={instance}>
         <Example />
       </MessagevisorProvider>,
     );

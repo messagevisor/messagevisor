@@ -19,6 +19,7 @@ import { getProjectSetExecutions } from "../sets";
 import { compileTargetMessageMatcher, matchesPattern } from "../targeting";
 import { CLI_FORMAT_BOLD, CLI_FORMAT_GREEN } from "../tester/cliFormat";
 import { MessagevisorCLIError } from "../error";
+import { applyTranslationMutations } from "../translationWorkflow";
 
 type PruneTarget = "translations" | "formats";
 type EntryKind = "message" | "override" | "locale";
@@ -217,9 +218,7 @@ async function getSelectedLocales(
   const selected = new Set<string>();
 
   for (const targetKey of requestedTargets) {
-    const targetLocales = targets[targetKey].locales?.length
-      ? targets[targetKey].locales || []
-      : localeKeys;
+    const targetLocales = targets[targetKey].locales ?? localeKeys;
 
     for (const locale of targetLocales) {
       if (requestedLocales.length === 0 || requestedLocales.includes(locale)) {
@@ -315,7 +314,9 @@ async function pruneTranslations(
           updatedMessage =
             updatedMessage ||
             (cloneWithoutKey(message as unknown as Record<string, unknown>) as unknown as Message);
-          delete updatedMessage.translations[locale];
+          updatedMessage = applyTranslationMutations(updatedMessage, [
+            { locale, value: undefined },
+          ]);
           changed = true;
         }
       }
@@ -348,7 +349,10 @@ async function pruneTranslations(
               (cloneWithoutKey(
                 message as unknown as Record<string, unknown>,
               ) as unknown as Message);
-            delete (updatedMessage.overrides || [])[index].translations[locale];
+            updatedMessage.overrides![index] = applyTranslationMutations(
+              updatedMessage.overrides![index],
+              [{ locale, value: undefined }],
+            );
             changed = true;
           }
         }

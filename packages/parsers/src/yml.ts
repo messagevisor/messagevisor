@@ -119,6 +119,7 @@ function replaceDocument(
 
 export const ymlParser: CustomParser = {
   extension: "yml",
+  cacheVersion: "messagevisor:yml:1",
   parse<T>(content: string): T {
     return parse(content) as T;
   },

@@ -1092,7 +1092,9 @@ describe("createMessagevisor", function () {
     expect(m.getRevision()).toEqual("2");
     expect(m.getDatafile().target).toEqual("mobile");
     expect(m.getDatafile().formats).toEqual({
+      ...datafile.formats,
       number: {
+        ...datafile.formats?.number,
         scientific: { notation: "scientific" },
       },
     });

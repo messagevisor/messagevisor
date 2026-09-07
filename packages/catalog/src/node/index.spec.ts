@@ -11,7 +11,11 @@ import { resolveExamples } from "../../../core/src/examples";
 import { findDuplicateTranslations } from "../../../core/src/find-duplicates";
 import { getProjectSetExecutions } from "../../../core/src/sets";
 import { loadProjectSnapshot } from "../../../core/src/snapshot";
-import { compileTargetMessageMatcher, targetIncludesMessage } from "../../../core/src/targeting";
+import {
+  compileTargetMessageMatcher,
+  targetIncludesMessage,
+  resolveTargetLocaleKeys,
+} from "../../../core/src/targeting";
 import { expandTestAssertions } from "../../../core/src/tester/matrix";
 import {
   __catalogDevInternals,
@@ -39,6 +43,7 @@ const catalogApi = createCatalogApi({
   resolveExamples,
   findDuplicateTranslations,
   compileTargetMessageMatcher,
+  resolveTargetLocaleKeys,
   targetIncludesMessage,
   expandTestAssertions,
 });
@@ -51,6 +56,7 @@ const catalogRuntime: CatalogRuntime = {
   resolveExamples,
   findDuplicateTranslations,
   compileTargetMessageMatcher,
+  resolveTargetLocaleKeys,
   targetIncludesMessage,
   expandTestAssertions,
 };
@@ -384,6 +390,31 @@ describe("catalog", function () {
     roots.length = 0;
   });
 
+  it("exports reserved entity keys into relationships and message blocks", async () => {
+    const root = await createProject();
+    roots.push(root);
+    const config = getProjectConfig(root);
+    const datasource = new Datasource(config, root);
+    for (const key of ["__proto__", "constructor", "toString"]) {
+      await datasource.writeMessage(key, { description: key, translations: { en: `Text ${key}` } });
+      await datasource.writeTarget(key, {
+        description: key,
+        locales: ["en"],
+        includeMessages: [key],
+      });
+    }
+    await catalogApi.exportCatalog(root, config, datasource, {
+      outDir: "catalog-out",
+      copyAssets: false,
+    });
+    const index = await readJson<any>(root, "catalog-out/data/root/index.json");
+    for (const key of ["__proto__", "constructor", "toString"]) {
+      const detail = await readMessageDetail<any>(root, "catalog-out/data/root", key);
+      expect(detail.entity.translations.en).toBe(`Text ${key}`);
+      expect(index.entities.message.find((entry: any) => entry.key === key).targets).toContain(key);
+    }
+  });
+
   it("exports regular project catalog data with relationships, status, and computed formats", async function () {
     const root = await createProject();
     roots.push(root);
@@ -690,6 +721,40 @@ describe("catalog", function () {
     expect(target.entity.includeMessages).toBe("*");
     expect(target.entity.excludeMessages).toBe("footer*");
     expect(target.messages).toEqual(["auth.signin"]);
+  });
+
+  it("distinguishes empty Target locales from omitted locales without building unused formats", async () => {
+    const root = await createProject();
+    roots.push(root);
+    const projectConfig = getProjectConfig(root);
+    const datasource = new Datasource(projectConfig, root);
+    await datasource.writeTarget("empty", {
+      description: "Empty",
+      locales: [],
+      includeOnlyUsedFormats: true,
+    });
+    await datasource.writeTarget("all", { description: "All" });
+    const build = jest.fn(catalogRuntime.buildDatafile);
+    const resolve = jest.fn(catalogRuntime.resolveFormats);
+    await createCatalogApi({
+      ...catalogRuntime,
+      buildDatafile: build,
+      resolveFormats: resolve,
+    }).exportCatalog(root, projectConfig, datasource, { outDir: "catalog-out", copyAssets: false });
+    const empty = await readJson<any>(root, "catalog-out/data/root/entities/target/empty.json");
+    const all = await readJson<any>(root, "catalog-out/data/root/entities/target/all.json");
+    expect(empty.locales).toEqual([]);
+    expect(empty.formatsByLocale).toEqual({});
+    expect(empty.formatRowsByLocale).toEqual({});
+    expect(all.locales).toEqual(await datasource.listLocales());
+    expect(build.mock.calls.filter((call) => call[2] === "empty")).toHaveLength(0);
+    expect(resolve.mock.calls.filter((call) => call[2]?.key === "empty")).toHaveLength(0);
+    for (const key of all.locales) {
+      const locale = await readJson<any>(root, `catalog-out/data/root/entities/locale/${key}.json`);
+      expect(locale.targets).toContain("all");
+      expect(locale.targets).not.toContain("empty");
+      expect(locale.targetFormats).not.toHaveProperty("empty");
+    }
   });
 
   it("exports target format rows after includeFormats and excludeFormats are applied", async function () {
@@ -1909,8 +1974,10 @@ describe("catalog", function () {
 describe("catalog plugin", function () {
   let exportMock: jest.Mock;
   let serveMock: jest.Mock;
+  let previousExitListeners: Array<(code: number) => void>;
 
   beforeEach(function () {
+    previousExitListeners = process.listeners("exit");
     jest.useFakeTimers();
     exportMock = jest.fn().mockResolvedValue({
       outputDirectoryPath: "/tmp/catalog",
@@ -1923,6 +1990,13 @@ describe("catalog plugin", function () {
   });
 
   afterEach(function () {
+    // Dev mode owns real watcher resources even when the HTTP server is mocked.
+    for (const listener of process.listeners("exit")) {
+      if (!previousExitListeners.includes(listener)) {
+        listener(0);
+        process.removeListener("exit", listener);
+      }
+    }
     jest.clearAllTimers();
     jest.useRealTimers();
   });

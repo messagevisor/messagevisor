@@ -108,7 +108,7 @@ React: `useDirection()` and `useLocaleInfo()` re-render on locale switches, so l
 
 ## Ownership and review (CODEOWNERS)
 
-Definitions are files, so ownership uses the tools teams already have: namespace directories that map to CODEOWNERS entries (`messages/legal/ @legal-team`, matching `tests/messages/legal/`), branch protection for genuinely gated content, and notify-without-blocking for visibility-only reviewers. In sets projects, rules per `sets/<set>/...` path add a checkpoint at every promotion stage.
+Definitions are files, so map namespace directories to CODEOWNERS entries such as `messages/legal/ @your-org/legal-team` and the matching test directory. Teams must be visible and have explicit repository write access. Required owner approval must be enabled separately. Any listed owner can satisfy that requirement; listing billing and QA does not require both teams. Use a separate required check when policy needs approval from each team. The last matching pattern wins, so repeated patterns do not accumulate owners. In sets projects, rules per `sets/<set>/...` path add review coverage at each promotion stage.
 
 ## Onboarding non-engineers (PMs, editors, translators)
 
